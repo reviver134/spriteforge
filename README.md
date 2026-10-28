@@ -1,8 +1,10 @@
 # SpriteForge
 
 Local-first pixel-game builder. Milestone 1 supplies the foundation and a mock demo;
-game generation, human approval gates, pixel enforcement, MCP integration, and
-knowledge retrieval are later milestones.
+Milestone 2 adds deterministic pixel processing, validation, palettes, atlases, and
+previews. Game generation, human approval gates, MCP integration, and knowledge
+retrieval are later milestones. The revised milestone plan supersedes the original;
+provider-based asset production belongs to Milestone 7.
 
 Python 3.11+:
 
@@ -61,3 +63,50 @@ python -m pytest
 python -m ruff check .
 python -m ruff format --check .
 ```
+
+## Pixel pipeline (Milestone 2)
+
+Run `python scripts/demo_pixel.py` to generate `workspace/pixel-demo/before.png`,
+`after.png`, `after-8x.png`, `comparison.png`, a contact sheet, an extracted palette,
+and `atlas.png` / `atlas.json`. The deliberately blurred input has a near-magenta
+gradient background and stray pixels. The script asserts that the processed output
+passes its pixel checks. It never loads credentials or calls a provider.
+
+```python
+from PIL import Image
+from spriteforge.pixel import AssetSpec, Style, postprocess, validate
+from spriteforge.pixel.palette import load_palette
+
+spec = AssetSpec(id="hero", size=(32, 32))
+style = Style(palette=load_palette("dungeon").colors, outline=True)
+sprite = postprocess(Image.open("raw.png"), spec, style)
+failures = validate(sprite, spec, style)
+```
+
+Processing keys background pixels by RGB Euclidean distance (0–442), trims the alpha
+bounds, fits at an integer working scale, and downsamples with BOX. All RGB mapping
+uses nearest CIELAB color without dithering. Alpha is binary, transparent RGB is
+canonical zero, cluster cleanup uses 4-connectivity, and the optional outline is one
+pixel in the four cardinal directions. An outline reserves extra space inside the
+sprite canvas; tiles default to zero padding and allow edge coverage.
+
+`validate` returns structured `Failure(code, message, fix_hint)` objects for dimensions,
+palette, alpha, color count, clipping, fill, and tile seams. Palette and color-count
+checks ignore fully transparent RGB. Tile scores are maximum premultiplied RGBA
+differences normalized to 0–1, catching even a single bad edge pixel. The half-offset
+test rolls the image and checks the moved seams; it checks the same periodic boundary
+in the offset view, rather than judging interior artwork. Seam repair is not automatic.
+`validate_animation` also checks consistent frame sizes and one shared allowed palette;
+individual poses may use different subsets of that palette.
+
+`extract_palette` uses deterministic weighted k-means in LAB, ignores transparent
+pixels, and samples at most 16,384 visible pixels at fixed positions. Near-duplicate
+merging uses Euclidean LAB distance (Delta E 76). `load_palette("dungeon")` loads the
+bundled 16-color palette; `load_palette(path)` and `save_palette(palette, path)` use JSON.
+
+`pixel.atlas.pack` uses deterministic shelf packing with transparent padding and no
+rotation or trimming. Supply named sprites such as `hero/idle/0`, `hero/idle/1` and an
+`animations={"hero/idle": ["hero/idle/0", "hero/idle/1"]}` mapping. Frame keys remain
+unchanged. The JSON follows [Phaser 3's JSON-hash atlas format](https://github.com/phaserjs/phaser/blob/v3.90.0/src/textures/parsers/JSONHash.js);
+the extra `meta.animations` map describes sequences for later game assembly, and does
+not create Phaser animations automatically. Oversized atlases fail explicitly.
