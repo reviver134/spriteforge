@@ -110,3 +110,40 @@ rotation or trimming. Supply named sprites such as `hero/idle/0`, `hero/idle/1` 
 unchanged. The JSON follows [Phaser 3's JSON-hash atlas format](https://github.com/phaserjs/phaser/blob/v3.90.0/src/textures/parsers/JSONHash.js);
 the extra `meta.animations` map describes sequences for later game assembly, and does
 not create Phaser animations automatically. Oversized atlases fail explicitly.
+
+### Cleaning real model images (still Milestone 2)
+
+```powershell
+python scripts/process_image.py INPUT.png --size 32 --palette auto
+python scripts/process_image.py INPUT.png --size 48 --palette auto --output workspace/pixel-demo/real/out/48
+```
+
+The default output directory is `workspace/pixel-demo/real/out/`; use separate
+`--output` paths to retain multiple sizes. Outputs are `before.png`, `after.png`,
+`after_8x.png`, `comparison.png`, `style.json`, and `processing.json`. The comparison
+uses the uncorrected raw image naively BOX-downscaled beside the cleaned sprite.
+`--palette` also accepts a palette JSON path. Auto extraction requests 16 LAB k-means
+colors from the despilled, isolated subject, excluding background and watermark colors;
+sources with fewer distinct colors yield fewer palette entries.
+
+The real-output path samples a narrow image-border band, estimates its median RGB,
+and keys by LAB distance (default Delta E 76 tolerance 18). A three-source-pixel edge
+band removes background-like contamination up to LAB distance 45. Isolation keeps
+the largest 4-connected component. `--keep-detached` also retains components with
+area at least `--min-area-ratio` times the largest (default 0.02). Every removed
+component's area, bounds, and ratio are printed and saved.
+
+Grid detection measures repeated strong horizontal/vertical color-run lengths. It
+requires evidence on both axes, reports the inferred square block size and phase,
+and falls back to unsnapped processing when evidence is insufficient. Each detected
+cell is reduced to its mode, then the subject is fitted with nearest-neighbor and
+reduced using area-footprint mode voting. Palette quantization, binary alpha, stray
+cleanup, and a corner-connected dark outline follow. Flat, mostly unobstructed
+borders are assumed; this is not general-purpose background segmentation.
+
+The Python API enables these operations with
+`postprocess(raw, spec, style, options=ProcessingOptions(), report=ProcessingReport())`.
+`ProcessingOptions` and `ProcessingReport` are exported by `spriteforge.pixel`.
+Omitting `options` preserves the original explicit RGB key, BOX downscale, and
+cardinal-only outline behavior, including existing tile processing. No existing
+tests were weakened or changed to enable the new path. Neither path calls models.

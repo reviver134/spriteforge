@@ -87,3 +87,27 @@ class Failure(Schema):
     code: str
     message: str
     fix_hint: str
+
+
+class ProcessingOptions(Schema):
+    """Real-output cleanup; omitted options preserve the original low-level API behavior."""
+
+    background_tolerance: float = Field(default=18, ge=0, le=200)
+    despill_tolerance: float = Field(default=45, ge=0, le=200)
+    keep_detached: bool = False
+    detached_min_area_ratio: float = Field(default=0.02, ge=0, le=1)
+    detect_grid: bool = True
+
+
+class DroppedComponent(Schema):
+    area: int
+    bbox: tuple[int, int, int, int]
+    area_ratio: float
+
+
+class ProcessingReport(Schema):
+    background: str | None = None
+    dropped: list[DroppedComponent] = Field(default_factory=list)
+    grid_size: int | None = None
+    grid_offset: tuple[int, int] = (0, 0)
+    despilled_pixels: int = 0

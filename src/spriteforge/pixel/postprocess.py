@@ -4,7 +4,8 @@ import numpy as np
 from PIL import Image
 
 from .palette import palette_rgb, quantize, rgb_to_lab
-from .schemas import AssetSpec, Style
+from .schemas import AssetSpec, ProcessingOptions, ProcessingReport, Style
+from .source import mode_resize, prepare_source
 
 
 def remove_clusters(alpha: np.ndarray, minimum: int) -> np.ndarray:
@@ -30,11 +31,21 @@ def remove_clusters(alpha: np.ndarray, minimum: int) -> np.ndarray:
     return keep
 
 
-def postprocess(raw: Image.Image, spec: AssetSpec, style: Style) -> Image.Image:
+def postprocess(
+    raw: Image.Image,
+    spec: AssetSpec,
+    style: Style,
+    *,
+    options: ProcessingOptions | None = None,
+    report: ProcessingReport | None = None,
+) -> Image.Image:
+    if options is not None:
+        raw = prepare_source(raw, options, report if report is not None else ProcessingReport())
     pixels = np.array(raw.convert("RGBA"))
     key = palette_rgb([style.background])[0].astype(float)
     distance = np.linalg.norm(pixels[..., :3].astype(float) - key, axis=-1)
-    pixels[distance <= style.chroma_tolerance, 3] = 0
+    if options is None:
+        pixels[distance <= style.chroma_tolerance, 3] = 0
     # Transparent RGB must not bleed into BOX coverage/color averaging.
     pixels[pixels[..., 3] == 0] = 0
     keyed = Image.fromarray(pixels)
@@ -56,7 +67,11 @@ def postprocess(raw: Image.Image, spec: AssetSpec, style: Style) -> Image.Image:
     canvas.paste(
         content, ((canvas.width - content.width) // 2, (canvas.height - content.height) // 2)
     )
-    pixels = np.array(canvas.resize(spec.size, Image.Resampling.BOX))
+    pixels = np.array(
+        mode_resize(canvas, spec.size)
+        if options is not None
+        else canvas.resize(spec.size, Image.Resampling.BOX)
+    )
     pixels[..., :3] = quantize(pixels[..., :3], style.palette)
     pixels[..., 3] = np.where(pixels[..., 3] >= style.alpha_threshold, 255, 0)
     pixels[..., 3] = remove_clusters(pixels[..., 3], style.min_cluster_size)
@@ -64,6 +79,10 @@ def postprocess(raw: Image.Image, spec: AssetSpec, style: Style) -> Image.Image:
         mask = pixels[..., 3] > 0
         padded = np.pad(mask, 1)
         neighbors = padded[:-2, 1:-1] | padded[2:, 1:-1] | padded[1:-1, :-2] | padded[1:-1, 2:]
+        if options is not None:
+            # Fill diagonal corners too: a real-output outline must be 4-connected,
+            # rather than four separate sides around a rectangular subject.
+            neighbors |= padded[:-2, :-2] | padded[:-2, 2:] | padded[2:, :-2] | padded[2:, 2:]
         border = neighbors & ~mask
         colors = palette_rgb(style.palette)
         dark = (
