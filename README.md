@@ -247,7 +247,10 @@ indexes only; it never copies preferences, audit records, logs, or Git history.
 Known environment credential values, bearer credentials, private-key headers, and
 credential-style assignments are rejected before serialization; no secret values
 are included in rejection messages. This is not a general detector for arbitrary
-unlabeled secrets, so never submit secrets as knowledge.
+unlabeled secrets, so never submit secrets as knowledge. These are heuristics, not guarantees.
+Redaction happens at the source before the Librarian sees run data: producers must
+scrub events, tool results, and artifacts before passing them to the Librarian.
+See [the memory README](src/spriteforge/memory/README.md).
 
 `memory validate` checks Markdown frontmatter, optional metadata, reserved index/log
 structures, and date formats, and runs `okf validate CORPUS` if that executable is
