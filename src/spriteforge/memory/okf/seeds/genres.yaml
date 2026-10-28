@@ -1,0 +1,110 @@
+- id: top-down-dungeon-crawler
+  title: Top-down dungeon crawler
+  perspective: Three-quarter top-down, room camera with restrained follow and visible exits.
+  controls: WASD or arrows to move; Space to attack; E to interact; Escape to pause.
+  mechanics: Enter a room, read enemy telegraphs, fight, collect a key or reward, unlock the exit, and defeat a compact boss.
+  entities: [hero, melee slime, ranged enemy, boss, key, chest, door, breakable pot]
+  palette: Dungeon neutrals with green enemies and amber rewards; reserve red for danger.
+  assets: {hero: 1, enemies: 3, boss: 1, floor-tiles: 4, wall-tiles: 6, props: 4, items: 4, ui: 6}
+  animations: Hero idle/walk/attack/hurt/death; enemy idle/move/attack/hurt; door open and item pickup.
+  pitfalls: [Occluded exits, Inconsistent collision feet, Unreadable attacks, Keys behind their own locked door]
+  questions: ["If combat is central, melee or ranged?", "If exploration matters, fixed rooms or a connected maze?", "Should failure restart the room or the whole run?", "If loot is included, what changes the player's choices?", "How long should one dungeon take?", "Which input devices must work?"]
+- id: side-scrolling-platformer
+  title: Side-scrolling platformer
+  perspective: Side-on orthographic camera with forward lookahead and a stable vertical dead zone.
+  controls: Left/right or A/D to move; Space to jump; optional Shift to dash; Escape to pause.
+  mechanics: Traverse platforms, learn one movement ability, avoid hazards, collect optional rewards, reach a clear exit.
+  entities: [runner, patrolling enemy, moving platform, spikes, checkpoint, collectible, exit]
+  palette: Separate foreground collision surfaces from a lower-contrast background; warm collectibles.
+  assets: {hero: 1, enemies: 2, terrain-tiles: 10, platforms: 3, hazards: 3, props: 4, items: 3, ui: 5}
+  animations: Idle/run/jump/fall/land/hurt; enemy walk; checkpoint activate; collectible loop.
+  pitfalls: [Hidden landing zones, Slippery movement, Camera-induced jumps, Missing coyote time, Unclear one-way platforms]
+  questions: ["If jumping is the focus, precision or forgiving movement?", "Should held jump change height?", "If a dash exists, where is it first taught safely?", "Do checkpoints reset enemies?", "If secrets matter, how are they signposted?", "Should the camera scroll vertically too?"]
+- id: shmup
+  title: Scrolling shmup
+  perspective: Vertical top-down scrolling with fixed player bounds and telegraphed incoming waves.
+  controls: WASD or arrows to fly; hold Space to shoot; optional slow-focus and bomb buttons.
+  mechanics: Dodge readable projectile patterns, clear waves, collect upgrades, survive a short boss phase.
+  entities: [player ship, scout, turret ship, boss, player bullet, enemy bullet, powerup, explosion]
+  palette: Dark low-detail field; distinct player shots, enemy shots, and pickups with strong luminance contrast.
+  assets: {player: 1, enemies: 3, boss: 1, backgrounds: 3, projectiles: 5, pickups: 3, effects: 4, ui: 6}
+  animations: Ship thrust; enemy damage flash; explosion frames; boss phase transitions; pickup pulse.
+  pitfalls: [Bullets hidden by effects, Ambiguous hitbox, Unbounded projectile growth, Spawn-on-player attacks]
+  questions: ["If bullet density is high, should a focus key slow movement?", "Vertical or horizontal scrolling?", "If upgrades are lost on death, how can the player recover?", "How many lives or continues?", "Should shooting be automatic?", "If a boss is present, what pattern teaches its rules?"]
+- id: roguelike
+  title: Turn-based roguelike
+  perspective: Top-down grid camera with visible explored tiles and explicit turn state.
+  controls: Arrows or WASD move one cell; Space waits; E interacts; number keys choose items.
+  mechanics: Move or act once per turn, reveal rooms, manage resources, choose upgrades, and reach a deeper-floor exit.
+  entities: [adventurer, melee monster, ranged monster, stairs, potion, trap, chest, locked door]
+  palette: Muted stone with strong actor contrast; distinguish explored, unseen, and visible areas.
+  assets: {hero: 1, enemies: 4, terrain-tiles: 8, props: 4, items: 6, effects: 2, ui: 6}
+  animations: Short idle/move/attack/hit frames; turn indicator; reveal and death effects; no timing-based input required.
+  pitfalls: [Inconsistent turn costs, Unavoidable damage, Unexplained procedural failures, Item overload]
+  questions: ["Is each action strictly turn-based?", "If maps are random, which reachability guarantees must hold?", "Does death erase the run or retain progress?", "If hunger exists, what decision does it improve?", "How much information about enemies is visible?", "Should generated floors be reproducible independently of image generation?"]
+- id: farming-life-sim
+  title: Farming and life sim
+  perspective: Three-quarter top-down camera over a small homestead with readable interaction tiles.
+  controls: WASD or arrows to move; E to interact; number keys select tools; optional mouse targeting.
+  mechanics: Prepare soil, plant, water, advance a day, harvest, sell, and choose a modest farm upgrade.
+  entities: [farmer, shopkeeper, crop, soil plot, water source, shipping box, fence, bed]
+  palette: Earthy browns and greens with distinct crop stages; daylight changes must preserve UI contrast.
+  assets: {farmer: 1, npc: 2, soil-tiles: 4, crop-stages: 8, tools: 4, props: 6, ui: 6}
+  animations: Farmer idle/walk/tool use; crop growth stages; watering effect; NPC idle/walk; day transition.
+  pitfalls: [Chores without choices, Invisible tool range, Unclear day rollover, Excessive waiting]
+  questions: ["If time advances, real-time or sleeping to the next day?", "Is the focus crops, relationships, or decorating?", "If energy is limited, what makes spending it interesting?", "How many crop types fit the first build?", "Should missed watering destroy a crop or delay it?", "If NPC schedules exist, must they be simulated or scripted?"]
+- id: puzzle
+  title: Grid puzzle
+  perspective: Fixed top-down board with all relevant state visible and no camera movement.
+  controls: Arrows or WASD select/move; Space confirms; Z undoes; R restarts.
+  mechanics: Teach one rule, combine it in a small board, provide reversible experimentation, and detect a clear solved state.
+  entities: [cursor or avatar, movable block, goal, wall, switch, gate]
+  palette: Few high-contrast role colors; duplicate color meaning with shapes for accessibility.
+  assets: {avatar: 1, blocks: 4, board-tiles: 6, goals: 3, switches: 3, gates: 3, effects: 2, ui: 6}
+  animations: Move/slide; switch on/off; gate open; success feedback; animations never determine puzzle correctness.
+  pitfalls: [Unrecoverable softlocks, Hidden rules, Color-only clues, Undo losing state]
+  questions: ["What single rule should the first puzzle teach?", "If blocks can be pushed, can they also be pulled?", "Must every move be undoable?", "If there are multiple solutions, does move count matter?", "How are locked or invalid moves communicated?", "Should puzzles be authored or generated and solver-checked?"]
+- id: metroidvania
+  title: Metroidvania exploration map
+  perspective: Side-scrolling room camera with a persistent connected map and marked room transitions.
+  controls: A/D or arrows move; Space jumps; attack button; E interacts; M opens the map.
+  mechanics: Explore a connected map, discover an ability gate, gain the matching traversal power, backtrack through a shortcut, and unlock a new region.
+  entities: [explorer, patrol enemy, flying enemy, ability pickup, locked gate, save station, map marker, boss]
+  palette: Region-specific hue accents within one global palette; ability gates need consistent visual coding.
+  assets: {hero: 1, enemies: 3, terrain-tiles: 10, gates: 3, map-icons: 4, pickups: 3, props: 3, ui: 5}
+  animations: Idle/run/jump/fall/attack/hurt; ability-specific dash or climb; gate activation; save station.
+  pitfalls: [Ability-gate softlocks, Backtracking without shortcuts, Unreadable map connections, Required paths mistaken for secrets]
+  questions: ["If the map branches, which branch is initially reachable?", "What first traversal ability changes the map?", "If backtracking is required, which shortcut rewards it?", "Should the map reveal rooms, exits, or item hints?", "Can any gate be crossed in an unintended order?", "If bosses lock progression, where is the nearby save point?", "How many interconnected rooms fit this build?"]
+- id: tower-defense
+  title: Tower defense
+  perspective: Fixed top-down map with a clear enemy path, buildable cells, and visible ranges.
+  controls: Mouse selects and places towers; keyboard shortcuts choose tower type; Space starts a wave.
+  mechanics: Inspect a path, place a small tower roster, start a wave, earn currency, upgrade, and protect a base.
+  entities: [basic tower, splash tower, slow tower, runner, armored enemy, base, projectile]
+  palette: Neutral build terrain, clear path edges, distinct enemy silhouettes and projectile roles.
+  assets: {towers: 3, enemies: 4, terrain-tiles: 8, projectiles: 4, base: 1, effects: 4, ui: 7}
+  animations: Tower fire/reload; enemy walk/hit/death; range preview; placement valid/invalid; base damage.
+  pitfalls: [Blocking all paths, Invisible tower range, Economy snowball, Too many simultaneous effects]
+  questions: ["Is the path fixed or shaped by placement?", "If towers can block paths, how will path validity be enforced?", "What makes each tower useful?", "Can towers be sold between waves?", "If waves are timed, can the user pause planning?", "How many waves form a complete short game?"]
+- id: beat-em-up
+  title: Side-scrolling beat-em-up
+  perspective: Side-facing art on a shallow top-down movement plane; camera advances after each arena clears.
+  controls: Left/right and up/down move on the ground plane; attack, jump, and optional special buttons.
+  mechanics: Enter an arena, manage spacing, read enemy windups, use a short combo, collect recovery, and clear the arena gate.
+  entities: [fighter, grunt, ranged foe, heavy foe, boss, pickup, crate, exit barrier]
+  palette: Strong character/background separation; consistent shadows anchor feet to the ground plane.
+  assets: {fighter: 1, enemies: 3, boss: 1, ground-tiles: 5, backdrop-tiles: 4, props: 5, items: 3, ui: 6}
+  animations: Idle/walk/jab/combo finisher/hurt/knockdown; enemy windup; impact effects; boss attack states.
+  pitfalls: [Wrong depth sorting, Unclear attack lane, Stunlock loops, Attacks without readable anticipation]
+  questions: ["If there is lane movement, how wide is an attack's depth range?", "One attack button or separate light/heavy attacks?", "Can the player escape repeated hits?", "If jumping exists, is it movement or attack timing?", "How many enemies should attack at once?", "Should the first build support local co-op or stay single-player?"]
+- id: top-down-racer
+  title: Top-down racer
+  perspective: Top-down follow camera with lookahead along velocity and visible upcoming turns.
+  controls: Arrows or WASD steer, accelerate, and brake; optional handbrake; R resets to track.
+  mechanics: Learn steering, follow checkpoints in order, complete a lap, compare time, and restart quickly.
+  entities: [player car, rival car, track, checkpoint, barrier, boost pickup, finish line]
+  palette: Asphalt and grass separate from cars; checkpoints and hazards remain readable at speed.
+  assets: {cars: 3, track-tiles: 12, barriers: 4, props: 4, pickups: 2, effects: 3, ui: 5}
+  animations: Car directions or rotation policy; tire smoke; boost and skid effects; countdown; finish feedback.
+  pitfalls: [Skipping checkpoints, Invisible collision edges, Camera lag at turns, Drift without recovery]
+  questions: ["Arcade steering or momentum-heavy drifting?", "If pixel cars rotate, are rotations discrete or continuous?", "Time trial or opponents?", "Should going off-track slow the car or reset it?", "How many checkpoints prevent shortcut exploits?", "If tracks are generated, how is a driveable loop guaranteed?"]

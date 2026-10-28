@@ -1,0 +1,150 @@
+- id: art-styles/dungeon-muted
+  metadata:
+    type: Art Style
+    title: Muted dungeon pixel art
+    description: Restrained stone colors with readable green actors and amber loot.
+    tags: [pixel-art, dungeon, palette, contrast]
+  body: |
+    # Rules
+    Use one 16-color palette: near-black outline, four stone shades, greens for monsters,
+    amber for items, red for damage, and one cool magical accent. Keep lighting at top-left.
+    Use 16x16 tiles and 48x48 character canvases; silhouettes should fit within about
+    40x40 logical pixels. Use 3/4 top-down perspective and nearest-neighbor previews.
+    No anti-aliasing, gradients, text, watermark, or background texture in raw sprite prompts.
+    # Validation
+    Palette compliance and binary alpha are hard checks. Dark silhouette boundaries
+    should not receive a doubled outline. Preserve native source-grid proportions.
+- id: art-styles/bright-adventure
+  metadata:
+    type: Art Style
+    title: Bright adventure pixel art
+    description: Cheerful colors with separate terrain, actor, reward, and danger roles.
+    tags: [pixel-art, adventure, platformer, farming]
+  body: |
+    # Rules
+    Start with 16 colors: navy outline, three warm earth shades, three leaf greens,
+    sky blues, cream highlights, orange rewards, and a reserved red danger accent.
+    Flat shading should use two or three value steps per material. Avoid color-only
+    puzzle clues. Use 16x16 tiles and 48x48 characters containing at most about 40x40 art.
+    # Validation
+    Check silhouettes at native resolution, uniform top-left light, no gradients,
+    and a stable background-free palette across every animation state.
+- id: art-styles/limited-monochrome
+  metadata:
+    type: Art Style
+    title: Limited monochrome pixel art
+    description: Four distinct luminance steps with shape-led gameplay readability.
+    tags: [pixel-art, monochrome, readability, puzzle]
+  body: |
+    # Rules
+    Use #101820, #486858, #90A880, and #E0E8B0 as a four-color starting palette.
+    Assign the darkest color to outline and collision edges. Prefer solid clusters
+    over dithering so small animations remain stable. Tiles are 16x16; character
+    canvases are 48x48 with about 40x40 logical artwork.
+    # Validation
+    Require at most four visible colors and binary alpha. Convey hazards with
+    silhouette, motion, and placement as well as value. Reject one-pixel clutter.
+- id: art-styles/night-neon
+  metadata:
+    type: Art Style
+    title: Night neon pixel art
+    description: Dark readable geometry with sparse cyan and amber gameplay accents.
+    tags: [pixel-art, neon, shmup, racer]
+  body: |
+    # Rules
+    Use a 16-color palette with dark blue-gray surfaces, cyan player accents, amber
+    pickups, and red threats. Keep luminous effects as discrete palette bands;
+    never request blurred glows on sprites. Default to 16x16 tiles and 48x48 actor
+    canvases with logical subjects bounded near 40x40.
+    # Validation
+    Keep backgrounds lower contrast than projectiles. Review dark-color tint warnings
+    before accepting a palette: a deliberate blue outline is different from key spill.
+- id: engine-patterns/phaser-scenes
+  metadata:
+    type: Engine Pattern
+    title: Phaser boot, play, and UI scenes
+    description: Separate asset loading, gameplay state, and HUD lifetime in a small fixed scaffold.
+    tags: [phaser, scenes, lifecycle, input]
+    sources:
+      - resource: https://docs.phaser.io/phaser/concepts/scenes
+        title: Phaser scene lifecycle
+  body: |
+    # Pattern
+    Load the atlas in a boot scene, create game state and actors in a play scene,
+    and keep HUD rendering in a lightweight UI scene. Register scene-specific
+    input and event listeners once, and remove them on shutdown or restart.
+    # Checks
+    Restart twice and check for duplicate listeners, timers, and actors. Avoid
+    sharing mutable level state across scene restarts unless explicitly intended.
+    Phaser scaffolding stays fixed; future code generation fills game-logic hooks.
+- id: engine-patterns/phaser-actor-collisions
+  metadata:
+    type: Engine Pattern
+    title: Phaser actor collision feet and depth
+    description: Use small ground-footprint colliders independently of tall visual sprites.
+    tags: [phaser, collisions, top-down, depth, hitbox]
+  body: |
+    # Pattern
+    Represent each top-down actor with a small collision footprint at its feet,
+    independently of its 48x48 image canvas. Sort visible actors by ground Y.
+    Use 16x16 wall tiles as collision geometry. Keep damage hitboxes separate from
+    movement collision and disable repeated damage during a short invulnerability state.
+    # Checks
+    Test walking past a chest, behind a tall prop, and through a doorway. A sprite
+    outline or transparent image margin must not expand its physical footprint.
+- id: engine-patterns/phaser-atlas-animations
+  metadata:
+    type: Engine Pattern
+    title: Phaser atlas animation frame keys
+    description: Build animation sequences from actual packed atlas keys rather than guessed filenames.
+    tags: [phaser, atlas, animation, frames]
+    sources:
+      - resource: https://docs.phaser.io/phaser/concepts/animations
+        title: Phaser animation frame sequences
+  body: |
+    # Pattern
+    Keep frame keys such as hero/idle/0 and hero/walk/1 unchanged in atlas.json.
+    Read sequence order from the packer's meta.animations map and create animation
+    definitions in scene logic using those actual keys. Metadata alone does not
+    start a Phaser animation. Use the same canvas and palette across frames.
+    # Checks
+    Validate every referenced frame key before starting the scene. Exercise idle,
+    movement, attack, and restart; fail headless tests on missing textures.
+- id: engine-patterns/phaser-room-map
+  metadata:
+    type: Engine Pattern
+    title: Phaser room map and ability gates
+    description: Model interconnected rooms as a graph and keep traversal gates deterministic.
+    tags: [phaser, map, metroidvania, gates, reachability]
+  body: |
+    # Pattern
+    Store room IDs and exits as data, and track visited rooms and acquired abilities
+    separately from rendered tile layers. Before generating a connected exploration
+    map, verify that the starting room reaches an ability pickup without that same
+    ability. Unlock a gate by updating state, not by modifying collision in several places.
+    # Checks
+    Test reachability before and after each ability, reciprocal room transitions,
+    map marker persistence, and a route back to a checkpoint after an upgrade.
+- id: prompt-patterns/muse-pixel-sprite
+  metadata:
+    type: Prompt Pattern
+    title: Pixel sprite prompting for Muse Image
+    description: Constrain one centered subject and a flat key background before deterministic processing.
+    tags: [muse-image, prompt, sprite, pixel-art, magenta]
+    x-spriteforge-scores:
+      status: unmeasured
+      style_match: null
+      readability: null
+      note: No scored asset-production run has occurred; connectivity success is not an art score.
+  body: |
+    # Template
+    One single centered full-body SUBJECT. Chunky pixel art on a flat solid magenta
+    background. The subject fits within approximately 40x40 logical pixels on a
+    48x48 character canvas. Consistent top-left light and one dark silhouette outline.
+    Match the approved palette and anchor. No text, watermark, border, extra subjects,
+    detached decoration, anti-aliasing, gradients, or background texture.
+    # Evidence and limits
+    The 2026-10-28 live smoke check confirmed generation and editing connectivity;
+    its vision result named the edited slime a jellyfish. This prompt remains a
+    bootstrap pattern, not a claim of proven semantic consistency. Store measured
+    critic scores in x-spriteforge-scores after asset production, not fabricated scores.

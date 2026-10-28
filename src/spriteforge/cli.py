@@ -9,8 +9,10 @@ from spriteforge.app.server import create_app
 from spriteforge.config import init_workspace, load_config
 from spriteforge.core.credentials import load_credentials
 from spriteforge.core.state import Store
+from spriteforge.memory.cli import app as memory_app
 
 app = typer.Typer(no_args_is_help=True)
+app.add_typer(memory_app, name="memory")
 
 
 def setup(config: Path | None, workspace: Path | None):

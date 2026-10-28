@@ -99,6 +99,10 @@ class Store:
             self._event(db, run.id, "Director", "run.created", run.model_dump())
         return run
 
+    def append_event(self, run_id: str, agent: str, kind: str, payload: dict) -> None:
+        with self.connect() as db:
+            self._event(db, run_id, agent, kind, payload)
+
     def get_run(self, run_id: str) -> Run:
         with self.connect() as db:
             row = db.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()

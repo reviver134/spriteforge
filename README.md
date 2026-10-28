@@ -2,8 +2,8 @@
 
 Local-first pixel-game builder. Milestone 1 supplies the foundation and a mock demo;
 Milestone 2 adds deterministic pixel processing, validation, palettes, atlases, and
-previews. Game generation, human approval gates, MCP integration, and knowledge
-retrieval are later milestones. The revised milestone plan supersedes the original;
+previews. Milestone 3 adds local OKF knowledge, retrieval, and a read-only MCP server.
+Game generation and human game-review gates are later milestones. The revised milestone plan supersedes the original;
 provider-based asset production belongs to Milestone 7.
 
 Python 3.11+:
@@ -165,5 +165,114 @@ The Python API enables these operations with
 `postprocess(raw, spec, style, options=ProcessingOptions(), report=ProcessingReport())`.
 `ProcessingOptions` and `ProcessingReport` are exported by `spriteforge.pixel`.
 Omitting `options` preserves the original explicit RGB key, BOX downscale, and
-cardinal-only outline behavior, including existing tile processing. No existing
-tests were weakened or changed to enable the new path. Neither path calls models.
+cardinal-only outline behavior, including existing tile processing, with the shared
+guard against adding a doubled outline. Neither path calls models.
+
+## Knowledge layer (Milestone 3)
+
+```powershell
+spriteforge memory search "metroidvania map"
+spriteforge memory validate
+git -C workspace/memory log --oneline
+```
+
+Memory commands default to the repository's `workspace/` directory, as requested for
+this milestone; `--workspace PATH` selects another workspace (including the general
+harness default `~/spriteforge-workspace`). The corpus is `workspace/memory/`, with
+its own local Git repository. SQLite audit Events stay in `workspace/state.sqlite3`,
+outside the corpus. Every application write batch updates indexes and `log.md`,
+validates, and makes a descriptive Git commit. Writes are serialized by an OS file
+lock, with file restoration on a failed write/commit. No remote is configured and
+no knowledge is sent to a model or external service.
+
+The first memory command seeds ten genre templates, four art styles, four Phaser
+patterns, and one Muse sprite prompt. Every genre includes camera, controls,
+mechanics, entities, sizes, palette guidance, counted assets, animation needs,
+pitfalls, and six or seven adaptive questions. Existing entries are never replaced
+by seeding. Per the explicit bootstrap instruction, seeds carry verification by
+`human:project-owner`, with provenance identifying that trust designation; this is
+not a claim of an independent human review of agent-authored material. The prompt
+pattern's scores are explicitly unmeasured until a production run supplies scores.
+
+The implementation follows [Google's OKF v0.2 spec](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md)
+and the [OKF Agent Memory Convention](https://github.com/okf-memory/okf-agent-memory/blob/main/docs/spec/CONVENTION.md).
+Only `type` is universally required; IDs are file paths without `.md`. Recommended
+metadata (`title`, `description`, `resource`, `tags`) and optional `sources`,
+`generated`, `verified`, `status`, and `stale_after` use the standard names. Unknown
+fields and types survive round trips. A bare verifier mapping is accepted as a
+one-element list. Trust labels are derived as `unverified`, `machine-confirmed`, or
+`human-reviewed`; they are not invented frontmatter fields. `stale_after` is an
+absolute timezone-aware timestamp, and stale/deprecated entries remain retrievable
+with visible labels. Attested-computation metadata is preserved, but executors and
+attesters are never run by the memory store.
+
+Only two custom frontmatter keys are used: `x-spriteforge-scope` (`project` or
+`private`) and `x-spriteforge-scores` (prompt measurement records). Ordinary agent
+writes set `generated` and clear prior verification. An explicit human command
+`spriteforge memory promote lessons/example --by project-owner` records verification
+without rewriting generation provenance. Agents cannot promote through MCP.
+
+Browse progressively with `spriteforge memory index`, then `memory index genres`,
+`memory search "query"`, and `memory show genres/metroidvania`. Directory indexes
+contain link summaries, not full entries. Root index alone declares `okf_version`.
+Search uses in-memory BM25 over title/tags/body, refreshing from disk so a dropped-in
+genre becomes searchable without restarting. For example, save
+`workspace/memory/genres/custom.md`:
+
+```markdown
+---
+type: Genre Template
+title: Clockwork skating
+tags: [skating, clockwork]
+---
+Explore clockwork skating arenas with reversible route puzzles.
+```
+
+This file starts unverified. `memory index genres` synthesizes current summaries,
+including newly dropped files; persisted indexes refresh at the next application
+write batch. File additions made directly by the user can be committed with Git.
+
+Python API: `KnowledgeStore(root, events=game_event_store, run_id=game_run_id)` and
+`retrieve(query, scopes=["project"], token_budget=1024)`. Results include ranked
+snippets, IDs, trust, lifecycle, scope, and cost. Budget accounting conservatively
+charges one unit per UTF-8 byte of the rendered trust/ID/title/snippet text, rather
+than claiming an exact count for a particular model tokenizer. All retrievals,
+including index/full-entry reads and no-hit searches, append `memory.retrieved`
+Events. Events store query hashes and result metadata, not snippet bodies.
+
+`user-prefs/` is always private, even without metadata. Other entries can opt into
+private scope using the namespaced field. Private retrieval requires `--scope private`
+or explicit API scopes. `memory export DESTINATION` reconstructs public concepts and
+indexes only; it never copies preferences, audit records, logs, or Git history.
+Known environment credential values, bearer credentials, private-key headers, and
+credential-style assignments are rejected before serialization; no secret values
+are included in rejection messages. This is not a general detector for arbitrary
+unlabeled secrets, so never submit secrets as knowledge.
+
+`memory validate` checks Markdown frontmatter, optional metadata, reserved index/log
+structures, and date formats, and runs `okf validate CORPUS` if that executable is
+installed. Missing optional indexes, unknown fields/types, and broken links do not
+invalidate an otherwise conformant concept. The separate `okf` CLI is optional and
+was not installed for this milestone; its invocation is covered by a test double.
+
+Start the MCP server with `spriteforge memory mcp --workspace PATH`. It exposes
+`memory_search`, `memory_index`, and `memory_show` over stdio, using the official
+Python MCP SDK 1.x. Private scope is disabled unless the operator starts the server
+with `--allow-private`; clients must still request private scope explicitly. The SDK
+dependency is bounded below 2 for the tested API, and SSE is bounded below 3 to keep
+the existing FastAPI/Starlette environment compatible. Protocol stdout contains no
+application logs. Example client configuration (replace paths with absolute paths):
+
+```json
+{
+  "mcpServers": {
+    "spriteforge-memory": {
+      "command": "python",
+      "args": ["-m", "spriteforge", "memory", "mcp", "--workspace", "C:/path/to/game_engine/workspace"]
+    }
+  }
+}
+```
+
+Seam repair remains deferred to Milestone 7. This milestone adds no image-edit calls
+or game-generation workflow.
