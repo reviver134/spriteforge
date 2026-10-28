@@ -8,6 +8,7 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
+from spriteforge.config import MemoryConfig, load_config
 from spriteforge.core.state import Store as EventStore
 
 from . import git
@@ -94,7 +95,13 @@ class KnowledgeStore:
         return ("private" if entry.private else "project") in scopes
 
     def retrieve(
-        self, query: str, scopes: list[str] | None = None, token_budget: int = 1024
+        self,
+        query: str,
+        scopes: list[str] | None = None,
+        token_budget: int = 1024,
+        *,
+        min_score: float | None = None,
+        relative_score: float | None = None,
     ) -> list[Snippet]:
         scopes = ["project"] if scopes is None else scopes
         if set(scopes) - {"project", "private"} or token_budget < 0:
@@ -106,7 +113,16 @@ class KnowledgeStore:
         candidates = [entry for entry in entries if self.permitted(entry, scopes)]
         snippets = []
         remaining = token_budget
-        for entry, score in rank(query, candidates):
+        defaults = load_config().memory
+        cutoff = MemoryConfig(
+            min_score=defaults.min_score if min_score is None else min_score,
+            relative_score=defaults.relative_score if relative_score is None else relative_score,
+        )
+        ranked = rank(query, candidates)
+        threshold = max(cutoff.min_score, ranked[0][1] * cutoff.relative_score) if ranked else 0
+        for entry, score in ranked:
+            if score < threshold:
+                continue
             header = f"[{entry.metadata.trust_tier}] {entry.id} {entry.title}\n"
             summary = entry.metadata.description or entry.body.strip().split("\n", 1)[0]
             # Pick a matching body sentence after the summary, never dump the whole entry.

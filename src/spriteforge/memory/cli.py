@@ -32,14 +32,21 @@ def search(
     workspace: Path = Path("workspace"),
     scope: list[str] | None = None,
     token_budget: int = 1024,
+    min_score: float | None = None,
+    relative_score: float | None = None,
+    verbose: bool = False,
 ):
     """Return ranked snippets with trust tiers and path-derived IDs."""
     store = open_store(workspace)
-    for snippet in store.retrieve(query, scope, token_budget):
+    for snippet in store.retrieve(
+        query, scope, token_budget, min_score=min_score, relative_score=relative_score
+    ):
         flags = "; bootstrap, unreviewed" if snippet.bootstrap_unreviewed else ""
         flags += " STALE" if snippet.stale else ""
         if snippet.status != "stable":
             flags += " " + snippet.status.upper()
+        if verbose:
+            flags += f" score={snippet.score:.3f}"
         typer.echo(f"[{snippet.trust_tier}{flags}] {snippet.id}: {snippet.title}\n{snippet.text}\n")
 
 

@@ -362,3 +362,23 @@ def test_snippets_never_cut_sentences(memory, budget):
     text = results[0].text
     assert text == "..." or text == "First sentence.\n..."
     assert sum(s.tokens for s in results) <= budget
+
+
+def test_relevance_cutoff_and_verbose(memory, tmp_path):
+    memory.write_batch(
+        [
+            entry("genres/strong", "Dungeon crawler", "Dungeon crawler rooms and enemies."),
+            entry("lessons/weak", "Other", "Rooms elsewhere."),
+        ],
+        "Relevance fixture",
+    )
+    assert len(memory.retrieve("dungeon crawler rooms", relative_score=0)) == 2
+    assert [s.id for s in memory.retrieve("dungeon crawler rooms", relative_score=0.6)] == [
+        "genres/strong"
+    ]
+    result = CliRunner().invoke(
+        app,
+        ["memory", "search", "top-down dungeon crawler", "--verbose", "--workspace", str(tmp_path)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "score=" in result.output

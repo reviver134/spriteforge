@@ -282,3 +282,7 @@ owner-authorized seed tier from a content review. Its verification record carrie
 `x-spriteforge-designation: bootstrap`. `spriteforge memory review` lists pending
 entries; `spriteforge memory review <id> --confirm` records `reviewed` and the
 `x-spriteforge-reviewed-at` timestamp. These are SpriteForge extensions to OKF.
+
+Retrieval filters BM25 scores using `memory.min_score` and `memory.relative_score`
+in config.yaml (defaults: 0 and 0.5 of the best score). CLI overrides are
+`--min-score` and `--relative-score`; `--verbose` prints each retained score.

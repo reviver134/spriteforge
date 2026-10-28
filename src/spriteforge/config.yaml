@@ -13,3 +13,7 @@ budget:
   max_calls_per_model: 200
   image_cost: 0.01
   max_estimated_cost: 5.0
+
+memory:
+  min_score: 0
+  relative_score: 0.5

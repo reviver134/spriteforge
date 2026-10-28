@@ -28,8 +28,14 @@ class BudgetConfig(Schema):
     max_estimated_cost: float = Field(default=5, ge=0)
 
 
+class MemoryConfig(Schema):
+    min_score: float = Field(default=0, ge=0, allow_inf_nan=False)
+    relative_score: float = Field(default=0.5, ge=0, le=1)
+
+
 class Config(Schema):
     workspace: Path
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
     image: ImageConfig
     llm: LLMConfig
     budget: BudgetConfig = Field(default_factory=BudgetConfig)
