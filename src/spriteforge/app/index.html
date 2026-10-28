@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>SpriteForge</title><style>
+body{background:#151822;color:#e2e8f0;font:16px system-ui;margin:40px auto;max-width:960px;padding:0 20px}
+h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:1px solid #333}
+#artifacts{display:flex;gap:24px}img{width:128px;height:128px;image-rendering:pixelated;background:#303447}
+.muted{color:#a8b3c7}#error{color:#ffb4b4}figure{margin:0}figcaption{padding:8px}
+</style></head><body><h1>SpriteForge</h1><p class="muted">Local foundation demo · mock providers</p>
+<label>Run <select id="runs" aria-label="Select run"></select></label>
+<p id="status" role="status">Connecting…</p><p id="error" role="alert"></p>
+<h2>Artifacts</h2><div id="artifacts"></div><h2>Timeline</h2><ol id="timeline"></ol>
+<script>
+const $=id=>document.getElementById(id);let source, selected;
+async function refresh(){const d=await (await fetch('/api/runs/'+selected)).json();
+ $('status').textContent=d.run.status+' · checkpoint '+d.run.cursor+'/10';
+ $('artifacts').replaceChildren();for(const a of d.artifacts){const fig=document.createElement('figure');
+ const img=document.createElement('img');img.src='/api/artifacts/'+a.id;img.alt=a.name;
+ const cap=document.createElement('figcaption');cap.textContent=a.name;fig.append(img,cap);$('artifacts').append(fig);}}
+function choose(){if(source)source.close();selected=$('runs').value;$('timeline').replaceChildren();refresh();
+ source=new EventSource('/api/runs/'+selected+'/events');source.onmessage=e=>{const d=JSON.parse(e.data);
+ const li=document.createElement('li');li.textContent=d.timestamp+' · '+d.agent+' · '+d.type+' · '+(d.payload.message||'');
+ $('timeline').append(li);refresh();};source.addEventListener('done',()=>{source.close();refresh();});
+ source.addEventListener('worker-error',e=>{$('error').textContent=JSON.parse(e.data);source.close();});}
+fetch('/api/runs').then(r=>r.json()).then(d=>{for(const r of d.runs){const o=document.createElement('option');
+ o.value=r.id;o.textContent=r.id+' · '+r.status;$('runs').append(o);}if(d.active)$('runs').value=d.active;
+ if(d.error)$('error').textContent=d.error;if(d.runs.length)choose();else $('status').textContent='No runs yet';})
+ .catch(e=>{$('error').textContent=e.message;});$('runs').onchange=choose;
+</script></body></html>
