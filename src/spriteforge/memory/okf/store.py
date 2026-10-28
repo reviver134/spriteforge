@@ -174,7 +174,7 @@ class KnowledgeStore:
         verified_by: str | None = None,
         preserve_generation: bool = False,
     ) -> None:
-        with git.write_lock(self.root.parent / ".memory.lock"):
+        with git.write_lock(self.root.parent / ".memory.lock"), git.rollback_git(self.root):
             self._write_batch(
                 entries,
                 message,
@@ -257,7 +257,7 @@ class KnowledgeStore:
             if validate(self).errors:
                 raise ValueError("Write batch failed corpus validation")
             git.commit(self.root, list(planned), message)
-        except (OSError, ValueError, RuntimeError):
+        except BaseException:
             for name, content in backups.items():
                 target = self.root / name
                 if content is None:

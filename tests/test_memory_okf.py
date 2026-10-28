@@ -285,3 +285,34 @@ def test_invalid_index_and_cli_validation_on_unseeded_invalid_corpus(memory):
     (memory.root / "broken.md").write_text("No frontmatter")
     result = CliRunner().invoke(app, ["memory", "validate", "--workspace", str(memory.root.parent)])
     assert result.exit_code == 1 and "broken.md" in result.output and "FAIL" in result.output
+
+
+@pytest.mark.parametrize("phase", ["write", "add", "commit", "committed"])
+def test_batch_failure_preserves_git_state(memory, monkeypatch, phase):
+    memory.write_batch([entry()], "Initial")
+    head = git.git(memory.root, "rev-parse", "HEAD")
+    index = (memory.root / ".git/index").read_bytes()
+    original = git.git
+
+    def injected(root, *args, **kwargs):
+        if phase == "commit" and args[0] == "commit":
+            raise RuntimeError("commit failure")
+        result = original(root, *args, **kwargs)
+        if (phase == "add" and args[0] == "add") or (phase == "committed" and args[0] == "commit"):
+            raise RuntimeError("after git operation")
+        return result
+
+    monkeypatch.setattr(git, "git", injected)
+    if phase == "write":
+        import importlib
+
+        validator = importlib.import_module("spriteforge.memory.okf.validate")
+
+        monkeypatch.setattr(
+            validator, "validate", lambda *a: (_ for _ in ()).throw(RuntimeError("after write"))
+        )
+    with pytest.raises(RuntimeError):
+        memory.write_batch([entry(body="Changed"), entry("lessons/new")], "Rollback")
+    assert (memory.root / ".git/index").read_bytes() == index
+    assert original(memory.root, "status", "--porcelain") == ""
+    assert original(memory.root, "rev-parse", "HEAD") == head
