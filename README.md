@@ -8,6 +8,89 @@ durable human gates. Milestone 5 adds adaptive intake and concept previews with
 mock or live providers. Playable game generation and production asset workflows
 remain outside this milestone.
 
+Milestone 6 adds role-scoped skills and official-SDK MCP clients. Open **Skills and
+MCP servers** in the local UI to inspect role skill summaries, discover server tools,
+enable a server for a selected role, and configure each tool's confirmation policy.
+New servers are disabled. Inspecting a stdio server starts its executable to list
+tools; adding or listing configuration does not start it. Tool calls default to
+human confirmation, including tools advertising read-only annotations. Approval
+binds the exact role, arguments, connection and discovered tool definition, and is
+consumed once. Revoking a role or changing a discovered definition invalidates access.
+Declines never invoke the server. Interrupted calls marked `running` or `failed`
+are not automatically replayed, since their side effects may already have occurred.
+
+```powershell
+spriteforge skills list --workspace workspace --role "Pixel Artist"
+spriteforge skills add C:/path/to/my-skill --workspace workspace --role "Pixel Artist"
+spriteforge skills add https://github.com/owner/repo.git --subdir skills/my-skill --revision COMMIT --workspace workspace
+spriteforge skills remove my-skill --workspace workspace
+spriteforge mcp add filesystem-read src/spriteforge/mcp/templates/filesystem-read.json --workspace workspace
+spriteforge mcp inspect filesystem-read --workspace workspace
+spriteforge mcp enable filesystem-read --role "Pixel Artist" --workspace workspace
+spriteforge mcp disable filesystem-read --role "Pixel Artist" --workspace workspace
+```
+
+Skills load from `src/spriteforge/skills/builtin/` and `<workspace>/skills/`.
+`SKILL.md` needs YAML `name` and `description` plus a nonempty body. Names are unique;
+workspace skills cannot shadow builtins. Role Markdown `allowed_skills` and explicit
+workspace grants in `skill-grants.json` form each role's effective skill allowlist.
+The add command defaults to a Pixel Artist grant; use `--role` for another role.
+Models initially see only name/description, then call `load_skill` for the body or
+a selected relative reference. Bundled scripts are readable but never automatically
+executed. Builtins cover Muse sprite prompting, tile seams, animation consistency,
+and Phaser **3** Arcade Physics. Git installs copy only the selected skill folder;
+check its license and retain required attribution when importing third-party skills.
+
+MCP configuration is `<workspace>/mcp.json`, with an `mcpServers` map. Stdio servers
+use `transport`, `command`, and `args`; HTTP uses `transport: "http"` and `url`
+(Streamable HTTP). `env` maps child variable names to host environment variable
+names; `headers_env` maps HTTP header names to host variable names containing the
+full header value. Never place credentials in arguments, URLs, JSON or skill files.
+Servers get only the SDK's basic process environment plus explicit environment
+bindings. Server stderr is suppressed so it cannot leak credentials into the UI.
+Tool schemas are shown in the UI and exposed to enabled roles as `server.tool`.
+Both CLI and UI role grants are persisted in `enabled_roles`; manually adding an
+`allowed_tools` entry alone does not bypass MCP grants. Per-tool `confirmation`
+overrides can be changed explicitly by the human in the UI. Calls, denials,
+confirmation decisions and results are journaled with secret redaction. MCP calls
+also consume the run's per-server call cap (the configured per-model cap); external
+MCP service billing is not estimated.
+
+The client uses the installed MCP 1.x API, verified with real SDK stdio and
+Streamable HTTP round trips and the [official 1.x documentation](https://py.sdk.modelcontextprotocol.io/v1/).
+Each operation opens a bounded session; use stateless tools or tools with explicit
+file IDs/paths, as the included servers do. Stateful browser-session servers are
+not included. The runtime persists a pending call and its conversation checkpoint,
+and consumes the saved result on resume without repeating the external call.
+CLI/UI acceptance tests cover role denial, progressive skill loading, revocation,
+confirmation persistence across reload, single-use approval, and both transports.
+
+The requested research additions are installed in the repository's `workspace`:
+
+| Addition | Role / state | Source |
+|---|---|---|
+| `create-game-assets` | Pixel Artist and Art Director | [Game-development skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/19d93f97c9c1ea0f8b306e77aa81e0d3e352d3e9/skills/disciplines/create-game-assets) |
+| `level-design` | Level/Tile Designer | Same collection, Apache-2.0 |
+| `game-feel` | Game Designer | Same collection, Apache-2.0 |
+| `aseprite` MCP 0.1.0 | Installed under `workspace/extensions/python`, disabled | [Aseprite MCP](https://github.com/jcscocca/aseprite-mcp/tree/a04d18a6f97ecd7c05c7b2f6391034eba66bd10e), MIT |
+| `filesystem-read` MCP | Disabled; confines reads to workspace runs | Bundled example |
+| `knowledge` MCP | Disabled; local corpus retrieval | Existing SpriteForge knowledge server |
+
+The selected external skills include their original references and license. The
+collection's Phaser skill targets Phaser 4, so it was not installed. Source commits,
+licenses and install status are recorded in `workspace/extensions/sources.json`.
+`tools/install_game_extensions.py` reproduces registration from those downloaded
+source directories and the locally installed Aseprite MCP package; it never enables
+a server. No external skill scripts were executed. Workspace files remain local
+and ignored by Git.
+
+Aseprite itself is not included or installed. Set `ASEPRITE_BIN` in the environment
+to your separately installed executable before inspecting/enabling `aseprite`.
+Its tools can write files, so keep per-call confirmation enabled and use explicit
+run-folder paths. Its upstream spritesheet metadata targets Godot: use exported
+PNG frames with SpriteForge's existing Phaser atlas pipeline. Live Aseprite edits
+have not been verified on this machine.
+
 Python 3.11+:
 
 ```powershell

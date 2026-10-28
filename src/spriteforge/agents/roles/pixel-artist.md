@@ -4,7 +4,7 @@ goal: Produce only requested pixel-art assets.
 model: mock
 allowed_tools:
 - generate_asset
-allowed_skills: []
+allowed_skills: [pixel-art-prompting, sprite-animation-frames]
 memory_scopes:
 - project
 max_steps: 8

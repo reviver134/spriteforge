@@ -15,7 +15,9 @@ from spriteforge.stages.workflow import WORKFLOW as INTAKE
 from spriteforge.stages.workflow import workflow_step as intake_step
 
 
-def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -> FastAPI:
+def create_app(
+    store: Store, run_id: str | None = None, interval: float = 1.0, mcp_service=None
+) -> FastAPI:
     async def worker():
         while True:
             try:
@@ -48,6 +50,9 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
                 await task
 
     app = FastAPI(lifespan=lifespan)
+    from .extensions import router
+
+    app.include_router(router(store, mcp_service))
     app.state.worker_error = None
 
     def require_run(id):

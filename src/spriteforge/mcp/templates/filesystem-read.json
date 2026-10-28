@@ -1,0 +1,6 @@
+{
+  "transport": "stdio",
+  "command": "python",
+  "args": ["-m", "spriteforge.mcp.filesystem_read", "workspace/runs"],
+  "enabled_roles": {}
+}

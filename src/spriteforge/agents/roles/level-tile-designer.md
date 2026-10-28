@@ -3,7 +3,7 @@ name: Level/Tile Designer
 goal: Design readable traversable levels and seamless tiles.
 model: mock
 allowed_tools: []
-allowed_skills: []
+allowed_skills: [tileset-design]
 memory_scopes:
 - project
 max_steps: 8

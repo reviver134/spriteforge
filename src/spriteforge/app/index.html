@@ -8,6 +8,11 @@ h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:
 #artifacts,#gate-artifacts{display:flex;gap:24px;flex-wrap:wrap}img{width:128px;height:128px;image-rendering:pixelated;background:#303447}
 .muted{color:#a8b3c7}#error{color:#ffb4b4}figure{margin:0}pre{white-space:pre-wrap;max-width:800px;overflow-wrap:anywhere}textarea{display:block;width:95%;min-height:80px}fieldset{margin:16px 0}button{padding:10px;margin:6px}#gate-panel{border:2px solid #9ae6b4;padding:16px}#gate-artifacts img{width:auto;max-width:100%;height:160px}figcaption{padding:8px}
 </style></head><body><h1>SpriteForge</h1><p class="muted">Local game builder · human approval gates</p>
+<details id="extensions"><summary>Skills and MCP servers</summary>
+<label>Agent role <select id="extension-role"></select></label><h3>Available skills</h3><div id="skill-list"></div>
+<h3>MCP servers</h3><p>Inspect tools, then explicitly enable a server for the selected role. Every tool requires confirmation by default.</p><div id="mcp-list"></div><p id="extension-error" role="alert"></p>
+<label>Tool name (server.tool) <input id="mcp-tool"></label><label>Tool arguments (JSON)<textarea id="mcp-arguments">{}</textarea></label><button id="mcp-call" type="button">Request tool call</button>
+</details><section id="mcp-confirmations" aria-label="MCP confirmations"></section>
 <label>Run <select id="runs" aria-label="Select run"></select></label>
 <p id="status" role="status">Connecting…</p><p id="usage"></p><p id="error" role="alert"></p>
 <section id="gate-panel" hidden aria-labelledby="gate-title">
@@ -27,6 +32,18 @@ h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:
 <script>
 const $=id=>document.getElementById(id);let source, selected;
 let renderedGate=null;
+async function extensionPost(path,body){const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));return data;}
+async function extensionAction(fn){try{$('extension-error').textContent='';await fn();await loadExtensions();await loadConfirmations();}catch(e){$('extension-error').textContent=e.message;}}
+async function loadExtensions(){const data=await(await fetch('/api/extensions')).json();const pick=$('extension-role');if(!pick.options.length)for(const role of data.roles){const option=new Option(role,role);pick.add(option);}
+ const role=pick.value;$('skill-list').replaceChildren();for(const skill of data.skills[role]||[]){const p=document.createElement('p');p.textContent=skill.name+' — '+skill.description;$('skill-list').append(p);}
+ $('mcp-list').replaceChildren();for(const [name,server] of Object.entries(data.servers)){const box=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent=name+' — '+(Object.hasOwn(server.enabled_roles,role)?'enabled for '+role:'disabled for '+role);box.append(legend);
+ const inspect=document.createElement('button');inspect.textContent='Inspect tools: '+name;inspect.type='button';inspect.onclick=()=>extensionAction(()=>extensionPost('/api/mcp/'+name+'/inspect'));box.append(inspect);
+ const enable=document.createElement('button');const enabled=Object.hasOwn(server.enabled_roles,role);enable.textContent=(enabled?'Disable ':'Enable ')+name+' for '+role;enable.type='button';enable.disabled=!server.discovered_fingerprint;enable.onclick=()=>extensionAction(()=>extensionPost('/api/mcp/'+name+'/enable',{role,enabled:!enabled}));box.append(enable);
+ for(const tool of server.tools){const p=document.createElement('p');p.textContent=name+'.'+tool.name+' — '+(tool.description||'');box.append(p);const label=document.createElement('label'),toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=server.confirmation[tool.name]!==false;toggle.onchange=()=>extensionAction(()=>extensionPost('/api/mcp/'+name+'/policy',{tool:tool.name,confirm:toggle.checked}));label.append(toggle,document.createTextNode(' Require human confirmation for '+name+'.'+tool.name));box.append(label);const schema=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Arguments';pre.textContent=JSON.stringify(tool.inputSchema,null,2);schema.append(summary,pre);box.append(schema);}$('mcp-list').append(box);}}
+async function loadConfirmations(){if(!selected)return;const current=selected;const calls=await(await fetch('/api/runs/'+current+'/mcp/confirmations')).json();if(selected!==current)return;$('mcp-confirmations').replaceChildren();for(const call of calls){const box=document.createElement('fieldset'),title=document.createElement('legend'),pre=document.createElement('pre');title.textContent='Confirm MCP call: '+call.tool+' ('+call.role+')';pre.textContent=JSON.stringify(call.arguments,null,2);box.append(title,pre);for(const approve of [true,false]){const b=document.createElement('button');b.textContent=approve?'Approve tool call':'Deny tool call';b.onclick=()=>extensionAction(async()=>{b.disabled=true;await extensionPost('/api/runs/'+current+'/mcp/confirmations/'+encodeURIComponent(call.id),{approve});await refresh();});box.append(b);}$('mcp-confirmations').append(box);}}
+$('extension-role').onchange=()=>extensionAction(async()=>{});
+$('mcp-call').onclick=()=>extensionAction(async()=>{if(!selected)throw new Error('Select an active run first');await extensionPost('/api/runs/'+selected+'/mcp/call',{role:$('extension-role').value,tool:$('mcp-tool').value,arguments:JSON.parse($('mcp-arguments').value)});});
+loadExtensions().catch(e=>{$('extension-error').textContent=e.message;});setInterval(()=>loadConfirmations().catch(()=>{}),1500);
 async function renderArtifact(a,container){
  const fig=document.createElement('figure'),cap=document.createElement('figcaption');cap.textContent=a.name;
  if(a.mime.startsWith('image/')){const img=document.createElement('img');img.src='/api/artifacts/'+a.id;img.alt=a.name;

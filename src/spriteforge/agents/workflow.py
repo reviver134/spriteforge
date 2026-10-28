@@ -143,8 +143,13 @@ def mock_replan(changes: Changes) -> StagePlan:
 
 
 def workflow_step(store: Store, run_id: str) -> bool:
+    from spriteforge.mcp.service import ConfirmationRequired
+
     with write_lock(store.path.parent / f".{run_id}.runtime.lock"):
-        return asyncio.run(_step(store, run_id))
+        try:
+            return asyncio.run(_step(store, run_id))
+        except ConfirmationRequired:
+            return False
 
 
 async def _step(store: Store, run_id: str) -> bool:
