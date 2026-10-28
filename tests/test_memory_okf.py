@@ -316,3 +316,27 @@ def test_batch_failure_preserves_git_state(memory, monkeypatch, phase):
     assert (memory.root / ".git/index").read_bytes() == index
     assert original(memory.root, "status", "--porcelain") == ""
     assert original(memory.root, "rev-parse", "HEAD") == head
+
+
+def test_seed_review_is_explicit_and_confirmed(tmp_path):
+    runner = CliRunner()
+    args = ["--workspace", str(tmp_path)]
+    result = runner.invoke(app, ["memory", "review", *args])
+    assert result.exit_code == 0, result.output
+    assert "genres/metroidvania" in result.output
+    store = KnowledgeStore(tmp_path / "memory")
+    before = store.show("genres/metroidvania")
+    assert before.metadata.model_extra["x-spriteforge-review"] == "unreviewed"
+    assert before.metadata.verified[0].model_extra["x-spriteforge-designation"] == "bootstrap"
+    assert (
+        "bootstrap, unreviewed"
+        in runner.invoke(app, ["memory", "search", "metroidvania map", *args]).output
+    )
+    assert runner.invoke(app, ["memory", "review", "genres/metroidvania", *args]).exit_code != 0
+    result = runner.invoke(app, ["memory", "review", "genres/metroidvania", "--confirm", *args])
+    assert result.exit_code == 0, result.output
+    after = store.show("genres/metroidvania")
+    assert after.metadata.trust_tier == before.metadata.trust_tier
+    assert after.metadata.model_extra["x-spriteforge-review"] == "reviewed"
+    assert datetime.fromisoformat(after.metadata.model_extra["x-spriteforge-reviewed-at"]).tzinfo
+    assert "genres/metroidvania" not in runner.invoke(app, ["memory", "review", *args]).output

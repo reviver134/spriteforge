@@ -46,6 +46,8 @@ def seed_entries() -> list[Entry]:
     for values in yaml.safe_load((directory / "other.yaml").read_text(encoding="utf-8")):
         values["metadata"].setdefault("sources", []).append(BOOTSTRAP_SOURCE)
         entries.append(Entry.model_validate(values))
+    for entry in entries:
+        entry.metadata.model_extra["x-spriteforge-review"] = "unreviewed"
     return entries
 
 
@@ -53,6 +55,22 @@ def seed(store: KnowledgeStore) -> int:
     present, _ = store.scan()
     existing = {entry.id for entry in present}
     missing = [entry for entry in seed_entries() if entry.id not in existing]
+    legacy = [
+        entry
+        for entry in present
+        if entry.id in {e.id for e in seed_entries()}
+        and BOOTSTRAP_SOURCE in [s.model_dump(exclude_none=True) for s in entry.metadata.sources]
+        and "x-spriteforge-review" not in entry.metadata.model_extra
+    ]
+    for entry in legacy:
+        entry.metadata.model_extra["x-spriteforge-review"] = "unreviewed"
+    if legacy:
+        store.write_batch(
+            legacy,
+            "Clarify bootstrap review designation",
+            verified_by="human:project-owner",
+            preserve_generation=True,
+        )
     if missing:
         store.write_batch(
             missing,

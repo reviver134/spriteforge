@@ -36,7 +36,8 @@ def search(
     """Return ranked snippets with trust tiers and path-derived IDs."""
     store = open_store(workspace)
     for snippet in store.retrieve(query, scope, token_budget):
-        flags = " STALE" if snippet.stale else ""
+        flags = "; bootstrap, unreviewed" if snippet.bootstrap_unreviewed else ""
+        flags += " STALE" if snippet.stale else ""
         if snippet.status != "stable":
             flags += " " + snippet.status.upper()
         typer.echo(f"[{snippet.trust_tier}{flags}] {snippet.id}: {snippet.title}\n{snippet.text}\n")
@@ -90,3 +91,22 @@ def mcp(workspace: Path = Path("workspace"), allow_private: bool = False):
     from spriteforge.mcp.memory import create_server
 
     create_server(open_store(workspace), allow_private=allow_private).run(transport="stdio")
+
+
+@app.command()
+def review(
+    id: str | None = typer.Argument(None),
+    confirm: bool = False,
+    workspace: Path = Path("workspace"),
+):
+    """List bootstrap entries awaiting review, or explicitly confirm one."""
+    store = open_store(workspace)
+    if id:
+        if not confirm:
+            raise typer.BadParameter("Review requires --confirm")
+        store.review(id)
+        typer.echo(f"Review recorded for {id}")
+    else:
+        for entry in store.scan()[0]:
+            if entry.metadata.model_extra.get("x-spriteforge-review") == "unreviewed":
+                typer.echo(f"{entry.id}: {entry.title} [bootstrap, unreviewed]")

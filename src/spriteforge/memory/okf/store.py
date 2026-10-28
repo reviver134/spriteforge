@@ -131,6 +131,9 @@ class KnowledgeStore:
                     stale=entry.metadata.stale,
                     status=entry.metadata.status,
                     scope="private" if entry.private else "project",
+                    bootstrap_unreviewed=(
+                        entry.metadata.model_extra.get("x-spriteforge-review") == "unreviewed"
+                    ),
                     score=score,
                     text=text,
                     tokens=cost,
@@ -219,6 +222,8 @@ class KnowledgeStore:
             if not preserve_generation or "generated" not in metadata:
                 metadata["generated"] = {"by": actor, "at": now}
             metadata["verified"] = [{"by": verified_by, "at": now}] if verified_by else []
+            if verified_by and metadata.get("x-spriteforge-review") == "unreviewed":
+                metadata["verified"][0]["x-spriteforge-designation"] = "bootstrap"
             if entry.private:
                 metadata["x-spriteforge-scope"] = "private"
             replacement = Entry(
@@ -275,6 +280,19 @@ class KnowledgeStore:
             f"Human verification: {ident}",
             actor=entry.metadata.generated.by if entry.metadata.generated else "spriteforge/0.1",
             verified_by=human,
+            preserve_generation=True,
+        )
+
+    def review(self, ident: str) -> None:
+        entry = self.show(ident, ["project", "private"])
+        if entry.metadata.model_extra.get("x-spriteforge-review") != "unreviewed":
+            raise ValueError("Entry is not awaiting bootstrap review")
+        entry.metadata.model_extra["x-spriteforge-review"] = "reviewed"
+        entry.metadata.model_extra["x-spriteforge-reviewed-at"] = datetime.now(UTC).isoformat()
+        self.write_batch(
+            [entry],
+            f"Review bootstrap entry: {ident}",
+            verified_by="human:project-owner",
             preserve_generation=True,
         )
 

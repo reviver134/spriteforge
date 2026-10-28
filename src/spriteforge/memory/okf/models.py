@@ -88,6 +88,7 @@ class Snippet(BaseModel):
     status: str
     scope: str
     score: float
+    bootstrap_unreviewed: bool = False
     text: str
     tokens: int = 0
 

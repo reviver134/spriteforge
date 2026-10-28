@@ -276,3 +276,9 @@ application logs. Example client configuration (replace paths with absolute path
 
 Seam repair remains deferred to Milestone 7. This milestone adds no image-edit calls
 or game-generation workflow.
+
+Bootstrap review extensions: `x-spriteforge-review: unreviewed` distinguishes an
+owner-authorized seed tier from a content review. Its verification record carries
+`x-spriteforge-designation: bootstrap`. `spriteforge memory review` lists pending
+entries; `spriteforge memory review <id> --confirm` records `reviewed` and the
+`x-spriteforge-reviewed-at` timestamp. These are SpriteForge extensions to OKF.
