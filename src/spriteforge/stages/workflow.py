@@ -133,8 +133,11 @@ def _step(store, run_id):
             k: last.response.form.get(k) or v.get("default", "") for k, v in properties.items()
         }
         answers = {k: values.pop(k) for k in list(values) if k.startswith("seed_")}
-        brief = GameBrief(genre=entry.id, answers=answers, **values)
+        notes = [g.response.text for g in history if g.response and g.response.text.strip()]
+        brief = GameBrief(genre=entry.id, answers=answers, notes=notes, **values)
         save("brief-draft.json", brief.model_dump(), "Game Designer")
+        # Separate context also repairs legacy drafts without overwriting saved artifacts.
+        save("brief-notes.json", {"notes": notes}, "Game Designer")
         questions = ask(
             "Game Designer",
             "Ask 2-4 specific follow-up questions based on this brief and its answers: "
@@ -159,6 +162,7 @@ def _step(store, run_id):
         return False
     if last.stage == "followups":
         brief = GameBrief.model_validate(read("brief-draft.json"))
+        brief.notes = [g.response.text for g in history if g.response and g.response.text.strip()]
         brief.answers.update(last.response.form)
         save("brief.json", brief.model_dump(), "Game Designer")
         snippets = memory.retrieve(
@@ -256,6 +260,7 @@ def _step(store, run_id):
             prompt = (
                 "CONCEPT key-art scene, not final game assets. Landscape 16:9 composition: environment, "
                 "one hero, 2-3 enemies and a HUD mock all in one frame. Chunky readable pixel art. "
+                "Human notes override untouched template defaults. "
                 + brief.model_dump_json()
                 + "\nStyle: "
                 + option.model_dump_json()

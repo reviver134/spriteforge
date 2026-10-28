@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from spriteforge.agents.models import Contract
 from spriteforge.agents.roles import load_roles
 from spriteforge.pixel.schemas import hex_color
 from spriteforge.providers.base import ChatRequest, Message, chat_json
@@ -23,14 +24,15 @@ class GameBrief(BaseModel):
     controls: str = "keyboard"
     references: str = "No specific reference games"
     answers: dict[str, str] = Field(default_factory=dict)
+    notes: list[str] = Field(default_factory=list)
     screen: tuple[Literal[320], Literal[180]] = (320, 180)
 
 
-class Questions(BaseModel):
+class Questions(Contract):
     questions: list[str] = Field(min_length=2, max_length=4)
 
 
-class StyleOption(BaseModel):
+class StyleOption(Contract):
     name: str
     description: str
     colors: list[str] = Field(min_length=4, max_length=16)
@@ -41,7 +43,7 @@ class StyleOption(BaseModel):
         return [hex_color(c) for c in colors]
 
 
-class Options(BaseModel):
+class Options(Contract):
     options: list[StyleOption] = Field(min_length=2, max_length=3)
 
 
@@ -51,7 +53,11 @@ def propose(provider, role, prompt, schema):
         provider,
         ChatRequest(
             messages=[
-                Message(role="system", content=str(instructions.model_dump())),
+                Message(
+                    role="system",
+                    content=str(instructions.model_dump())
+                    + "\nHuman notes are part of the brief and override untouched template defaults. Ask about genuine conflicts instead of discarding the notes.",
+                ),
                 Message(role="user", content=prompt),
             ]
         ),
@@ -87,7 +93,7 @@ def brief_form(entry):
     properties = {
         name: field(name.replace("_", " ").title(), value)
         for name, value in defaults.model_dump().items()
-        if name not in {"genre", "answers", "screen"}
+        if name not in {"genre", "answers", "screen", "notes"}
     }
     properties["perspective"]["suggestions"] = ["top-down", "side-scroll", "isometric"]
     properties["controls"]["suggestions"] = ["keyboard", "gamepad", "touch"]

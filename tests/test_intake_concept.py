@@ -107,3 +107,62 @@ def test_scene_preview_keeps_corners_and_nearest_pixels():
     big = Image.open(io.BytesIO(enlarged))
     assert small.getpixel((0, 0)) != small.getpixel((50, 50))
     assert big.getpixel((2, 2)) == small.getpixel((0, 0))
+
+
+def test_failed_brief_resume_preserves_notes_and_checkpoints(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from spriteforge.cli import app
+    from spriteforge.stages import workflow
+
+    store, ident = setup(tmp_path)
+    notes = ["Ride a bike through zombie hordes", "Ruined city with fallen poles"]
+    answer(store, ident, text=notes[0])
+    original = workflow.propose
+
+    def fail(*args):
+        raise ValueError("Meta HTTP 400: additionalProperties is required")
+
+    monkeypatch.setattr(workflow, "propose", fail)
+    with pytest.raises(ValueError, match="additionalProperties") as error:
+        answer(store, ident, text=notes[1], form={"perspective": "side-scroll"})
+    store.fail(ident, str(error.value))
+    # Reproduce a legacy draft that did not save free-text feedback.
+    with store.connect() as db:
+        row = db.execute(
+            "SELECT id, data FROM artifacts WHERE run_id=? AND name='brief-draft.json'", (ident,)
+        ).fetchone()
+        draft = json.loads(row["data"])
+        draft.pop("notes")
+        raw = json.dumps(draft).encode()
+        db.execute("UPDATE artifacts SET data=? WHERE id=?", (raw, row["id"]))
+    root = tmp_path / "runs" / ident
+    (root / "brief-draft.json").write_bytes(raw)
+    with TestClient(create_app(store)) as client:
+        assert "additionalProperties" in client.get(f"/api/runs/{ident}").json()["error"]
+
+    captured = []
+
+    def capture(provider, role, prompt, schema):
+        captured.append(prompt)
+        return original(provider, role, prompt, schema)
+
+    monkeypatch.setattr(workflow, "propose", capture)
+    monkeypatch.setattr(
+        "spriteforge.cli.serve", lambda store, run_id, *args: workflow_step(store, run_id)
+    )
+    result = CliRunner().invoke(
+        app, ["resume", ident, "--workspace", str(tmp_path), "--no-open-browser"]
+    )
+    assert result.exit_code == 0, result.output
+    assert Gates(store).pending(ident).stage == "followups"
+    assert all(note in captured[0] for note in notes)
+    assert (root / "brief-draft.json").read_bytes() == raw
+    assert json.loads((root / "brief-notes.json").read_text())["notes"] == notes
+    answer(store, ident)
+    assert json.loads((root / "brief.json").read_text())["notes"] == notes
+    assert all(note in captured[1] for note in notes)
+    with TestClient(create_app(store)) as client:
+        assert client.get(f"/api/runs/{ident}").json()["error"] is None
+    with pytest.raises(ValueError, match="Only a failed run"):
+        store.retry_failed(ident)

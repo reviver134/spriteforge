@@ -139,6 +139,16 @@ class Store:
             db.execute("UPDATE stages SET status='failed' WHERE run_id=?", (run_id,))
             self._event(db, run_id, "Director", "run.failed", {"message": message})
 
+    def retry_failed(self, run_id: str) -> None:
+        """Explicit retry keeps artifacts, gate answers and cost reservations intact."""
+        with self.connect() as db:
+            changed = db.execute(
+                "UPDATE runs SET status='running' WHERE id=? AND status='failed'", (run_id,)
+            )
+            if not changed.rowcount:
+                raise ValueError("Only a failed run can be retried")
+            self._event(db, run_id, "Human", "run.retry_requested", {})
+
     def save_artifact(self, artifact: Artifact, agent: str, kind: str) -> None:
         with self.connect() as db:
             db.execute(

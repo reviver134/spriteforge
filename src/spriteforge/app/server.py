@@ -78,6 +78,16 @@ def create_app(
         run = require_run(id)
         return {
             "run": run.model_dump(),
+            "error": next(
+                (
+                    e.payload.get("message")
+                    for e in reversed(store.events(id))
+                    if e.type == "run.failed"
+                ),
+                None,
+            )
+            if run.status == "failed"
+            else None,
             "usage": {
                 "image_calls": sum(
                     bool(e.payload.get("image"))

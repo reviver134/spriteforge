@@ -16,6 +16,37 @@ class Answer(BaseModel):
     value: int
 
 
+def test_intake_schemas_meet_meta_strict_contract(context, monkeypatch):
+    from spriteforge.stages.intake import Options, Questions, propose
+
+    config, _, _, budget = context
+    monkeypatch.setenv("META_API_KEY", "fake-test-key")
+    responses = [
+        {"questions": ["Where?", "How?"]},
+        {
+            "options": [
+                {"name": name, "description": "Chunky pixels", "colors": ["#000000"] * 4}
+                for name in ["Dark", "Bright"]
+            ]
+        },
+    ]
+
+    def handler(request):
+        schema = json.loads(request.content)["response_format"]["json_schema"]["schema"]
+        for obj in [schema, *schema.get("$defs", {}).values()]:
+            assert obj["additionalProperties"] is False
+            assert set(obj["required"]) == set(obj["properties"])
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": json.dumps(responses.pop(0))}}]}
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        provider = MuseSparkProvider(config.llm, budget, client)
+        propose(provider, "Game Designer", "Ask followups", Questions)
+        propose(provider, "Art Director", "Propose styles", Options)
+    assert not responses
+
+
 def test_mock_images_and_reference_limit(context):
     _, _, _, budget = context
     provider = MockImageProvider(budget)

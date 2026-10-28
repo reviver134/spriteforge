@@ -90,7 +90,9 @@ def resume(
     """Resume from the database checkpoint and show its timeline."""
     _, store = setup(config, workspace)
     try:
-        store.get_run(id)
+        run = store.get_run(id)
     except KeyError:
         raise typer.BadParameter(f"Run {id} does not exist") from None
+    if run.status == "failed" and run.config.get("workflow") == "intake-concept-v1":
+        store.retry_failed(id)
     serve(store, id, port, open_browser)
