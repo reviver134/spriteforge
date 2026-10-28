@@ -123,8 +123,10 @@ The default output directory is `workspace/pixel-demo/real/out/`; use separate
 `after_8x.png`, `comparison.png`, `style.json`, and `processing.json`. The comparison
 uses the uncorrected raw image naively BOX-downscaled beside the cleaned sprite.
 `--palette` also accepts a palette JSON path. Auto extraction requests 16 LAB k-means
-colors from the despilled, isolated subject, excluding background and watermark colors;
-sources with fewer distinct colors yield fewer palette entries.
+colors from the despilled, isolated subject, excluding background and watermark colors.
+Near-duplicates are merged with a default LAB distance of 5, configurable through
+`--merge-distance`. The same merge applies to palettes loaded from a file; source
+palette files are not modified. The final palette may contain fewer than 16 colors.
 
 The real-output path samples a narrow image-border band, estimates its median RGB,
 and keys by LAB distance (default Delta E 76 tolerance 18). A three-source-pixel edge
@@ -135,10 +137,26 @@ component's area, bounds, and ratio are printed and saved.
 
 Grid detection measures repeated strong horizontal/vertical color-run lengths. It
 requires evidence on both axes, reports the inferred square block size and phase,
-and falls back to unsnapped processing when evidence is insufficient. Each detected
-cell is reduced to its mode, then the subject is fitted with nearest-neighbor and
-reduced using area-footprint mode voting. Palette quantization, binary alpha, stray
-cleanup, and a corner-connected dark outline follow. Flat, mostly unobstructed
+and falls back to unsnapped processing when evidence is insufficient. Confidence is
+the smaller fraction of sampled repeated run lengths near the inferred block size
+on the two axes; native snapping requires at least 0.35 (configurable in the Python
+options). Each detected cell is reduced to its mode. By default, a confident logical
+subject is placed at exactly 1:1 with padding; `--scale-mode fit` restores stretching
+to fit the canvas. Without a confident grid, fitting is used. `--baseline center`
+(default) centers the subject; `--baseline bottom` aligns it to the bottom padding.
+
+Native placement never enlarges a subject. Overflow first tries the smallest integer
+reduction factor when it divides both logical dimensions exactly; otherwise it falls
+back to the existing mode fit. Both reductions warn with the logical dimensions and
+a suggested larger canvas. `processing.json` records `logical_subject_size`,
+`grid_confidence`, `scale_mode`, and `scale_factor` (1 means native, 0.5 means halved).
+It also records the final `palette_size`, per-color `palette_usage` pixel counts,
+and warnings for unused colors or dark colors whose LAB hue resembles the detected
+background. Tint warnings do not automatically alter legitimate dark artwork.
+
+Palette quantization, binary alpha, stray cleanup, and the existing corner-connected
+dark outline follow. Automatic outline skipping has not been enabled because a
+doubled outline has not yet been confirmed by user review. Flat, mostly unobstructed
 borders are assumed; this is not general-purpose background segmentation.
 
 The Python API enables these operations with

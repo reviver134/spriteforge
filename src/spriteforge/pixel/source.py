@@ -155,12 +155,15 @@ def mode_resize(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     return Image.fromarray(output)
 
 
-def detect_grid(image: Image.Image) -> tuple[int | None, tuple[int, int]]:
+def detect_grid(
+    image: Image.Image, report: ProcessingReport | None = None
+) -> tuple[int | None, tuple[int, int]]:
     """Estimate repeated horizontal/vertical color-run lengths, ignoring low-level texture."""
     rgba = np.asarray(image.convert("RGBA"))
     rgb = rgba[..., :3].astype(np.int16)
     candidates = []
     positions_by_axis = []
+    confidence = []
     for axis in (1, 0):
         delta = np.linalg.norm(np.diff(rgb, axis=axis), axis=-1)
         alpha = rgba[..., 3] > 0
@@ -188,10 +191,13 @@ def detect_grid(image: Image.Image) -> tuple[int | None, tuple[int, int]]:
         if len(nearby) < 8 or len(nearby) / len(useful) < 0.2:
             return None, (0, 0)
         candidates.append(block)
+        confidence.append(len(nearby) / len(useful))
         positions_by_axis.append(positions)
     if abs(candidates[0] - candidates[1]) > 1:
         return None, (0, 0)
     block = round(sum(candidates) / 2)
+    if report is not None:
+        report.grid_confidence = min(confidence)
     offsets = tuple(
         int(np.bincount(np.array(p) % block, minlength=block).argmax()) for p in positions_by_axis
     )
@@ -217,7 +223,15 @@ def prepare_source(
     if bbox:
         image = image.crop(bbox)
     if options.detect_grid and bbox:
-        report.grid_size, report.grid_offset = detect_grid(image)
-        if report.grid_size:
+        report.grid_size, report.grid_offset = detect_grid(image, report)
+        if report.grid_size and report.grid_confidence >= options.native_grid_confidence:
             image = snap_grid(image, report.grid_size, report.grid_offset)
+            logical_bbox = image.getbbox()
+            if logical_bbox:
+                image = image.crop(logical_bbox)
+                report.logical_subject_size = image.size
+        elif report.grid_size:
+            report.warnings.append(
+                f"Source grid confidence {report.grid_confidence:.2f} is too low; using unsnapped fit."
+            )
     return image

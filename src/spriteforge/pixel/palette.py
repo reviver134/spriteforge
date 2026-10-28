@@ -60,7 +60,7 @@ def quantize(rgb: np.ndarray, colors: list[str]) -> np.ndarray:
     return table[labels[inverse]].reshape(np.asarray(rgb).shape)
 
 
-def merge_near_duplicates(palette: Palette, threshold: float = 8) -> Palette:
+def merge_near_duplicates(palette: Palette, threshold: float = 5) -> Palette:
     if threshold < 0:
         raise ValueError("threshold must be nonnegative")
     lab = rgb_to_lab(palette_rgb(palette.colors))
@@ -72,7 +72,7 @@ def merge_near_duplicates(palette: Palette, threshold: float = 8) -> Palette:
 
 
 def extract_palette(
-    image: Image.Image, count: int = 16, merge_threshold: float = 8, max_iterations: int = 30
+    image: Image.Image, count: int = 16, merge_threshold: float = 5, max_iterations: int = 30
 ) -> Palette:
     if not 1 <= count <= 256 or max_iterations < 1:
         raise ValueError("count must be 1..256 and iterations must be positive")
@@ -115,3 +115,42 @@ def load_palette(path_or_name: str | Path) -> Palette:
 def save_palette(palette: Palette, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(palette.model_dump(), indent=2) + "\n", encoding="utf-8")
+
+
+def palette_usage(image: Image.Image, palette: Palette) -> dict[str, int]:
+    """Count visible pixels, including zero counts for unused palette entries."""
+    rgba = np.asarray(image.convert("RGBA"))
+    colors, counts = np.unique(rgba[..., :3][rgba[..., 3] > 0], axis=0, return_counts=True)
+    used = {
+        "#" + "".join(f"{v:02X}" for v in rgb): int(n)
+        for rgb, n in zip(colors, counts, strict=True)
+    }
+    return {color: used.get(color, 0) for color in palette.colors}
+
+
+def background_tinted_dark_colors(
+    palette: Palette,
+    background: str | None,
+    dark_lightness: float = 35,
+    hue_similarity: float = 0.75,
+) -> list[str]:
+    """Flag chromatic dark colors whose LAB hue points toward the key background.
+
+    This is a warning, not an automatic edit: legitimate purple outlines may qualify.
+    Neutral colors (chroma < 10) and neutral backgrounds are excluded.
+    """
+    if background is None:
+        return []
+    bg = rgb_to_lab(palette_rgb([background]))[0, 1:]
+    if np.linalg.norm(bg) < 15:
+        return []
+    lab = rgb_to_lab(palette_rgb(palette.colors))
+    chroma = np.linalg.norm(lab[:, 1:], axis=1)
+    cosine = (lab[:, 1:] @ bg) / (np.maximum(chroma, 1e-9) * np.linalg.norm(bg))
+    return [
+        color
+        for color, value, magnitude, similarity in zip(
+            palette.colors, lab, chroma, cosine, strict=True
+        )
+        if value[0] <= dark_lightness and magnitude >= 10 and similarity >= hue_similarity
+    ]

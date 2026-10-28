@@ -97,6 +97,9 @@ class ProcessingOptions(Schema):
     keep_detached: bool = False
     detached_min_area_ratio: float = Field(default=0.02, ge=0, le=1)
     detect_grid: bool = True
+    scale_mode: Literal["auto", "native", "fit"] = "auto"
+    baseline: Literal["bottom", "center"] = "center"
+    native_grid_confidence: float = Field(default=0.35, ge=0, le=1)
 
 
 class DroppedComponent(Schema):
@@ -111,3 +114,11 @@ class ProcessingReport(Schema):
     grid_size: int | None = None
     grid_offset: tuple[int, int] = (0, 0)
     despilled_pixels: int = 0
+    grid_confidence: float = 0
+    logical_subject_size: tuple[int, int] | None = None
+    scale_mode: str = "fit"
+    scale_factor: float | None = None
+    palette_size: int = 0
+    palette_usage: dict[str, int] = Field(default_factory=dict)
+    tinted_dark_colors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
