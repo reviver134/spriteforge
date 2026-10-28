@@ -27,3 +27,5 @@ src/spriteforge/{app,core,providers,agents,pixel,stages,genres,skills,mcp,memory
 - Verify external APIs (Meta Model API, MCP SDK, OKF spec) against live docs/first real calls; keep endpoint paths and model ids in config.yaml.
 - Cost caps and call counters are mandatory; default max 150 image calls per run.
 - Prefer small readable modules. No speculative features.
+- External editor/tool dependencies must be free to use; do not require paid editor licenses.
+- Keep Muse API providers optional; the free-tools requirement does not remove them. Offline runs use mock providers.

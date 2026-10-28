@@ -1,0 +1,6 @@
+{
+  "transport": "stdio",
+  "command": "python",
+  "args": ["-m", "spriteforge.mcp.pixel_tools", "workspace"],
+  "enabled_roles": {}
+}

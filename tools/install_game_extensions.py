@@ -28,15 +28,10 @@ def main():
         set(grants.roles.get("Art Director", []) + ["create-game-assets"])
     )
     catalog.grants_path.write_text(grants.model_dump_json(indent=2), encoding="utf-8")
-    launcher = root / "extensions/aseprite-server.py"
-    launcher.write_text(
-        'from pathlib import Path\nimport sys\nsys.path.insert(0, str(Path(__file__).parent / "python"))\nfrom aseprite_mcp.server import main\nmain()\n',
-        encoding="utf-8",
-    )
     registry = Registry(root)
     definitions = {
-        "aseprite": Server(
-            command=sys.executable, args=[str(launcher)], env={"ASEPRITE_BIN": "ASEPRITE_BIN"}
+        "pixel-tools": Server(
+            command=sys.executable, args=["-m", "spriteforge.mcp.pixel_tools", str(root)]
         ),
         "filesystem-read": Server(
             command=sys.executable,
@@ -57,13 +52,10 @@ def main():
             "license": "Apache-2.0",
             "installed": choices,
         },
-        "aseprite": {
-            "repository": "https://github.com/jcscocca/aseprite-mcp",
-            "commit": "a04d18a6f97ecd7c05c7b2f6391034eba66bd10e",
-            "license": "MIT",
-            "version": "0.1.0",
-            "status": "Installed, disabled; requires separately installed Aseprite and ASEPRITE_BIN",
-            "export_note": "Upstream spritesheet JSON targets Godot; feed exported PNG frames through SpriteForge's Phaser atlas pipeline.",
+        "pixel-tools": {
+            "source": "src/spriteforge/mcp/pixel_tools.py",
+            "status": "Free local Pillow/NumPy tools; new registrations disabled until enabled per role",
+            "dependencies": "Existing SpriteForge dependencies only; no editor executable or API key",
         },
     }
     (root / "extensions/sources.json").write_text(

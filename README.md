@@ -72,7 +72,7 @@ The requested research additions are installed in the repository's `workspace`:
 | `create-game-assets` | Pixel Artist and Art Director | [Game-development skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/19d93f97c9c1ea0f8b306e77aa81e0d3e352d3e9/skills/disciplines/create-game-assets) |
 | `level-design` | Level/Tile Designer | Same collection, Apache-2.0 |
 | `game-feel` | Game Designer | Same collection, Apache-2.0 |
-| `aseprite` MCP 0.1.0 | Installed under `workspace/extensions/python`, disabled | [Aseprite MCP](https://github.com/jcscocca/aseprite-mcp/tree/a04d18a6f97ecd7c05c7b2f6391034eba66bd10e), MIT |
+| `pixel-tools` MCP | Free local drawing, processing, previews and Phaser atlas export | Built on the existing Pillow/NumPy pipeline |
 | `filesystem-read` MCP | Disabled; confines reads to workspace runs | Bundled example |
 | `knowledge` MCP | Disabled; local corpus retrieval | Existing SpriteForge knowledge server |
 
@@ -80,16 +80,29 @@ The selected external skills include their original references and license. The
 collection's Phaser skill targets Phaser 4, so it was not installed. Source commits,
 licenses and install status are recorded in `workspace/extensions/sources.json`.
 `tools/install_game_extensions.py` reproduces registration from those downloaded
-source directories and the locally installed Aseprite MCP package; it never enables
+skill source directories and the built-in free pixel tools; it never enables
 a server. No external skill scripts were executed. Workspace files remain local
 and ignored by Git.
 
-Aseprite itself is not included or installed. Set `ASEPRITE_BIN` in the environment
-to your separately installed executable before inspecting/enabling `aseprite`.
-Its tools can write files, so keep per-call confirmation enabled and use explicit
-run-folder paths. Its upstream spritesheet metadata targets Godot: use exported
-PNG frames with SpriteForge's existing Phaser atlas pipeline. Live Aseprite edits
-have not been verified on this machine.
+No paid editor or `ASEPRITE_BIN` is required. The earlier Aseprite connector has
+been retired from the active workspace configuration. `pixel-tools` supports
+`draw_grid` (explicit pixels from a character grid), `inspect_sprite` (size/palette),
+`process_sprite` (the existing deterministic pipeline), and `export_atlas`
+(Phaser JSON, PNG and a contact sheet). These tools run locally with no API calls.
+They read PNGs only from `workspace/runs` and `workspace/tool-output`, and write
+new drafts only under `workspace/tool-output/<unique-id>`; they never overwrite
+approved run assets. Palette/spec validation and normal per-call human confirmation
+still apply. They are bounded asset operations, not a full layered animation editor.
+
+For manual drawing and animation, [Pixelorama](https://pixelorama.org/) is a free,
+open-source editor with PNG/spritesheet export; obtain the free Windows release
+from its [official GitHub releases](https://github.com/Orama-Interactive/Pixelorama/releases).
+It is optional and not required by the MCP server. LibreSprite is another free
+editor, but its scripting API is not interchangeable with Aseprite's Lua API.
+
+The existing live Muse API integrations remain optional and may carry provider
+charges. `--mock` keeps the pipeline offline; mock images are synthetic test art,
+not a local generative model. No paid model calls are made by the pixel tools.
 
 Python 3.11+:
 
