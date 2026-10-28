@@ -96,6 +96,11 @@ def _step(store, run_id):
         return schema.model_validate(read(name))
 
     history = gates.all(run_id)
+    intake_notes = [
+        g.response.text
+        for g in history
+        if g.stage in {"genre", "brief", "followups"} and g.response and g.response.text.strip()
+    ]
     last = history[-1] if history else None
     memory = KnowledgeStore(store.path.parent / "memory", store, run_id)
     seed(memory)
@@ -133,11 +138,10 @@ def _step(store, run_id):
             k: last.response.form.get(k) or v.get("default", "") for k, v in properties.items()
         }
         answers = {k: values.pop(k) for k in list(values) if k.startswith("seed_")}
-        notes = [g.response.text for g in history if g.response and g.response.text.strip()]
-        brief = GameBrief(genre=entry.id, answers=answers, notes=notes, **values)
+        brief = GameBrief(genre=entry.id, answers=answers, notes=intake_notes, **values)
         save("brief-draft.json", brief.model_dump(), "Game Designer")
         # Separate context also repairs legacy drafts without overwriting saved artifacts.
-        save("brief-notes.json", {"notes": notes}, "Game Designer")
+        save("brief-notes.json", {"notes": intake_notes}, "Game Designer")
         questions = ask(
             "Game Designer",
             "Ask 2-4 specific follow-up questions based on this brief and its answers: "
@@ -162,7 +166,7 @@ def _step(store, run_id):
         return False
     if last.stage == "followups":
         brief = GameBrief.model_validate(read("brief-draft.json"))
-        brief.notes = [g.response.text for g in history if g.response and g.response.text.strip()]
+        brief.notes = intake_notes
         brief.answers.update(last.response.form)
         save("brief.json", brief.model_dump(), "Game Designer")
         snippets = memory.retrieve(
@@ -246,6 +250,8 @@ def _step(store, run_id):
     if last.stage in {"styles", "revise"}:
         version = len([g for g in history if g.stage == "concept"]) + 1
         brief = GameBrief.model_validate(read("brief.json"))
+        # Legacy servers saved briefs without free-text notes; recover them from gates.
+        brief.notes = list(dict.fromkeys([*brief.notes, *intake_notes]))
         options = Options.model_validate(read("options.json"))
         style_gate = next(g for g in history if g.stage == "styles")
         selected = style_gate.response.form.get("style") or options.options[0].name

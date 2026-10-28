@@ -166,3 +166,55 @@ def test_failed_brief_resume_preserves_notes_and_checkpoints(tmp_path, monkeypat
         assert client.get(f"/api/runs/{ident}").json()["error"] is None
     with pytest.raises(ValueError, match="Only a failed run"):
         store.retry_failed(ident)
+
+
+def test_legacy_style_failure_recovers_notes_into_concept(tmp_path, monkeypatch):
+    from spriteforge.stages import workflow
+
+    store, ident = setup(tmp_path)
+    notes = ["A bike rider fighting zombies", "A ruined city with fallen poles"]
+    answer(store, ident, text=notes[0])
+    answer(store, ident, text=notes[1])
+    original = workflow.propose
+
+    def fail(*args):
+        raise ValueError("Meta HTTP 400: additionalProperties is required")
+
+    monkeypatch.setattr(workflow, "propose", fail)
+    with pytest.raises(ValueError, match="additionalProperties"):
+        answer(store, ident)
+    store.fail(ident, "Meta HTTP 400: additionalProperties is required")
+    # The old server wrote brief.json without notes before failing to propose styles.
+    with store.connect() as db:
+        row = db.execute(
+            "SELECT id, data FROM artifacts WHERE run_id=? AND name='brief.json'", (ident,)
+        ).fetchone()
+        brief = json.loads(row["data"])
+        brief.pop("notes")
+        raw = json.dumps(brief).encode()
+        db.execute("UPDATE artifacts SET data=? WHERE id=?", (raw, row["id"]))
+    path = tmp_path / "runs" / ident / "brief.json"
+    path.write_bytes(raw)
+    prompts = []
+
+    def capture(provider, role, prompt, schema):
+        prompts.append(prompt)
+        return original(provider, role, prompt, schema)
+
+    monkeypatch.setattr(workflow, "propose", capture)
+    store.retry_failed(ident)
+    workflow_step(store, ident)
+    assert Gates(store).pending(ident).stage == "styles"
+    assert all(note in prompts[0] for note in notes)
+    generate = workflow.MockImageProvider.generate
+
+    def capture_image(provider, request):
+        prompts.append(request.prompt)
+        return generate(provider, request)
+
+    monkeypatch.setattr(workflow.MockImageProvider, "generate", capture_image)
+    answer(store, ident, text="Pick this palette")
+    assert Gates(store).pending(ident).stage == "concept"
+    assert all(note in prompts[1] for note in notes)
+    assert "Pick this palette" not in prompts[1]
+    assert path.read_bytes() == raw
