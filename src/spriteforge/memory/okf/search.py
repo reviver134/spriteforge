@@ -34,3 +34,20 @@ def token_cost(text: str) -> int:
     # Conservative tokenizer-independent ceiling: at most one token per UTF-8 byte.
     # Budgets are strict for this accounting, rather than pretending to know a model tokenizer.
     return len(text.encode("utf-8"))
+
+
+def sentence_excerpt(text: str, allowance: int) -> str:
+    """Keep complete sentences; reserve an explicit marker when anything is omitted."""
+    if token_cost(text) <= allowance:
+        return text
+    marker = "..."
+    if allowance < token_cost(marker):
+        return ""
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    kept = []
+    for part in parts:
+        candidate = "\n".join([*kept, part, marker])
+        if token_cost(candidate) > allowance:
+            break
+        kept.append(part)
+    return "\n".join([*kept, marker])

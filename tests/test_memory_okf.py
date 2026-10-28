@@ -340,3 +340,25 @@ def test_seed_review_is_explicit_and_confirmed(tmp_path):
     assert after.metadata.model_extra["x-spriteforge-review"] == "reviewed"
     assert datetime.fromisoformat(after.metadata.model_extra["x-spriteforge-reviewed-at"]).tzinfo
     assert "genres/metroidvania" not in runner.invoke(app, ["memory", "review", *args]).output
+
+
+@pytest.mark.parametrize("budget", [85, 110, 160])
+def test_snippets_never_cut_sentences(memory, budget):
+    memory.write_batch(
+        [
+            entry(
+                title="Sentences",
+                body=(
+                    "First sentence. "
+                    + "A very long second sentence with searchable sentences " * 8
+                    + "."
+                ),
+            )
+        ],
+        "Sentence fixture",
+    )
+    results = memory.retrieve("sentences", token_budget=budget)
+    assert results
+    text = results[0].text
+    assert text == "..." or text == "First sentence.\n..."
+    assert sum(s.tokens for s in results) <= budget

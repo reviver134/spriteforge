@@ -14,7 +14,7 @@ from . import git
 from .codec import check_id, ensure_no_secrets, parse, serialize
 from .indexes import indexes
 from .models import Entry, Metadata, Snippet
-from .search import rank, token_cost
+from .search import rank, sentence_excerpt, token_cost
 
 CATEGORIES = {
     "genres",
@@ -121,7 +121,9 @@ class KnowledgeStore:
             allowance = remaining - token_cost(header)
             if allowance <= 0:
                 continue
-            text = text.encode("utf-8")[:allowance].decode("utf-8", errors="ignore")
+            text = sentence_excerpt(text, allowance)
+            if not text:
+                continue
             cost = token_cost(header + text)
             snippets.append(
                 Snippet(
