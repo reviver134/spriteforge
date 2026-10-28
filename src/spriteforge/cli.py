@@ -7,12 +7,14 @@ import uvicorn
 
 from spriteforge.app.server import create_app
 from spriteforge.config import init_workspace, load_config
+from spriteforge.core.credentials import load_credentials
 from spriteforge.core.state import Store
 
 app = typer.Typer(no_args_is_help=True)
 
 
 def setup(config: Path | None, workspace: Path | None):
+    load_credentials()
     cfg = load_config(config)
     root = init_workspace(workspace or cfg.workspace)
     return cfg, Store(root / "state.sqlite3")

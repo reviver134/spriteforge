@@ -30,7 +30,10 @@ base URLs, endpoint paths and budgets are configurable. The image cap defaults t
 150 per run; model call caps and an estimated image-cost cap also apply. LLM token
 pricing is not estimated in this milestone.
 
-Live provider adapters read `META_API_KEY` only from the environment. Never put it
+Live provider adapters read `META_API_KEY` only from the environment. The CLI also
+loads that variable from `.env` in the current directory when it is absent from the
+environment; existing environment values take precedence. `.env` is ignored by Git,
+and its values are never copied into configuration or the event journal. Never put keys
 in configuration. HTTP errors expose status and response text with credentials
 redacted. No telemetry or external frontend dependencies. Model-provided output
 must pass the `chat_json` schema validator (one corrective retry).
@@ -41,6 +44,17 @@ Meta contracts checked against [image docs](https://dev.meta.ai/docs/image-gener
 base64 responses and JSON inline references for edits. Requested sizes are aspect
 ratio hints, not guaranteed pixel dimensions. Live account access remains unverified
 until a credentialed call succeeds. MCP and OKF are not implemented or assumed here.
+
+To explicitly verify a live account, run `python tools/meta_smoke.py` from the repository
+root. It checks Spark JSON, Image generation and editing, and Spark vision, with a cap
+of two image calls. It writes test images under `workspace/runs/` and keeps its call
+journal in `workspace/meta-smoke.sqlite3`. This is a paid connectivity check, separate
+from the offline pytest suite and mock demo.
+
+Live verification on 2026-10-28 succeeded for all four operations with the configured
+models. The generated image was 1600×1600 for a 1024×1024 request. Spark identified
+the edited slime as a jellyfish; connectivity passed, while semantic consistency still
+needs the planned critic and repair loop. These test images are not accepted game assets.
 
 ```powershell
 python -m pytest
