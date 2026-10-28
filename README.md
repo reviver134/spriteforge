@@ -4,8 +4,9 @@ Local-first pixel-game builder. Milestone 1 supplies the foundation and a mock d
 Milestone 2 adds deterministic pixel processing, validation, palettes, atlases, and
 previews. Milestone 3 adds local OKF knowledge, retrieval, and a read-only MCP server.
 Milestone 4 adds editable roles, the bounded agent runtime, Director planning, and
-durable human gates. The acceptance workflow uses mock providers; playable game
-generation and production asset workflows remain outside this milestone.
+durable human gates. Milestone 5 adds adaptive intake and concept previews with
+mock or live providers. Playable game generation and production asset workflows
+remain outside this milestone.
 
 Python 3.11+:
 
@@ -45,8 +46,9 @@ Meta contracts checked against [image docs](https://dev.meta.ai/docs/image-gener
 [image understanding](https://dev.meta.ai/docs/image-understanding), and
 [structured outputs](https://dev.meta.ai/docs/structured-output). Images use
 base64 responses and JSON inline references for edits. Requested sizes are aspect
-ratio hints, not guaranteed pixel dimensions. Live account access remains unverified
-until a credentialed call succeeds. The separate Milestone 3 memory workflow implements MCP and OKF locally.
+ratio hints, not guaranteed pixel dimensions. The Milestone 5 credentialed smoke
+test verified generation and editing; details appear below. The separate Milestone 3
+memory workflow implements MCP and OKF locally.
 
 To explicitly verify a live account, run `python tools/meta_smoke.py` from the repository
 root. It checks Spark JSON, Image generation and editing, and Spark vision, with a cap
@@ -347,3 +349,43 @@ Validation uses the reusable `ScriptedHuman` pytest fixture and a real CLI/Chrom
 restart test. Install the headless browser once with
 `python -m playwright install chromium`, then run `python -m pytest` and
 `python -m ruff check .`.
+# Milestone 5: intake and concept preview
+
+Run `python -m spriteforge start --intake --mock --workspace workspace --no-open-browser`
+and open http://127.0.0.1:8765. Choose a genre, complete or skip the brief fields,
+answer the adaptive follow-ups, and choose a palette/style. Choice chips, free text,
+suggested options and default buttons are available in the questionnaire.
+
+G2 shows the labeled concept and a full-scene pixel preview at 320×180, enlarged
+3× with nearest-neighbor sampling. The pixel pipeline's LAB palette extraction
+and quantization preserve the entire scene rather than removing backgrounds or
+discarding enemies as detached sprite components. Request changes, confirm the
+ChangeRequests, and review v2. All versions remain visible in Artifacts. Edit the
+extracted color swatches before approving. Approval locks `style.json` and
+`anchor.png` in `workspace/runs/<run-id>/`, with `brief.json`, concept versions,
+native previews, and approval provenance alongside them. Resume with
+`python -m spriteforge resume <run-id> --workspace workspace --no-open-browser`.
+
+Omit `--mock` to use the configured Muse providers and `META_API_KEY`. Live concept
+generation is opt-in; tests use offline providers. There is no revision-count
+limit, but every image call consumes the persisted budget (150 by default), and
+the UI shows calls and the configured estimated cost. The estimate is not billed
+usage. This milestone stops after G2; it does not generate the final game.
+
+The 2026-10-28 smoke test used two successful Muse Image calls through the existing
+provider, one generation and one edit. Both accepted `model=muse-image-1.0`,
+`n=1`, `size=1024x1024`, `response_format=b64_json`, `output_format=png`, and
+`reasoning_strength=low`. Paths were `/v1/images/generations` and `/v1/images/edits`
+on `https://api.meta.ai`; editing accepted `images=[{"image_url": "data:image/png;base64,…"}]`.
+Both responses contained `data[0].b64_json` but decoded to **1600×1600**, so requested
+size is not an output-size guarantee. One reference was verified; neither the
+maximum reference count nor `reasoning_strength=high` was tested. No provider
+request changes were needed; the discrepancy is documented in `config.yaml`.
+
+Redacted wire metadata is in `workspace/milestone5-smoke/responses.json` (the
+existing scrubber also masks usage token counts). Sprite grid detection was
+inconclusive and used fit mode; the edited pose detected a 20×16 logical subject
+with a 50-pixel block size. Both passed processing validation, with unused-color
+and background-tint warnings. Compare `workspace/milestone5-smoke/sprite/comparison.png`
+and `workspace/milestone5-smoke/pose/comparison.png`; each directory also contains
+the processing report, palette, source, result, and enlarged result.

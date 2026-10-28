@@ -11,6 +11,8 @@ from spriteforge.core.demo import demo_step
 from spriteforge.core.gates import Feedback, Gates
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
+from spriteforge.stages.workflow import WORKFLOW as INTAKE
+from spriteforge.stages.workflow import workflow_step as intake_step
 
 
 def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -> FastAPI:
@@ -18,9 +20,13 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
         while True:
             try:
                 step = (
-                    workflow_step
-                    if store.get_run(run_id).config.get("workflow") == WORKFLOW
-                    else demo_step
+                    intake_step
+                    if store.get_run(run_id).config.get("workflow") == INTAKE
+                    else (
+                        workflow_step
+                        if store.get_run(run_id).config.get("workflow") == WORKFLOW
+                        else demo_step
+                    )
                 )
                 more = await asyncio.to_thread(step, store, run_id)
                 if not more:
@@ -67,6 +73,19 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
         run = require_run(id)
         return {
             "run": run.model_dump(),
+            "usage": {
+                "image_calls": sum(
+                    bool(e.payload.get("image"))
+                    for e in store.events(id)
+                    if e.type == "cost.reserved"
+                ),
+                "estimated_cost": sum(
+                    e.payload.get("estimated_cost", 0)
+                    for e in store.events(id)
+                    if e.type == "cost.reserved"
+                ),
+                "cap": run.config.get("budget", {}).get("max_image_calls", 150),
+            },
             "artifacts": [a.model_dump(exclude={"data"}) for a in store.artifacts(id)],
             "gate": (gate.model_dump(mode="json") if (gate := Gates(store).pending(id)) else None),
         }
@@ -74,9 +93,19 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
     @app.post("/api/runs/{id}/gates/{gate_id}")
     async def respond(id: str, gate_id: str, feedback: Feedback):
         run = require_run(id)
-        if run.config.get("workflow") != WORKFLOW:
+        if run.config.get("workflow") not in {WORKFLOW, INTAKE}:
             raise HTTPException(409, "Run does not use agent gates")
         try:
+            if run.config.get("workflow") == INTAKE:
+                pending = Gates(store).pending(id)
+                if pending and pending.id == gate_id:
+                    if feedback.action == "request_changes" and pending.stage != "concept":
+                        raise ValueError("Changes can be requested at the concept review")
+                    if feedback.action == "approve" and pending.stage == "concept":
+                        from spriteforge.pixel.schemas import hex_color
+
+                        for value in feedback.form.values():
+                            hex_color(value)
             gate = await asyncio.to_thread(Gates(store).respond, id, gate_id, feedback)
         except KeyError:
             raise HTTPException(404, "Gate not found") from None
@@ -84,7 +113,11 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
             raise HTTPException(409, str(exc)) from None
         # Advance only after the persisted human answer; the next gate pauses again.
         try:
-            await asyncio.to_thread(advance_until_gate, store, id)
+            await asyncio.to_thread(
+                intake_step if run.config.get("workflow") == INTAKE else advance_until_gate,
+                store,
+                id,
+            )
         except Exception as exc:  # noqa: BLE001 -- persist scrubbed worker errors
             await asyncio.to_thread(store.fail, id, str(exc))
             raise HTTPException(500, redact(str(exc))) from None

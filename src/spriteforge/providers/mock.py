@@ -28,6 +28,20 @@ class MockImageProvider:
         )
         draw.rectangle((11, 13, 12, 15), fill="white")
         draw.rectangle((19, 13, 20, 15), fill="white")
+        if "concept" in request.prompt.casefold():
+            # Synthetic full scene exercises the same preview/revision path offline.
+            scene = Image.new("RGB", (320, 180), tuple(digest[3:6]))
+            painter = ImageDraw.Draw(scene)
+            painter.rectangle((0, 110, 320, 180), fill="#454452")
+            for x in range(0, 320, 32):
+                painter.rectangle((x, 85, x + 20, 110), fill="#848078")
+            scene.paste(image, (130, 100), image)
+            for x in (50, 210, 270):
+                painter.rectangle((x, 120, x + 16, 136), fill=tuple(digest[6:9]))
+                painter.rectangle((x + 4, 123, x + 6, 125), fill="white")
+            painter.rectangle((8, 8, 94, 20), fill="#181825")
+            painter.rectangle((12, 12, 70, 16), fill="#E75B65")
+            image = scene
         image = image.resize(request.size, Image.Resampling.NEAREST)
         buffer = io.BytesIO()
         image.save(buffer, format="PNG")

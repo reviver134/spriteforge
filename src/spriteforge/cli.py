@@ -36,6 +36,7 @@ def serve(store, run_id, port, open_browser):
 def start(
     mock: bool = False,
     agents: bool = False,
+    intake: bool = False,
     goal: str = "A top-down dungeon crawler with a hero and stone rooms",
     config: Path | None = None,
     workspace: Path | None = None,
@@ -44,6 +45,12 @@ def start(
 ):
     """Start a local UI; --mock --agents runs role agents and durable human gates."""
     cfg, store = setup(config, workspace)
+    if intake:
+        from spriteforge.stages.workflow import start_run
+
+        run = start_run(store, cfg, mock=mock)
+        serve(store, run.id, port, open_browser)
+        return
     if agents and not mock:
         raise typer.BadParameter("The agent acceptance workflow requires --mock")
     if agents:
