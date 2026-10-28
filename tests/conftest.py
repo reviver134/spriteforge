@@ -2,7 +2,13 @@ import pytest
 
 from spriteforge.config import load_config
 from spriteforge.core.cost import Budget
+from spriteforge.core.gates import ScriptedHuman
 from spriteforge.core.state import Store
+
+
+@pytest.fixture
+def scripted_human():
+    return ScriptedHuman
 
 
 @pytest.fixture

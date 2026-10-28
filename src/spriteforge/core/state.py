@@ -15,7 +15,7 @@ from .security import redact
 
 class Run(BaseModel):
     id: str
-    status: Literal["pending", "running", "completed", "failed"] = "pending"
+    status: Literal["pending", "running", "paused", "completed", "failed", "aborted"] = "pending"
     cursor: int = 0
     config: dict = Field(default_factory=dict)
 
@@ -138,6 +138,14 @@ class Store:
                 raise KeyError(run_id)
             db.execute("UPDATE stages SET status='failed' WHERE run_id=?", (run_id,))
             self._event(db, run_id, "Director", "run.failed", {"message": message})
+
+    def save_artifact(self, artifact: Artifact, agent: str, kind: str) -> None:
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO artifacts VALUES(?,?,?,?,?)",
+                (artifact.id, artifact.run_id, artifact.name, artifact.mime, artifact.data),
+            )
+            self._event(db, artifact.run_id, agent, kind, artifact.model_dump(exclude={"data"}))
 
     def advance(
         self,

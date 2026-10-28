@@ -3,20 +3,66 @@
 <title>SpriteForge</title><style>
 body{background:#151822;color:#e2e8f0;font:16px system-ui;margin:40px auto;max-width:960px;padding:0 20px}
 h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:1px solid #333}
-#artifacts{display:flex;gap:24px}img{width:128px;height:128px;image-rendering:pixelated;background:#303447}
-.muted{color:#a8b3c7}#error{color:#ffb4b4}figure{margin:0}figcaption{padding:8px}
-</style></head><body><h1>SpriteForge</h1><p class="muted">Local foundation demo · mock providers</p>
+#artifacts,#gate-artifacts{display:flex;gap:24px;flex-wrap:wrap}img{width:128px;height:128px;image-rendering:pixelated;background:#303447}
+.muted{color:#a8b3c7}#error{color:#ffb4b4}figure{margin:0}pre{white-space:pre-wrap;max-width:800px;overflow-wrap:anywhere}textarea{display:block;width:95%;min-height:80px}fieldset{margin:16px 0}button{padding:10px;margin:6px}#gate-panel{border:2px solid #9ae6b4;padding:16px}#gate-artifacts img{width:auto;max-width:100%;height:160px}figcaption{padding:8px}
+</style></head><body><h1>SpriteForge</h1><p class="muted">Local mock workflows · mock providers</p>
 <label>Run <select id="runs" aria-label="Select run"></select></label>
 <p id="status" role="status">Connecting…</p><p id="error" role="alert"></p>
-<h2>Artifacts</h2><div id="artifacts"></div><h2>Timeline</h2><ol id="timeline"></ol>
+<section id="gate-panel" hidden aria-labelledby="gate-title">
+<h2 id="gate-title"></h2><div id="gate-artifacts"></div><div id="change-requests"></div>
+<form id="gate-form"><div id="custom-fields"></div>
+<fieldset id="tags"><legend>Feedback tags</legend>
+<label><input type="checkbox" value="art">Art</label>
+<label><input type="checkbox" value="gameplay">Gameplay</label>
+<label><input type="checkbox" value="controls">Controls</label>
+<label><input type="checkbox" value="difficulty">Difficulty</label>
+<label><input type="checkbox" value="bug">Bug</label></fieldset>
+<label for="feedback-text">Feedback</label><textarea id="feedback-text"></textarea>
+<button type="submit" value="approve">Approve</button>
+<button id="request-changes" type="submit" value="request_changes">Request changes</button>
+<button type="submit" value="abort">Abort</button><p id="gate-error" role="alert"></p>
+</form></section><h2>Artifacts</h2><div id="artifacts"></div><h2>Timeline</h2><ol id="timeline"></ol>
 <script>
 const $=id=>document.getElementById(id);let source, selected;
-async function refresh(){const d=await (await fetch('/api/runs/'+selected)).json();
- $('status').textContent=d.run.status+' · checkpoint '+d.run.cursor+'/10';
- $('artifacts').replaceChildren();for(const a of d.artifacts){const fig=document.createElement('figure');
- const img=document.createElement('img');img.src='/api/artifacts/'+a.id;img.alt=a.name;
- const cap=document.createElement('figcaption');cap.textContent=a.name;fig.append(img,cap);$('artifacts').append(fig);}}
-function choose(){if(source)source.close();selected=$('runs').value;$('timeline').replaceChildren();refresh();
+let renderedGate=null;
+async function renderArtifact(a,container){
+ const fig=document.createElement('figure'),cap=document.createElement('figcaption');cap.textContent=a.name;
+ if(a.mime.startsWith('image/')){const img=document.createElement('img');img.src='/api/artifacts/'+a.id;img.alt=a.name;fig.append(img);}
+ else if(a.mime==='application/json'){const pre=document.createElement('pre');
+ pre.textContent=JSON.stringify(await(await fetch('/api/artifacts/'+a.id)).json(),null,2);fig.append(pre);}
+ fig.append(cap);container.append(fig);
+}
+async function refresh(){const current=selected;const d=await (await fetch('/api/runs/'+current)).json();
+ if(current!==selected)return;
+ $('status').textContent=d.run.status+' ? checkpoint '+d.run.cursor;
+ $('artifacts').replaceChildren();for(const a of d.artifacts.filter(a=>a.mime.startsWith('image/'))){await renderArtifact(a,$('artifacts'));}
+ const g=d.gate;$('gate-panel').hidden=!g;
+ if(!g){renderedGate=null;return;}if(renderedGate===g.id)return;renderedGate=g.id;
+ $('gate-title').textContent=g.title;$('gate-form').reset();$('gate-error').textContent='';
+ $('gate-artifacts').replaceChildren();for(const id of g.artifacts_to_show){const a=d.artifacts.find(a=>a.id===id);if(a)await renderArtifact(a,$('gate-artifacts'));}
+ $('change-requests').replaceChildren();
+ if(g.changes){for(const c of g.changes.requests){const p=document.createElement('p');
+ p.textContent='Target: '+JSON.stringify(c.target)+' | '+c.instruction+' | '+c.severity+' | '+c.scope+' | Regenerate: '+c.needs_regen;
+ $('change-requests').append(p);}}
+ $('request-changes').hidden=g.kind==='confirm_changes';$('tags').hidden=g.kind==='confirm_changes';
+ $('custom-fields').replaceChildren();
+ if(g.form_schema.title!=='Feedback')for(const [name,rule] of Object.entries(g.form_schema.properties||{})){
+ const label=document.createElement('label');label.textContent=rule.title||name;
+ let input;
+ if(rule.enum){input=document.createElement('select');for(const v of rule.enum){const o=document.createElement('option');o.value=v;o.textContent=v;input.append(o);}}
+ else{input=document.createElement('input');input.type=rule.type==='boolean'?'checkbox':(['integer','number'].includes(rule.type)?'number':'text');}
+ input.name=name;input.dataset.kind=rule.type||'string';input.required=(g.form_schema.required||[]).includes(name);label.append(input);$('custom-fields').append(label);}
+}
+$('gate-form').onsubmit=async e=>{e.preventDefault();const gate=renderedGate;if(!gate)return;
+ const form={};for(const input of $('custom-fields').querySelectorAll('input,select')){
+ form[input.name]=input.dataset.kind==='boolean'?input.checked:(['integer','number'].includes(input.dataset.kind)?Number(input.value):input.value);}
+ const body={action:e.submitter.value,tags:[...$('tags').querySelectorAll('input:checked')].map(i=>i.value),text:$('feedback-text').value,form};
+ for(const b of $('gate-form').querySelectorAll('button'))b.disabled=true;
+ try{const response=await fetch('/api/runs/'+selected+'/gates/'+gate,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const result=await response.json();if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:JSON.stringify(result.detail));
+ await refresh();}catch(err){$('gate-error').textContent=err.message;}finally{for(const b of $('gate-form').querySelectorAll('button'))b.disabled=false;}
+};
+function choose(){if(source)source.close();selected=$('runs').value;renderedGate=null;$('timeline').replaceChildren();refresh();
  source=new EventSource('/api/runs/'+selected+'/events');source.onmessage=e=>{const d=JSON.parse(e.data);
  const li=document.createElement('li');li.textContent=d.timestamp+' · '+d.agent+' · '+d.type+' · '+(d.payload.message||'');
  $('timeline').append(li);refresh();};source.addEventListener('done',()=>{source.close();refresh();});

@@ -6,7 +6,9 @@ from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 
+from spriteforge.agents.workflow import WORKFLOW, advance_until_gate, workflow_step
 from spriteforge.core.demo import demo_step
+from spriteforge.core.gates import Feedback, Gates
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
 
@@ -15,7 +17,12 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
     async def worker():
         while True:
             try:
-                more = await asyncio.to_thread(demo_step, store, run_id)
+                step = (
+                    workflow_step
+                    if store.get_run(run_id).config.get("workflow") == WORKFLOW
+                    else demo_step
+                )
+                more = await asyncio.to_thread(step, store, run_id)
                 if not more:
                     break
             except Exception as exc:  # noqa: BLE001 -- persist any worker failure at task boundary
@@ -61,7 +68,27 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
         return {
             "run": run.model_dump(),
             "artifacts": [a.model_dump(exclude={"data"}) for a in store.artifacts(id)],
+            "gate": (gate.model_dump(mode="json") if (gate := Gates(store).pending(id)) else None),
         }
+
+    @app.post("/api/runs/{id}/gates/{gate_id}")
+    async def respond(id: str, gate_id: str, feedback: Feedback):
+        run = require_run(id)
+        if run.config.get("workflow") != WORKFLOW:
+            raise HTTPException(409, "Run does not use agent gates")
+        try:
+            gate = await asyncio.to_thread(Gates(store).respond, id, gate_id, feedback)
+        except KeyError:
+            raise HTTPException(404, "Gate not found") from None
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        # Advance only after the persisted human answer; the next gate pauses again.
+        try:
+            await asyncio.to_thread(advance_until_gate, store, id)
+        except Exception as exc:  # noqa: BLE001 -- persist scrubbed worker errors
+            await asyncio.to_thread(store.fail, id, str(exc))
+            raise HTTPException(500, redact(str(exc))) from None
+        return {"gate": gate.model_dump(mode="json"), "run": store.get_run(id).model_dump()}
 
     @app.get("/api/artifacts/{id}")
     def artifact(id: str):
@@ -84,7 +111,7 @@ def create_app(store: Store, run_id: str | None = None, interval: float = 1.0) -
         async def stream():
             nonlocal cursor
             while not await request.is_disconnected():
-                completed = store.get_run(id).status == "completed"
+                completed = store.get_run(id).status in {"completed", "aborted", "failed"}
                 batch = await asyncio.to_thread(store.events, id, cursor)
                 for event in batch:
                     cursor = event.id

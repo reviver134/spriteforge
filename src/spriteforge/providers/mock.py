@@ -19,7 +19,13 @@ class MockImageProvider:
         digest = hashlib.sha256(request.prompt.encode() + b"".join(request.references)).digest()
         image = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
-        draw.rectangle((7, 8, 24, 25), fill=tuple(digest[:3]) + (255,), outline="#181825", width=2)
+        draw.rounded_rectangle(
+            (7, 8, 24, 25),
+            radius=8 if "round" in request.prompt.casefold() else 0,
+            fill=tuple(digest[:3]) + (255,),
+            outline="#181825",
+            width=2,
+        )
         draw.rectangle((11, 13, 12, 15), fill="white")
         draw.rectangle((19, 13, 20, 15), fill="white")
         image = image.resize(request.size, Image.Resampling.NEAREST)

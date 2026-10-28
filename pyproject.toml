@@ -18,7 +18,7 @@ spriteforge = "spriteforge.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-spriteforge = ["config.yaml", "app/*.html", "pixel/palettes/*.json", "memory/okf/seeds/*.yaml"]
+spriteforge = ["config.yaml", "app/*.html", "pixel/palettes/*.json", "memory/okf/seeds/*.yaml", "agents/roles/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

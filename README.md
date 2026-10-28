@@ -3,8 +3,9 @@
 Local-first pixel-game builder. Milestone 1 supplies the foundation and a mock demo;
 Milestone 2 adds deterministic pixel processing, validation, palettes, atlases, and
 previews. Milestone 3 adds local OKF knowledge, retrieval, and a read-only MCP server.
-Game generation and human game-review gates are later milestones. The revised milestone plan supersedes the original;
-provider-based asset production belongs to Milestone 7.
+Milestone 4 adds editable roles, the bounded agent runtime, Director planning, and
+durable human gates. The acceptance workflow uses mock providers; playable game
+generation and production asset workflows remain outside this milestone.
 
 Python 3.11+:
 
@@ -45,7 +46,7 @@ Meta contracts checked against [image docs](https://dev.meta.ai/docs/image-gener
 [structured outputs](https://dev.meta.ai/docs/structured-output). Images use
 base64 responses and JSON inline references for edits. Requested sizes are aspect
 ratio hints, not guaranteed pixel dimensions. Live account access remains unverified
-until a credentialed call succeeds. MCP and OKF are not implemented or assumed here.
+until a credentialed call succeeds. The separate Milestone 3 memory workflow implements MCP and OKF locally.
 
 To explicitly verify a live account, run `python tools/meta_smoke.py` from the repository
 root. It checks Spark JSON, Image generation and editing, and Spark vision, with a cap
@@ -206,8 +207,10 @@ absolute timezone-aware timestamp, and stale/deprecated entries remain retrievab
 with visible labels. Attested-computation metadata is preserved, but executors and
 attesters are never run by the memory store.
 
-Only two custom frontmatter keys are used: `x-spriteforge-scope` (`project` or
-`private`) and `x-spriteforge-scores` (prompt measurement records). Ordinary agent
+Custom extensions include `x-spriteforge-scope` (`project` or `private`),
+`x-spriteforge-scores` (prompt measurements), `x-spriteforge-review` (bootstrap
+review status), `x-spriteforge-reviewed-at` (review time), and
+`x-spriteforge-designation` (bootstrap verification designation). Ordinary agent
 writes set `generated` and clear prior verification. An explicit human command
 `spriteforge memory promote lessons/example --by project-owner` records verification
 without rewriting generation provenance. Agents cannot promote through MCP.
@@ -289,3 +292,58 @@ entries; `spriteforge memory review <id> --confirm` records `reviewed` and the
 Retrieval filters BM25 scores using `memory.min_score` and `memory.relative_score`
 in config.yaml (defaults: 0 and 0.5 of the best score). CLI overrides are
 `--min-score` and `--relative-score`; `--verbose` prints each retained score.
+
+
+## Agent runtime and gates (Milestone 4)
+
+```powershell
+spriteforge start --mock --agents --goal "A top-down dungeon crawler"
+# After stopping the process, including while paused:
+spriteforge runs
+spriteforge resume <id>
+```
+
+The acceptance workflow pauses at G1 Brief, G2 Concept preview, G3 Asset contact
+sheet, G4 Playtest, and G5 Final review. Gates and answers persist in SQLite with
+no expiration. Approve, Request changes (with tags and text), and Abort are explicit
+human actions. G1 demonstrates a schema-driven questionnaire. Images appear side
+by side with a generated contact sheet; JSON artifacts remain inspectable.
+
+At G3, enter `make the hero rounder`. The Director produces a typed change request
+with `target: [hero]` and `needs_regen: true`, then opens a second confirmation gate.
+No image calls run until that gate is approved. Confirmation re-plans the affected
+role, creates hero v2, retains tile v1 and all original bytes, and reopens G3. Abort
+ends the run. Unrecognized mock feedback conservatively targets a mechanic without
+regenerating images. This interpreter is an offline scripted provider example;
+live natural-language interpretation is supplied through the provider interface.
+
+Eight Markdown roles live in `src/spriteforge/agents/roles/`. Their frontmatter
+specifies name, goal, model, allowed tools and skills, memory scopes, and step cap.
+Each new run reloads and snapshots these files; editing them does not mutate an
+already-paused run. The CLI acceptance workflow requires `model: mock` and uses
+scripted responses. `AgentRuntime` accepts an injected LLM provider or a dictionary
+keyed by role model, plus explicitly registered typed tools and skill text; it does
+not implicitly grant filesystem, MCP, or skill access. Existing live provider
+adapters can be injected by callers. No new live API calls are needed for this demo.
+
+Each invocation retrieves within its allowed scopes and byte-accounted memory
+budget, records retrieved IDs, enforces step/time limits, validates tool arguments
+and results, and allows one corrective JSON-schema retry. Outputs, plans, feedback,
+and change requests are typed artifacts; the append-only event journal records
+progress. Stable invocation IDs allow replay of completed outputs after a crash.
+Budget reservations count attempted calls. Synchronous provider I/O may finish
+remotely after a timeout; its late result is discarded. Tools must check the runtime
+cancellation boundary before publishing side effects (the image registry does).
+Accepted image versions are immutable; revisions require explicit confirmed targets.
+The mock workflow persists state between stages and gates, and uses an OS lock to
+serialize concurrent resumes. An interrupted image request may still consume a
+reservation; an image already saved to the registry is reused on retry.
+
+The Programmer and QA artifacts in this workflow describe mock work; this milestone
+does not produce a playable game, run a live art critic, or automatically promote
+Librarian knowledge. These remain later work.
+
+Validation uses the reusable `ScriptedHuman` pytest fixture and a real CLI/Chromium
+restart test. Install the headless browser once with
+`python -m playwright install chromium`, then run `python -m pytest` and
+`python -m ruff check .`.
