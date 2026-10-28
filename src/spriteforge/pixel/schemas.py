@@ -40,6 +40,11 @@ class Style(Schema):
     outline: bool = False
     outline_color: str | None = None
     max_colors: int = Field(default=16, ge=1, le=256)
+    character_canvas: tuple[Dimension, Dimension] = (48, 48)
+    character_logical_limit: tuple[Dimension, Dimension] = (40, 40)
+    tile_canvas: tuple[Dimension, Dimension] = (16, 16)
+    outline_dark_lightness: float = Field(default=35, ge=0, le=100)
+    outline_dark_tolerance: float = Field(default=12, ge=0)
 
     @field_validator("palette")
     @classmethod
@@ -67,6 +72,16 @@ class AssetSpec(Schema):
     max_colors: int | None = Field(default=None, ge=1, le=256)
     min_fill_ratio: float = Field(default=0.05, ge=0, le=1)
     seam_threshold: float = Field(default=0.05, ge=0, le=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def canvas_defaults(cls, values):
+        if isinstance(values, dict) and "size" not in values:
+            if values.get("type") == "character":
+                return {**values, "size": (48, 48)}
+            if values.get("type") == "tile":
+                return {**values, "size": (16, 16)}
+        return values
 
     @property
     def margin(self) -> int:

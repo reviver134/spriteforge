@@ -155,8 +155,10 @@ and warnings for unused colors or dark colors whose LAB hue resembles the detect
 background. Tint warnings do not automatically alter legitimate dark artwork.
 
 Palette quantization, binary alpha, stray cleanup, and the existing corner-connected
-dark outline follow. Automatic outline skipping has not been enabled because a
-doubled outline has not yet been confirmed by user review. Flat, mostly unobstructed
+dark outline follow. The outline guard skips addition when more than 90% of boundary
+pixels match a dark palette color (L* <= 35) within LAB distance 12. Characters default
+to a 48x48 canvas, with generated art intended to fit within about 40x40 logical pixels;
+tiles default to 16x16. The processing script defaults to a 48px output. Flat, mostly unobstructed
 borders are assumed; this is not general-purpose background segmentation.
 
 The Python API enables these operations with

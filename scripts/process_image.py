@@ -78,7 +78,7 @@ def process(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
-    parser.add_argument("--size", type=int, default=32)
+    parser.add_argument("--size", type=int, default=48)
     parser.add_argument(
         "--palette", default="auto", help='Palette JSON path or "auto" (16 LAB colors)'
     )

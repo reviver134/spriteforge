@@ -8,6 +8,20 @@ from .schemas import AssetSpec, Palette, ProcessingOptions, ProcessingReport, St
 from .source import mode_resize, prepare_source
 
 
+def boundary_already_dark(image: Image.Image, style: Style) -> bool:
+    rgba = np.asarray(image.convert("RGBA"))
+    mask = rgba[..., 3] > 0
+    p = np.pad(mask, 1)
+    interior = p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:]
+    boundary = mask & ~interior
+    colors = rgb_to_lab(palette_rgb(style.palette))
+    dark = colors[colors[:, 0] <= style.outline_dark_lightness]
+    if not boundary.any() or not len(dark):
+        return False
+    distance = np.linalg.norm(rgb_to_lab(rgba[..., :3][boundary])[:, None] - dark, axis=-1).min(-1)
+    return float(np.mean(distance <= style.outline_dark_tolerance)) > 0.9
+
+
 def _record_palette(result: Image.Image, style: Style, report: ProcessingReport) -> None:
     palette = Palette(colors=style.palette)
     report.palette_size = len(palette.colors)
@@ -70,8 +84,9 @@ def postprocess(
         _record_palette(empty, style, report)
         return empty
     cropped = keyed.crop(bbox)
+    add_outline = style.outline and not boundary_already_dark(cropped, style)
     # Reserve one further output pixel for the external 4-neighbor outline.
-    margin = spec.margin + int(style.outline and spec.type != "tile")
+    margin = spec.margin + int(add_outline and spec.type != "tile")
     available = (spec.size[0] - 2 * margin, spec.size[1] - 2 * margin)
     if min(available) < 1:
         raise ValueError("Canvas has no room for padding and outline")
@@ -132,7 +147,7 @@ def postprocess(
     pixels[..., :3] = quantize(pixels[..., :3], style.palette)
     pixels[..., 3] = np.where(pixels[..., 3] >= style.alpha_threshold, 255, 0)
     pixels[..., 3] = remove_clusters(pixels[..., 3], style.min_cluster_size)
-    if style.outline:
+    if add_outline and not boundary_already_dark(Image.fromarray(pixels), style):
         mask = pixels[..., 3] > 0
         padded = np.pad(mask, 1)
         neighbors = padded[:-2, 1:-1] | padded[2:, 1:-1] | padded[1:-1, :-2] | padded[1:-1, 2:]
