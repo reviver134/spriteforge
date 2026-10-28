@@ -1,5 +1,8 @@
 workspace: ~/spriteforge-workspace
 image:
+  # Live smoke 2026-10-28: both paths accept size=1024x1024, b64_json,
+  # output_format=png and reasoning_strength=low, but return 1600x1600 PNGs.
+  # One data-URL reference verified; the maximum reference count is unverified.
   base_url: https://api.meta.ai
   model: muse-image-1.0
   generate_path: /v1/images/generations
