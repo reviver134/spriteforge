@@ -41,6 +41,7 @@ def start(
     mock: bool = False,
     agents: bool = False,
     intake: bool = False,
+    assets: bool = False,
     goal: str = "A top-down dungeon crawler with a hero and stone rooms",
     config: Path | None = None,
     workspace: Path | None = None,
@@ -49,10 +50,10 @@ def start(
 ):
     """Start a local UI; --mock --agents runs role agents and durable human gates."""
     cfg, store = setup(config, workspace)
-    if intake:
+    if intake or assets:
         from spriteforge.stages.workflow import start_run
 
-        run = start_run(store, cfg, mock=mock)
+        run = start_run(store, cfg, mock=mock, assets=assets)
         serve(store, run.id, port, open_browser)
         return
     if agents and not mock:
@@ -86,6 +87,7 @@ def resume(
     workspace: Path | None = None,
     port: int = 8765,
     open_browser: bool = True,
+    assets: bool = False,
 ):
     """Resume from the database checkpoint and show its timeline."""
     _, store = setup(config, workspace)
@@ -93,6 +95,10 @@ def resume(
         run = store.get_run(id)
     except KeyError:
         raise typer.BadParameter(f"Run {id} does not exist") from None
+    if assets:
+        from spriteforge.stages.production import enable_production
+
+        enable_production(store, id)
     if run.status == "failed" and run.config.get("workflow") == "intake-concept-v1":
         store.retry_failed(id)
     serve(store, id, port, open_browser)

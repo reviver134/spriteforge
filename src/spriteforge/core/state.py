@@ -15,7 +15,9 @@ from .security import redact
 
 class Run(BaseModel):
     id: str
-    status: Literal["pending", "running", "paused", "completed", "failed", "aborted"] = "pending"
+    status: Literal[
+        "pending", "running", "paused", "completed", "failed", "aborted", "budget_exhausted"
+    ] = "pending"
     cursor: int = 0
     config: dict = Field(default_factory=dict)
 

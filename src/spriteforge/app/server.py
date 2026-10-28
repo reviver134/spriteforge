@@ -12,6 +12,7 @@ from spriteforge.core.gates import Feedback, Gates
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
+from spriteforge.stages.workflow import advance_until_gate as advance_intake
 from spriteforge.stages.workflow import workflow_step as intake_step
 
 
@@ -76,17 +77,33 @@ def create_app(
     @app.get("/api/runs/{id}")
     def detail(id: str):
         run = require_run(id)
+        # Gates only reference already-persisted artifacts. Read the gate first so
+        # a concurrent worker cannot return a new gate with an older artifact list.
+        gate = Gates(store).pending(id)
+        production = None
+        if run.config.get("asset_production"):
+            from spriteforge.stages.asset_store import ProductionStore
+
+            assets = ProductionStore(store, id)
+            reports = sorted(n for n in assets.artifacts if n.endswith("/consistency.json"))
+            production = {
+                "assets": [r.model_dump() for r in assets.records().values()],
+                "consistency": assets.read(max(reports, key=lambda n: int(n.split("/")[2])))
+                if reports
+                else None,
+            }
         return {
             "run": run.model_dump(),
+            "production": production,
             "error": next(
                 (
                     e.payload.get("message")
                     for e in reversed(store.events(id))
-                    if e.type == "run.failed"
+                    if e.type in {"run.failed", "production.budget_exhausted"}
                 ),
                 None,
             )
-            if run.status == "failed"
+            if run.status in {"failed", "budget_exhausted"}
             else None,
             "usage": {
                 "image_calls": sum(
@@ -102,7 +119,7 @@ def create_app(
                 "cap": run.config.get("budget", {}).get("max_image_calls", 150),
             },
             "artifacts": [a.model_dump(exclude={"data"}) for a in store.artifacts(id)],
-            "gate": (gate.model_dump(mode="json") if (gate := Gates(store).pending(id)) else None),
+            "gate": gate.model_dump(mode="json") if gate else None,
         }
 
     @app.post("/api/runs/{id}/gates/{gate_id}")
@@ -114,8 +131,15 @@ def create_app(
             if run.config.get("workflow") == INTAKE:
                 pending = Gates(store).pending(id)
                 if pending and pending.id == gate_id:
-                    if feedback.action == "request_changes" and pending.stage != "concept":
+                    if feedback.action == "request_changes" and pending.stage not in {
+                        "concept",
+                        "assets",
+                    }:
                         raise ValueError("Changes can be requested at the concept review")
+                    if feedback.action == "request_changes" and pending.stage == "assets":
+                        from spriteforge.stages.production import selected_targets
+
+                        selected_targets(store, id, feedback)
                     if feedback.action == "approve" and pending.stage == "concept":
                         from spriteforge.pixel.schemas import hex_color
 
@@ -129,7 +153,7 @@ def create_app(
         # Advance only after the persisted human answer; the next gate pauses again.
         try:
             await asyncio.to_thread(
-                intake_step if run.config.get("workflow") == INTAKE else advance_until_gate,
+                advance_intake if run.config.get("workflow") == INTAKE else advance_until_gate,
                 store,
                 id,
             )
@@ -159,7 +183,12 @@ def create_app(
         async def stream():
             nonlocal cursor
             while not await request.is_disconnected():
-                completed = store.get_run(id).status in {"completed", "aborted", "failed"}
+                completed = store.get_run(id).status in {
+                    "completed",
+                    "aborted",
+                    "failed",
+                    "budget_exhausted",
+                }
                 batch = await asyncio.to_thread(store.events, id, cursor)
                 for event in batch:
                     cursor = event.id

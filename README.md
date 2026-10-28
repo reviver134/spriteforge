@@ -1,5 +1,12 @@
 # SpriteForge
 
+SpriteForge is a **Muse-powered game builder for the Meta hackathon**. Muse Spark
+provides agent reasoning and planning; Muse Image creates and revises the visual
+assets. The local harness supplies human approval gates, auditable memory, and
+deterministic processing that turns Muse output into usable pixel-game assets.
+Free supporting tools keep editor licenses out of the setup. Mock providers exist
+for offline development and tests.
+
 Local-first pixel-game builder. Milestone 1 supplies the foundation and a mock demo;
 Milestone 2 adds deterministic pixel processing, validation, palettes, atlases, and
 previews. Milestone 3 adds local OKF knowledge, retrieval, and a read-only MCP server.
@@ -100,9 +107,12 @@ from its [official GitHub releases](https://github.com/Orama-Interactive/Pixelor
 It is optional and not required by the MCP server. LibreSprite is another free
 editor, but its scripting API is not interchangeable with Aseprite's Lua API.
 
-The existing live Muse API integrations remain optional and may carry provider
-charges. `--mock` keeps the pipeline offline; mock images are synthetic test art,
-not a local generative model. No paid model calls are made by the pixel tools.
+Muse is the core live experience, and its API use may carry provider charges.
+The free-tools requirement applies to supporting editors and utilities. Pixel tools
+process, validate, preview and export Muse output; direct grid drawing supports
+targeted corrections and test fixtures rather than replacing Muse art generation.
+`--mock` keeps development and tests offline; mock images are synthetic test art,
+not a local generative model. Pixel tools themselves make no model API calls.
 
 Python 3.11+:
 
@@ -485,3 +495,68 @@ with a 50-pixel block size. Both passed processing validation, with unused-color
 and background-tint warnings. Compare `workspace/milestone5-smoke/sprite/comparison.png`
 and `workspace/milestone5-smoke/pose/comparison.png`; each directory also contains
 the processing report, palette, source, result, and enlarged result.
+
+# Milestone 7: asset production and G3
+
+Start an offline run through G1, G2 and G3:
+
+```powershell
+python -m spriteforge start --intake --assets --mock --workspace workspace
+```
+
+To continue an existing intake run into asset production, stop its old server and run:
+
+```powershell
+python -m spriteforge resume YOUR_RUN_ID --assets --workspace workspace
+```
+
+This preserves the run's provider mode, budget, answers and accepted concept. If G2
+is still pending, production waits for approval. Runs already completed at G2 can
+continue with the same locked `style.json` and `anchor.png`. Omitting `--assets`
+on new intake runs retains the G2-only workflow. Milestone 7 ends at G3 approval;
+it does not produce a playable game or advance to G4.
+
+Game Designer and Level/Tile Designer proposals produce a validated, sorted
+manifest. Frames are separate tasks depending on an idle base; references also
+create dependency edges. Character/tile dimensions come from the approved style.
+Every image call uses the anchor; animation edits use the base first and anchor
+second. Prompt templates live in `src/spriteforge/prompts/`, with retrieved local
+prompt patterns and explicitly selected, role-granted pixel skills.
+
+Each asset gets at most **three image attempts total per version**, with specific
+repair instructions and higher reasoning strength on later attempts. Palette,
+dimensions, alpha, padding, fill and tile seams are checked deterministically.
+The vision pipeline includes an independent object-naming test at 8x nearest
+neighbor, a structured style/readability critic, and a set consistency review.
+After three failed attempts, one deterministic repair is rechecked. Unresolved
+assets become visibly labeled placeholders. Set-level issues are displayed for
+human review and targeted changes; they never silently unlock accepted assets.
+
+At G3, inspect the grouped contact sheet, PASS/FAIL/attempt badges, scores and
+looping animation previews. Click **Change hero** (or supply comma-separated asset
+ids), describe the change, then request changes. The confirmation lists exactly
+which assets and dependent frames will be regenerated. Unrelated accepted assets
+keep their versions and image bytes. Approve G3 to lock the reviewed collection.
+
+Saved under `workspace/runs/<id>/production/`:
+
+- `manifest.json`, `tasks.json`: validated specs and topologically sorted frame tasks.
+- `assets/<id>/vN/`: raw images, processed sprites, exact prompts, reference hashes,
+  hard checks, 8x previews, vision scores, attempts and Librarian provenance.
+- `cycles/N/`: grouped contact sheet, GIF animations, consistency report and registry.
+- `cache/`: raw results keyed by prompt, reference content hashes and provider parameters.
+- `approval.json`: final G3 approval and locked versions.
+
+Resuming reuses accepted assets and persisted raw checkpoints. Calls are reserved
+before dispatch, including failed requests. An interrupted request without a saved
+result is not blindly replayed. Reaching a configured call/cost limit produces a
+`budget_exhausted` stop with a UI message and preserves completed work. The running
+dollar amount is the configured estimate, not verified provider billing.
+
+Acceptance tests use mocks, including failure injection, targeted dependency
+revisions, cache recovery, strict Muse JSON schemas, and a real CLI/Chromium
+restart. Live quality, multiple-reference edits and high reasoning strength still
+need a separately capped real-provider production run; mock critic scores are
+scripted fixtures, not evidence of visual quality. The production request format,
+reference-image array and low/high reasoning values were checked against Meta's
+[official image schemas](https://dev.meta.ai/docs/api-reference/images/schemas).

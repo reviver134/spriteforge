@@ -33,11 +33,12 @@ from .intake import (
 WORKFLOW = "intake-concept-v1"
 
 
-def start_run(store, cfg, mock=True):
+def start_run(store, cfg, mock=True, assets=False):
     return store.create_run(
         {
             "workflow": WORKFLOW,
             "mock": mock,
+            "asset_production": assets,
             "settings": cfg.model_dump(mode="json"),
             "budget": cfg.budget.model_dump(),
         }
@@ -49,11 +50,24 @@ def workflow_step(store, run_id):
         return _step(store, run_id)
 
 
+def advance_until_gate(store, run_id):
+    while workflow_step(store, run_id):
+        pass
+
+
 def _step(store, run_id):
     run = store.get_run(run_id)
     gates = Gates(store)
-    if run.status in {"completed", "aborted", "failed"} or gates.pending(run_id):
+    if run.status in {"completed", "aborted", "failed", "budget_exhausted"} or gates.pending(
+        run_id
+    ):
         return False
+    if run.config.get("asset_production") and any(
+        a.name == "approval.json" for a in store.artifacts(run_id)
+    ):
+        from .production import production_step
+
+        return production_step(store, run_id)
     cfg = Config.model_validate(run.config["settings"])
     budget = Budget(store, run_id, BudgetConfig.model_validate(run.config["budget"]))
     root = store.path.parent / "runs" / run_id
@@ -245,8 +259,11 @@ def _step(store, run_id):
                 "style": "style.json",
             },
         )
-        store.advance(run_id, run.cursor, "G2 approved; style and anchor locked", final=True)
-        return False
+        production = run.config.get("asset_production", False)
+        store.advance(
+            run_id, run.cursor, "G2 approved; style and anchor locked", final=not production
+        )
+        return production
     if last.stage in {"styles", "revise"}:
         version = len([g for g in history if g.stage == "concept"]) + 1
         brief = GameBrief.model_validate(read("brief.json"))

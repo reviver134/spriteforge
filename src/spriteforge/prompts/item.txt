@@ -1,0 +1,1 @@
+Create one centered collectible or effect sprite. Flat solid #FF00FF magenta background, chunky pixels, strong readable silhouette and simple shading. No scenery, lettering, watermark or HUD. Leave clear padding around the complete subject. Match the anchor's style and top-left lighting.

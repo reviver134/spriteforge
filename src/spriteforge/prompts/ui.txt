@@ -1,0 +1,1 @@
+Create one centered UI icon, flat solid #FF00FF magenta background, chunky pixels, simple high-contrast silhouette. No baked-in text, numerals, watermark, panel or scene. Preserve padding and match the approved palette. Use the anchor as a style reference only.

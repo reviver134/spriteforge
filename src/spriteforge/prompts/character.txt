@@ -1,0 +1,1 @@
+Create one idle base sprite. Flat solid #FF00FF magenta background, chunky logical pixels, one centered subject, no text, watermark, scenery or HUD. Keep the complete silhouette inside the requested logical bounds. Use the anchor only for style, never copy its scene. Use the game's camera and consistent top-left lighting.
