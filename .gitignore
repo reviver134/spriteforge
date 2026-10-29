@@ -8,3 +8,6 @@ workspace/
 .env
 build/
 dist/
+*.log
+*.log.*
+logs/

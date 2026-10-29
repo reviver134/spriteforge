@@ -30,7 +30,7 @@
   must_not_include: {skills: [untrusted-art], tools: [art.write, rogue.write]}
 - id: pinned-unrelated
   role: Pixel Artist
-  goal: Summarize yesterday's decisions.
+  goal: Design a still hero portrait for a title screen, with no motion or additional poses. Choose only guidance for this single static image.
   must_include: {skills: [pixel-art-prompting]}
   must_not_include: {skills: [sprite-animation-frames, untrusted-art], tools: [art.write, rogue.write]}
 - id: injection-description
@@ -90,6 +90,7 @@
   must_not_include: {tools: [art.write]}
 - id: director-empty
   role: Director
+  allowed_skills: [pixel-art-prompting, tileset-design, sprite-animation-frames]
   goal: Summarize gate approvals.
   must_include: {}
   must_not_include: {skills: [pixel-art-prompting, phaser-arcade-physics], tools: [art.write]}

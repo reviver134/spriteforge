@@ -1,7 +1,7 @@
 # SpriteForge: local multi-agent pixel-game builder
 
 ## Vision
-A harness that runs on the USER'S OWN MACHINE. It orchestrates multiple role-based agents (Muse models allowed) to build a playable 2D pixel-art browser game, with a human in the loop at defined gates. Each finished build teaches the harness: lessons are written to a local OKF (Open Knowledge Format) knowledge base that future builds retrieve.
+A harness for a Meta hackathon that runs on the USER'S OWN MACHINE. Muse is central to the product: Muse Spark powers agent reasoning and planning, and Muse Image generates and revises the game's visual assets. The harness orchestrates multiple role-based agents to build a playable 2D pixel-art browser game, with a human in the loop at defined gates. Each finished build teaches the harness: lessons are written to a local OKF (Open Knowledge Format) knowledge base that future builds retrieve.
 
 ## Core principles
 1. Models propose; deterministic code enforces (palette, sizes, seams, tests).
@@ -28,4 +28,4 @@ src/spriteforge/{app,core,providers,agents,pixel,stages,genres,skills,mcp,memory
 - Cost caps and call counters are mandatory; default max 150 image calls per run.
 - Prefer small readable modules. No speculative features.
 - External editor/tool dependencies must be free to use; do not require paid editor licenses.
-- Keep Muse API providers optional; the free-tools requirement does not remove them. Offline runs use mock providers.
+- Muse is the core live generation and reasoning platform for the Meta hackathon. The free-tools requirement applies to supporting editors and utilities, not to replacing Muse. Mocks support offline development and testing; deterministic pixel tools clean up, validate, preview and export Muse output. Direct grid drawing is for targeted corrections or test fixtures, not a substitute for Muse-generated game art.

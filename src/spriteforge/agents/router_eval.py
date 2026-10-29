@@ -27,6 +27,7 @@ class EvalCase(Contract):
     goal: str
     must_include: Names
     must_not_include: Names
+    allowed_skills: list[str] | None = None
 
 
 class CaseResult(Contract):
@@ -35,6 +36,7 @@ class CaseResult(Contract):
     missing: Names
     unexpected: Names
     error: str | None = None
+    reasons: dict[str, str] = Field(default_factory=dict)
 
 
 class EvalReport(Contract):
@@ -90,14 +92,18 @@ def evaluate(provider, cases, config, workspace, *, live=False, max_calls=5):
     chosen = cases[:max_calls] if live else cases
     for case in chosen:
         role = roles[case.role]
+        if case.allowed_skills is not None:
+            role = role.model_copy(update={"allowed_skills": case.allowed_skills})
         catalog = eval_catalog(role, workspace)
         error = None
         selected = Names()
+        reasons = {}
         try:
             response = provider.chat(
                 routing_request(case.goal, catalog, role.required_skills, config)
             )
             proposal = Selection.model_validate_json(response.content or "")
+            reasons = proposal.reasons
             decision = filter_selection(proposal, catalog, role.required_skills, config)
             selected = Names(skills=decision.selected_skills, tools=decision.selected_tools)
         except Exception as exc:  # noqa: BLE001 -- bounded eval records provider/schema failures
@@ -119,6 +125,7 @@ def evaluate(provider, cases, config, workspace, *, live=False, max_calls=5):
                 missing=Names(**missing),
                 unexpected=Names(**unexpected),
                 error=error,
+                reasons=reasons,
             )
         )
     failures = [

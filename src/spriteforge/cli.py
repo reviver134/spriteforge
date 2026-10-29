@@ -94,6 +94,7 @@ def start(
 def router_eval(
     live: bool = False,
     max_calls: int = typer.Option(5, min=1, max=20),
+    offset: int = typer.Option(0, min=0),
     cases: Path = Path("tests/router_cases.yaml"),
     config: Path | None = None,
     workspace: Path | None = None,
@@ -108,7 +109,7 @@ def router_eval(
     from spriteforge.providers.muse_spark import MuseSparkProvider
 
     cfg, store = setup(config, workspace)
-    suite = read_cases(cases)
+    suite = read_cases(cases)[offset:]
     limits = (
         cfg.budget.model_copy(
             update={
@@ -153,6 +154,7 @@ def router_eval(
     with store.connect() as db:
         db.execute("UPDATE runs SET status='completed' WHERE id=?", (run.id,))
     typer.echo(f"{report.mode}: {report.evaluated} cases, {report.skipped} skipped")
+    typer.echo(f"Spark calls attempted: {report.evaluated if live else 0} (cap {max_calls})")
     typer.echo(f"Precision: {report.precision:.3f}  Recall: {report.recall:.3f}")
     typer.echo(f"Failures: {len(report.failures)}")
     for failure in report.failures:
