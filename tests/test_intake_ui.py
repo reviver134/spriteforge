@@ -51,7 +51,7 @@ def test_intake_browser(tmp_path):
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
                 page = browser.new_page(viewport={"width": 1280, "height": 1000})
-                page.set_default_timeout(40000)
+                page.set_default_timeout(180000)
                 errors = []
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.goto(url)
@@ -78,27 +78,47 @@ def test_intake_browser(tmp_path):
                 assert page.locator("#custom-fields span").count() >= 8
                 approve("G2 Choose a concept style")
                 expect(
-                    page.get_by_role("heading", name="G2 CONCEPT v1 — not final art", exact=True)
+                    page.get_by_role(
+                        "heading", name="G2 Optional mood board, not final art", exact=True
+                    )
                 ).to_be_visible()
-                expect(page.locator("#gate-artifacts img")).to_have_count(2)
-                page.get_by_label("Feedback", exact=True).fill("Make the hero rounder")
-                page.get_by_role("button", name="Request changes", exact=True).click()
-                approve("Confirm concept change requests")
+                approve("G2 Optional mood board, not final art")
                 expect(
-                    page.get_by_role("heading", name="G2 CONCEPT v2 — not final art", exact=True)
-                ).to_be_visible()
-                expect(page.locator("#usage")).to_contain_text("2 / 150 image calls")
+                    page.get_by_role("heading", name="G2 Gameplay preview v1", exact=True)
+                ).to_be_visible(timeout=180000)
+                expect(page.locator("#gate-artifacts img")).to_have_count(2)
+                expect(page.locator("#gate-artifacts")).to_contain_text(
+                    "This is what your game will look like"
+                )
+                expect(page.locator("#preview-summary")).to_contain_text("logical pixels tall")
+                main_box = page.locator("#gate-artifacts .gameplay-image").bounding_box()
+                mood_box = page.locator("#gate-artifacts .mood-image").bounding_box()
+                assert main_box["width"] > mood_box["width"]
+                assert abs(main_box["y"] - mood_box["y"]) < 2
+                page.get_by_label("Feedback", exact=True).fill("Make the hero rounder")
+                page.get_by_label("Change targets (assets, layout or palette)", exact=True).fill(
+                    "hero"
+                )
+                page.get_by_role("button", name="Request changes", exact=True).click()
+                approve("Confirm gameplay preview changes")
+                expect(
+                    page.get_by_role("heading", name="G2 Gameplay preview v2", exact=True)
+                ).to_be_visible(timeout=180000)
+                expect(page.locator("#usage")).to_contain_text("14 / 150 image calls")
+                expect(page.locator("#preview-history a")).to_have_count(2)
                 page.reload()
                 expect(
-                    page.get_by_role("heading", name="G2 CONCEPT v2 — not final art", exact=True)
+                    page.get_by_role("heading", name="G2 Gameplay preview v2", exact=True)
                 ).to_be_visible()
-                page.get_by_label("Palette swatch 1", exact=True).fill("#123456")
-                page.screenshot(path=str(tmp_path / "concept-v2.png"), full_page=True)
-                approve("G2 CONCEPT v2 — not final art")
+                page.screenshot(path=str(tmp_path / "gameplay-v2.png"), full_page=True)
+                approve("G2 Gameplay preview v2")
                 expect(page.locator("#status")).to_contain_text("completed")
                 root = tmp_path / "runs" / ident
                 assert (root / "style.json").exists()
-                assert (root / "anchor.png").read_bytes() == (root / "concept/v2.png").read_bytes()
+                assert (root / "anchor.png").read_bytes() == (
+                    root / "preview/assets/hero/v2/sprite.png"
+                ).read_bytes()
+                assert (root / "preview/locked-assets.json").exists()
                 assert not errors
                 browser.close()
     finally:

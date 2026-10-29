@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>SpriteForge gameplay preview</title>
+<style>html,body{margin:0;width:320px;height:180px;overflow:hidden;background:#000}canvas{display:block;image-rendering:pixelated}</style>
+</head><body><script src="runtime/phaser.min.js"></script><script src="runtime/room.js"></script>
+<script>
+window.previewReady=false;window.previewErrors=[];
+new Phaser.Game({type:Phaser.CANVAS,width:320,height:180,pixelArt:true,roundPixels:true,
+  antialias:false,audio:{noAudio:true},banner:false,scene:SpriteForgePreview});
+</script></body></html>

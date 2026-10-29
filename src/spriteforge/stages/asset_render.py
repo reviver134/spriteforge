@@ -10,7 +10,7 @@ from spriteforge.pixel.palette import quantize
 from spriteforge.pixel.postprocess import postprocess
 from spriteforge.pixel.schemas import AssetSpec as PixelSpec
 from spriteforge.pixel.schemas import ProcessingOptions, ProcessingReport
-from spriteforge.pixel.source import mode_resize
+from spriteforge.pixel.source import estimate_background, key_background, mode_resize
 from spriteforge.pixel.validate import validate
 from spriteforge.providers.base import ImageRequest
 from spriteforge.providers.http import ProviderError
@@ -34,21 +34,39 @@ def pixelspec(task, style):
     )
 
 
-def process(raw, task, style):
+def process(raw, task, style, *, scale_mode="fit"):
     source = Image.open(io.BytesIO(raw)).convert("RGBA")
     spec = pixelspec(task, style)
     report = ProcessingReport()
     if task.spec.type == "tile":
         # A terrain tile fills its canvas. Subject isolation would punch holes in it.
+        background = estimate_background(source)
+        chroma = np.array([int(style.background[i : i + 2], 16) for i in (1, 3, 5)])
+        if background is not None and np.linalg.norm(background.astype(float) - chroma) < 45:
+            # Muse sometimes returns a swatch on magenta despite the full-bleed prompt.
+            # Crop that presentation border before quantization; never map it to red.
+            source = key_background(source, ProcessingOptions(), report)
+            bounds = source.getbbox()
+            if bounds:
+                source = source.crop(bounds)
+                report.warnings.append("Cropped chroma presentation border from terrain source")
         rgb = mode_resize(source, spec.size).convert("RGB")
         result = Image.fromarray(quantize(np.asarray(rgb), style.palette)).convert("RGBA")
+        report.scale_mode = "tile-mode-downscale"
+        report.logical_subject_size = spec.size
+        report.palette_usage = {
+            c: sum(1 for p in result.getdata() if "#" + "".join(f"{v:02X}" for v in p[:3]) == c)
+            for c in style.palette
+        }
+        report.palette_size = sum(count > 0 for count in report.palette_usage.values())
     else:
         result = postprocess(
             source,
             spec,
             style,
             options=ProcessingOptions(
-                scale_mode="fit", baseline="bottom" if task.spec.type == "character" else "center"
+                scale_mode=scale_mode,
+                baseline="bottom" if task.spec.type == "character" else "center",
             ),
             report=report,
         )

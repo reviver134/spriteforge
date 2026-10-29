@@ -28,6 +28,9 @@ def wait_for_run(client, process):
 
 
 def test_browser_gate_restart_and_hero_feedback(tmp_path):
+    # Locator assertions have a separate timeout from page actions. This workflow
+    # intentionally advances several one-second checkpoints between review gates.
+    expect.set_options(timeout=40000)
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]

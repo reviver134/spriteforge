@@ -95,6 +95,7 @@ def test_failure_is_persisted_and_resumable(context):
         (BudgetConfig(max_image_calls=1), True),
         (BudgetConfig(max_calls_per_model=1), False),
         (BudgetConfig(max_estimated_cost=0.01), True),
+        (BudgetConfig(max_total_calls=1), False),
     ],
 )
 def test_persistent_budget_caps(context, config, image):

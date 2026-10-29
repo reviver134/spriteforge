@@ -1,4 +1,4 @@
-"""Scene processing preserves the whole composition, including HUD and enemies."""
+"""Mood-board crops preserve proportions; these images are never gameplay previews."""
 
 import io
 
@@ -15,8 +15,22 @@ def png(image):
     return stream.getvalue()
 
 
+def center_crop(image, screen=(16, 9)):
+    # Exact rational ratio, including providers returning unexpected dimensions.
+    from math import gcd
+
+    divisor = gcd(*screen)
+    ratio = (screen[0] // divisor, screen[1] // divisor)
+    unit = min(image.width // ratio[0], image.height // ratio[1])
+    if unit < 1:
+        raise ValueError("Mood board is too small to crop")
+    width, height = unit * ratio[0], unit * ratio[1]
+    left, top = (image.width - width) // 2, (image.height - height) // 2
+    return image.crop((left, top, left + width, top + height))
+
+
 def preview(data, screen):
-    source = Image.open(io.BytesIO(data)).convert("RGB")
+    source = center_crop(Image.open(io.BytesIO(data)).convert("RGB"), screen)
     palette = extract_palette(source).colors
     # Full-frame scene: do not chroma-key or isolate a single connected subject.
     native = source.resize(screen, Image.Resampling.NEAREST)

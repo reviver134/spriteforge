@@ -48,18 +48,18 @@ def main():
         provider = MuseImageProvider(cfg.image, Budget(store, run.id, cap), client)
         previous = None
         for name, prompt in [
-            ("sprite", "48x48-class pixel sprite: one centered green slime, chunky pixels, "
+            ("sprite", ("48x48-class pixel sprite: one centered green slime, chunky pixels, "
              "fits within approximately 40x40 logical pixels. Flat solid magenta background. "
-             "No text, no watermark. Render at 1024x1024."),
-            ("pose", "Only change the pose of this same slime to a small hop. Preserve all "
+             "No text, no watermark. Render at 1024x1024.")),
+            ("pose", ("Only change the pose of this same slime to a small hop. Preserve all "
              "colors, chunky pixels, scale, character design and flat solid magenta background. "
-             "No text, no watermark."),
+             "No text, no watermark.")),
         ]:
             request = ImageRequest(prompt=prompt, size=(1024, 1024),
                                    references=[previous] if previous else [])
             try:
                 result = provider.edit(request) if previous else provider.generate(request)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 -- scrub provider errors before persistence
                 error = redact(str(exc))
                 (root / "error.txt").write_text(error, encoding="utf-8")
                 print(error, flush=True)

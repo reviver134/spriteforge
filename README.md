@@ -7,6 +7,95 @@ deterministic processing that turns Muse output into usable pixel-game assets.
 Free supporting tools keep editor licenses out of the setup. Mock providers exist
 for offline development and tests.
 
+## Gate 2: gameplay preview
+
+New intake runs stop at a **real Phaser-rendered gameplay screen**. Start with
+`python -m spriteforge start --intake --workspace workspace --no-open-browser`
+(add `--mock` for offline fixtures). Install Chromium once with
+`python -m playwright install chromium`. Existing concept-only runs retain their
+saved workflow and approval history.
+
+Choose a palette and optionally request a mood board. Muse receives a landscape
+1536x1024 request; its actual response is center-cropped to exact 16:9, never
+stretched. This image is labeled **Mood board, not final art**. Approve it as a
+style reference, or omit it and approve the first generated hero sprite instead.
+
+The Game Designer describes exactly 12 building blocks: a hero, two enemies,
+three floor tiles, three wall tiles, two props and a key pickup. Muse creates each
+through the provider interface with the approved reference, retrieved local
+prompt patterns and Pixel Artist skills. Characters use 48x48 canvases; tiles
+use 16x16. Props start at 16x16 and can be reprocessed from their saved Muse source
+onto a larger canvas during a requested readability revision. The shared pipeline requests native-grid processing, locks
+the chosen palette, and checks every asset. Grid detection, fallback warnings,
+hero logical height (warning below 24), palette usage and seam repairs are saved.
+No generated art is substituted with code-drawn placeholders at this gate.
+
+The Level/Tile Designer supplies a validated 20x11 tile grid and screen-pixel
+entity positions for the brief's exact environment and perspective (top-down,
+side-scroll or isometric). The shared scene in `src/spriteforge/templates/phaser/`
+loads the real atlas and layout, then draws hearts, the key counter and weapon
+label using an original bundled bitmap font. Playwright captures the Phaser 3
+canvas at 320x180 and creates an exact nearest-neighbor 4x copy at 1280x720.
+Phaser 3.90.0 and its MIT license are bundled, so rendering makes no CDN requests.
+The implementation was checked against the pinned [Phaser bitmap-font source](https://github.com/phaserjs/phaser/blob/v3.90.0/src/gameobjects/bitmaptext/static/BitmapText.js)
+and [atlas loader](https://github.com/phaserjs/phaser/blob/v3.90.0/src/loader/filetypes/AtlasJSONFile.js).
+
+The main gate image says **This is what your game will look like**, with the
+optional mood board smaller beside it. Request changes by naming asset IDs,
+`layout`, or `palette`; free-text requests are interpreted by the Director and
+confirmed before execution. Hero edits spend one image call and preserve every
+other asset. Layout edits make no image calls. Palette edits reprocess saved
+sources without image calls. Every screenshot, layout, source, asset version,
+validation report and confirmed ChangeRequest remains in history.
+
+`preview.max_image_calls` in `config.yaml` defaults to **16**, including the mood
+board and revisions. The UI shows the stage cap, run cap and configured estimated
+image cost. Failed reservations count; an interrupted image request is not
+automatically replayed. `budget.max_total_calls` can additionally cap all provider
+calls, including Spark. LLM token charges are not estimated.
+
+Approval writes `style.json` from colors actually used by the asset set and HUD,
+locks all reviewed versions in the production registry, and uses the accepted
+hero as `anchor.png`. The run stops at G2, including when started with `--assets`.
+A later explicit `resume RUN_ID --assets` can reuse these exact base sprites and
+tiles. This change does not implement gameplay, G4 or any later milestone.
+
+Outputs under `workspace/runs/RUN_ID/`:
+
+- `mood/v1/landscape.png`, `crop.json`: optional corrected mood board and dimensions.
+- `preview/assets/ID/vN/`: Muse source, request/reference hashes, processed sprite,
+  validation and readability image.
+- `preview/vN/`: `layout.json`, `atlas.png`, `atlas.json`, `gameplay.png`,
+  `gameplay-4x.png`, `readability.json`, and versioned registry/plan.
+- `preview/locked-assets.json`, `approval.json`, `style.json`, `anchor.png`: accepted set.
+
+`tools/gate2_live.py --start` runs the user-selected bike-rider/zombie acceptance
+brief with 25 total calls and 16 image calls maximum. It pauses at visual gates.
+Resume with `--approve mood_board --note "HUMAN APPROVAL"` or `--approve gameplay
+--note "HUMAN APPROVAL"` only after the corresponding human review. Its workspace
+is `workspace/gate2-live`; calling it again preserves the same run and budget.
+
+Live acceptance on 2026-10-29 completed at G2 with human approval of gameplay v3.
+Run `734a72aaec3b4aea8ff34975804981f5` used **24 total call reservations**, including
+**16 Muse image calls**, below the 25-call total cap. Configured image-cost estimate:
+**$0.16**; Spark token costs and actual provider billing are not included. The first
+network-denied reservation and rejected model proposal count toward the cap.
+
+Evidence is under `workspace/gate2-live/runs/734a72aaec3b4aea8ff34975804981f5/`:
+`preview/v3/gameplay.png` is 320x180; `gameplay-4x.png` is an exact 1280x720
+nearest-neighbor enlargement. `mood/v1/landscape.png` is a 1920x1080 center crop
+of Muse's 1920x1280 response to the 1536x1024 request. The 12 locked assets pass
+the existing validators; the approved rider is 40 logical pixels tall, and the
+actual asset/HUD palette has 15 colors. A car prop was reprocessed to 48x32 from
+its original source. Low-confidence source grids, including the revised rider,
+used the documented fit fallback; native processing is requested, not falsely
+reported as successful for every source. Deterministic checks do not establish
+artistic quality: v2 was rejected by the human, then v3 was revised and approved.
+
+Earlier drafts and QA supersession records remain intact. Only the explicitly
+approved v3 set is in `preview/locked-assets.json` and the production registry.
+The run stopped after G2 approval; no later milestone ran.
+
 Local-first pixel-game builder. Milestone 1 supplies the foundation and a mock demo;
 Milestone 2 adds deterministic pixel processing, validation, palettes, atlases, and
 previews. Milestone 3 adds local OKF knowledge, retrieval, and a read-only MCP server.
@@ -455,7 +544,10 @@ Validation uses the reusable `ScriptedHuman` pytest fixture and a real CLI/Chrom
 restart test. Install the headless browser once with
 `python -m playwright install chromium`, then run `python -m pytest` and
 `python -m ruff check .`.
-# Milestone 5: intake and concept preview
+# Milestone 5: legacy intake and concept preview
+
+This section describes existing saved concept-only runs. New runs use the real
+gameplay-preview Gate 2 above.
 
 Run `python -m spriteforge start --intake --mock --workspace workspace --no-open-browser`
 and open http://127.0.0.1:8765. Choose a genre, complete or skip the brief fields,
@@ -498,7 +590,8 @@ the processing report, palette, source, result, and enlarged result.
 
 # Milestone 7: asset production and G3
 
-Start an offline run through G1, G2 and G3:
+For new runs, G2 now stops for gameplay-preview approval. Explicitly resume with
+`--assets` to enter G3 afterward. The original production entry command is:
 
 ```powershell
 python -m spriteforge start --intake --assets --mock --workspace workspace

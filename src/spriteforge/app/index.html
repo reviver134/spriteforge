@@ -3,6 +3,7 @@
 <title>SpriteForge</title><style>
 .concept-preview{width:100%!important;height:auto!important;max-width:960px!important}
 .concept-figure{width:100%;max-width:960px}.swatch-field{display:inline-block;margin:8px;padding:8px}
+.gameplay-figure{flex:1 1 560px;max-width:100%;order:0}.gameplay-image{width:100%!important;height:auto!important}.mood-figure{flex:0 1 240px;order:1}.mood-image{width:240px!important;height:auto!important;max-width:100%}.preview-checks{flex-basis:100%;order:2}#preview-history a{display:inline-block;margin-right:16px}#preview-summary{white-space:pre-wrap}
 .asset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.asset-card{border:1px solid #556;padding:12px;overflow-wrap:anywhere}.asset-card img{width:auto;height:auto;max-width:192px;max-height:192px}.asset-pass{color:#9ae6b4}.asset-fail{color:#ffb4b4}.production-sheet{width:100%!important;height:auto!important}
 body{background:#151822;color:#e2e8f0;font:16px system-ui;margin:40px auto;max-width:960px;padding:0 20px}
 h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:1px solid #333}
@@ -16,6 +17,7 @@ h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:
 </details><section id="mcp-confirmations" aria-label="MCP confirmations"></section>
 <label>Run <select id="runs" aria-label="Select run"></select></label>
 <p id="status" role="status">Connecting…</p><p id="usage"></p><p id="error" role="alert"></p>
+<section id="preview-panel" hidden aria-label="Gameplay preview history"><p id="preview-summary"></p><details id="preview-warnings"><summary>Processing warnings</summary><ul id="preview-warning-list"></ul></details><nav id="preview-history" aria-label="Preview versions"></nav></section>
 <section id="production-panel" hidden aria-label="Production assets"><h2>Asset production</h2><p id="production-mode"></p><p id="set-review"></p><div id="production-assets"></div></section>
 <section id="gate-panel" hidden aria-labelledby="gate-title">
 <h2 id="gate-title"></h2><div id="gate-artifacts"></div><div id="change-requests"></div>
@@ -51,9 +53,12 @@ async function renderArtifact(a,container){
  if(a.mime.startsWith('image/')){const img=document.createElement('img');img.src='/api/artifacts/'+a.id;img.alt=a.name;
  if(a.name.startsWith('concept/')){img.className='concept-preview';fig.className='concept-figure';cap.textContent=a.name+' · CONCEPT — not final art'+(a.name.includes('-pixel')?' · Pixel-true preview (320×180, nearest-neighbor 3×)':'');}
  if(a.name.endsWith('/contact-sheet.png'))img.className='production-sheet';
+ if(a.name.endsWith('/gameplay-4x.png')||a.name.endsWith('/gameplay.png')){img.className='gameplay-image';fig.className='gameplay-figure';img.alt='Gameplay screen rendered from actual tiles, sprites and HUD';cap.textContent='This is what your game will look like · '+a.name;}
+ if(a.name.startsWith('mood/')){img.className='mood-image';fig.className='mood-figure';cap.textContent='Mood board, not final art';}
  fig.append(img);}
  else if(a.mime==='application/json'){const pre=document.createElement('pre');
- pre.textContent=JSON.stringify(await(await fetch('/api/artifacts/'+a.id)).json(),null,2);fig.append(pre);}
+ pre.textContent=JSON.stringify(await(await fetch('/api/artifacts/'+a.id)).json(),null,2);
+ if(a.name.endsWith('/readability.json')){fig.className='preview-checks';const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Asset validation and readability report';details.append(summary,pre);fig.append(details);}else fig.append(pre);}
  fig.append(cap);container.append(fig);
 }
 let refreshing=false,refreshAgain=false;
@@ -64,7 +69,8 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  $('error').textContent=d.error||'';
  $('usage').textContent=d.usage?`${d.usage.image_calls} / ${d.usage.cap} image calls · estimated cost $${d.usage.estimated_cost.toFixed(2)} (configured estimate)`:'';
  renderProduction(d);
- $('artifacts').replaceChildren();for(const a of d.artifacts.filter(a=>a.mime.startsWith('image/')&&(!a.name.startsWith('production/')||a.name.endsWith('/sprite.png')))){await renderArtifact(a,$('artifacts'));}
+ renderPreview(d);
+ $('artifacts').replaceChildren();for(const a of d.artifacts.filter(a=>a.mime.startsWith('image/')&&(!a.name.startsWith('production/')||a.name.endsWith('/sprite.png'))&&(!a.name.startsWith('preview/')||a.name.endsWith('/sprite.png')||a.name.endsWith('/gameplay-4x.png'))&&(!a.name.startsWith('mood/')||a.name.endsWith('/landscape.png')))){await renderArtifact(a,$('artifacts'));}
  if(current!==selected)return;
  const g=d.gate;
  if(!g){$('gate-panel').hidden=true;renderedGate=null;return;}if(renderedGate===g.id){$('gate-panel').hidden=false;return;}
@@ -75,7 +81,7 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  if(g.changes){for(const c of g.changes.requests){const p=document.createElement('p');
  p.textContent='Target: '+JSON.stringify(c.target)+' | '+c.instruction+' | '+c.severity+' | '+c.scope+' | Regenerate: '+c.needs_regen;
  $('change-requests').append(p);}}
- $('request-changes').hidden=g.kind==='confirm_changes'||(d.run.config.workflow==='intake-concept-v1'&&!['concept','assets'].includes(g.stage));$('tags').hidden=g.kind==='confirm_changes';
+ $('request-changes').hidden=g.kind==='confirm_changes'||(d.run.config.workflow==='intake-concept-v1'&&!['concept','assets','gameplay'].includes(g.stage));$('tags').hidden=g.kind==='confirm_changes';
  $('custom-fields').replaceChildren();
  if(g.form_schema.title!=='Feedback')for(const [name,rule] of Object.entries(g.form_schema.properties||{})){
  const label=document.createElement('label');label.textContent=rule.title||name;
@@ -95,6 +101,17 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  for(const option of options.options){const box=document.createElement('fieldset');const title=document.createElement('legend');title.textContent=option.name;box.append(title);const desc=document.createElement('p');desc.textContent=option.description;box.append(desc);
  for(const color of option.colors){const swatch=document.createElement('span');swatch.style.cssText='display:inline-block;width:42px;height:42px;margin:4px';swatch.style.backgroundColor=color;swatch.title=color;box.append(swatch);}$('custom-fields').append(box);}}
  if(current!==selected)return;renderedGate=g.id;$('gate-panel').hidden=false;
+}
+function renderPreview(d){
+ $('preview-panel').hidden=!d.preview;
+ if(!d.preview)return;
+ $('usage').textContent+=` · Gate 2 cap: ${d.preview.cap} image calls`;
+ const report=d.preview.report;
+ $('preview-summary').textContent=report?`Hero: ${report.hero_logical_height} logical pixels tall${report.hero_logical_height<24?' — WARNING: under 24':''} · Palette: ${report.palette_size} colors`:'';
+ const warnings=report?.warnings||[];$('preview-warnings').hidden=!warnings.length;$('preview-warning-list').replaceChildren();
+ for(const warning of warnings){const item=document.createElement('li');item.textContent=warning;$('preview-warning-list').append(item);}
+ $('preview-history').replaceChildren();
+ for(const v of d.preview.versions){const link=document.createElement('a');link.href='/api/artifacts/'+v.artifact;link.textContent='Gameplay v'+v.version;link.target='_blank';link.rel='noopener';$('preview-history').append(link);}
 }
 function renderProduction(d){
  const panel=$('production-panel');panel.hidden=!d.production;if(!d.production)return;

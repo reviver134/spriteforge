@@ -33,12 +33,13 @@ from .intake import (
 WORKFLOW = "intake-concept-v1"
 
 
-def start_run(store, cfg, mock=True, assets=False):
+def start_run(store, cfg, mock=True, assets=False, gameplay_preview=True):
     return store.create_run(
         {
             "workflow": WORKFLOW,
             "mock": mock,
             "asset_production": assets,
+            "gameplay_preview": gameplay_preview,
             "settings": cfg.model_dump(mode="json"),
             "budget": cfg.budget.model_dump(),
         }
@@ -62,12 +63,24 @@ def _step(store, run_id):
         run_id
     ):
         return False
-    if run.config.get("asset_production") and any(
-        a.name == "approval.json" for a in store.artifacts(run_id)
+    if (
+        run.config.get("asset_production")
+        and (not run.config.get("gameplay_preview") or run.config.get("preview_production_enabled"))
+        and any(a.name == "approval.json" for a in store.artifacts(run_id))
     ):
         from .production import production_step
 
         return production_step(store, run_id)
+    history = gates.all(run_id)
+    if (
+        run.config.get("gameplay_preview")
+        and history
+        and history[-1].stage
+        in {"styles", "mood_board", "sprite_anchor", "gameplay", "preview_revise"}
+    ):
+        from .gameplay import gameplay_step
+
+        return gameplay_step(store, run_id)
     cfg = Config.model_validate(run.config["settings"])
     budget = Budget(store, run_id, BudgetConfig.model_validate(run.config["budget"]))
     root = store.path.parent / "runs" / run_id
@@ -214,7 +227,19 @@ def _step(store, run_id):
                         "type": "string",
                         "title": "Style",
                         "enum": [o.name for o in options.options],
-                    }
+                    },
+                    **(
+                        {
+                            "mood_board": {
+                                "type": "string",
+                                "title": "Optional mood board",
+                                "enum": ["yes", "no"],
+                                "default": "yes" if cfg.preview.mood_board else "no",
+                            }
+                        }
+                        if run.config.get("gameplay_preview")
+                        else {}
+                    ),
                 },
             },
         )
@@ -281,8 +306,8 @@ def _step(store, run_id):
                 else MuseImageProvider(cfg.image, budget)
             )
             prompt = (
-                "CONCEPT key-art scene, not final game assets. Landscape 16:9 composition: environment, "
-                "one hero, 2-3 enemies and a HUD mock all in one frame. Chunky readable pixel art. "
+                "Mood board, not final art. Simple low-detail landscape environment study. "
+                "Large color shapes, chunky pixel art. No text, lettering, UI or HUD. "
                 "Human notes override untouched template defaults. "
                 + brief.model_dump_json()
                 + "\nStyle: "
@@ -296,7 +321,7 @@ def _step(store, run_id):
                     + last.changes.model_dump_json()
                 )
             try:
-                req = ImageRequest(prompt=prompt, references=references)
+                req = ImageRequest(prompt=prompt, references=references, size=(1536, 1024))
                 result = provider.edit(req) if references else provider.generate(req)
                 save(name, result.data, "Art Director", "image/png")
             finally:

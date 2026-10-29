@@ -29,7 +29,7 @@ class Gate(BaseModel):
     kind: Literal["review", "confirm_changes"] = "review"
     parent_id: str | None = None
     changes: Changes | None = None
-    status: Literal["pending", "approved", "changes_requested", "aborted"] = "pending"
+    status: Literal["pending", "approved", "changes_requested", "aborted", "superseded"] = "pending"
     response: Feedback | None = None
 
 
@@ -52,6 +52,32 @@ class Gates:
 
     def pending(self, run_id: str) -> Gate | None:
         return next((g for g in reversed(self.all(run_id)) if g.status == "pending"), None)
+
+    def supersede_preview(self, run_id: str, ident: str, reason: str) -> None:
+        """Withdraw a defective, unapproved draft for deterministic repair; never approve it."""
+        with self.store.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT body FROM gates WHERE run_id=? AND id=?", (run_id, ident)
+            ).fetchone()
+            if not row:
+                raise KeyError(ident)
+            gate = Gate.model_validate_json(row[0])
+            if gate.stage != "gameplay" or gate.status != "pending":
+                raise ValueError("Only an unapproved gameplay draft can be superseded")
+            gate.status = "superseded"
+            db.execute(
+                "UPDATE gates SET body=? WHERE run_id=? AND id=?",
+                (gate.model_dump_json(), run_id, ident),
+            )
+            db.execute("UPDATE runs SET status='running' WHERE id=?", (run_id,))
+            self.store._event(
+                db,
+                run_id,
+                "QA Playtester",
+                "preview.superseded",
+                {"gate": ident, "reason": redact(reason)},
+            )
 
     def open(self, run_id: str, gate: Gate) -> Gate:
         with self.store.connect() as db:

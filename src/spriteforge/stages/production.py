@@ -20,7 +20,7 @@ def enable_production(store, run_id):
         raise ValueError("Asset production requires an intake/concept run")
     if run.status in {"aborted", "budget_exhausted"}:
         raise ValueError("This run cannot start production")
-    if run.config.get("asset_production"):
+    if run.config.get("asset_production") and run.status != "completed":
         return
     names = {a.name for a in store.artifacts(run_id)}
     if (
@@ -28,7 +28,11 @@ def enable_production(store, run_id):
         and not {"brief.json", "style.json", "anchor.png", "approval.json"} <= names
     ):
         raise ValueError("Production needs an approved G2 style and anchor")
-    config = {**run.config, "asset_production": True}
+    config = {
+        **run.config,
+        "asset_production": True,
+        "preview_production_enabled": run.config.get("gameplay_preview", False),
+    }
     with store.connect() as db:
         db.execute(
             "UPDATE runs SET config=?,status=? WHERE id=?",
@@ -124,7 +128,11 @@ def _step(ctx):
                 plan.instructions[target] = change.instruction
         ctx.save(plan_name, plan.model_dump(), "Director")
     else:
-        plan = ProductionPlan(versions={t.id: 1 for t in tasks}, instructions={})
+        records = ctx.records()
+        plan = ProductionPlan(
+            versions={t.id: records[t.id].version if t.id in records else 1 for t in tasks},
+            instructions={},
+        )
         ctx.save(plan_name, plan.model_dump(), "Director")
     records = ctx.records()
     for task in tasks:

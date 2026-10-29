@@ -41,6 +41,10 @@ class Budget:
             ]
             if (
                 sum(r.image for r in rows) + image > self.config.max_image_calls
+                or (
+                    self.config.max_total_calls is not None
+                    and len(rows) >= self.config.max_total_calls
+                )
                 or sum(r.provider == provider and r.model == model for r in rows)
                 >= self.config.max_calls_per_model
                 or sum(r.estimated_cost for r in rows) + usage.estimated_cost

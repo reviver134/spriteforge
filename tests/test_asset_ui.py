@@ -18,7 +18,7 @@ from spriteforge.stages.workflow import advance_until_gate, start_run
 
 def test_contact_sheet_targeted_revision_and_cli_restart(tmp_path):
     store = Store(tmp_path / "state.sqlite3")
-    run = start_run(store, load_config())
+    run = start_run(store, load_config(), gameplay_preview=False)
     advance_until_gate(store, run.id)
     for _ in range(5):
         ScriptedHuman([Feedback(action="approve")]).answer(Gates(store), run.id)

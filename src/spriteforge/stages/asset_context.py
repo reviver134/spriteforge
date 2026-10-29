@@ -195,6 +195,15 @@ def make_manifest(ctx):
             values["size"] = ctx.style.tile_canvas
         assets.append(AssetSpec.model_validate(values))
     manifest = Manifest(assets=assets)
+    if "preview/locked-assets.json" in ctx.artifacts:
+        locked = Manifest.model_validate(ctx.read(ctx.read("approval.json")["manifest"]))
+        # Keep accepted base specs; new animation states may extend them later.
+        proposals = {a.id: a for a in manifest.assets}
+        for asset in locked.assets:
+            if asset.id in proposals:
+                asset.frames = proposals[asset.id].frames
+            proposals[asset.id] = asset
+        manifest = Manifest(assets=list(proposals.values()))
     order = {t.id: i for i, t in enumerate(manifest.tasks())}
     manifest.assets.sort(key=lambda a: order[a.id])
     ctx.save(name, manifest.model_dump(), "Level/Tile Designer")

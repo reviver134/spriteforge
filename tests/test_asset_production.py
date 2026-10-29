@@ -55,7 +55,7 @@ def approved_run(tmp_path, cap=150):
     store = Store(tmp_path / "state.sqlite3")
     cfg = load_config()
     cfg.budget = BudgetConfig(max_image_calls=cap)
-    run = start_run(store, cfg)
+    run = start_run(store, cfg, gameplay_preview=False)
     advance_until_gate(store, run.id)
     for _ in range(5):
         answer(store, run.id)

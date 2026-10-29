@@ -1,4 +1,7 @@
 workspace: ~/spriteforge-workspace
+preview:
+  max_image_calls: 16
+  mood_board: true
 image:
   # Live smoke 2026-10-28: both paths accept size=1024x1024, b64_json,
   # output_format=png and reasoning_strength=low, but return 1600x1600 PNGs.

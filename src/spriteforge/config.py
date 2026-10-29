@@ -24,6 +24,7 @@ class LLMConfig(Schema):
 class BudgetConfig(Schema):
     max_image_calls: int = Field(default=150, ge=0)
     max_calls_per_model: int = Field(default=200, ge=0)
+    max_total_calls: int | None = Field(default=None, ge=0)
     image_cost: float = Field(default=0.01, ge=0)
     max_estimated_cost: float = Field(default=5, ge=0)
 
@@ -33,9 +34,15 @@ class MemoryConfig(Schema):
     relative_score: float = Field(default=0.5, ge=0, le=1)
 
 
+class PreviewConfig(Schema):
+    max_image_calls: int = Field(default=16, ge=0, le=150)
+    mood_board: bool = True
+
+
 class Config(Schema):
     workspace: Path
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
+    preview: PreviewConfig = Field(default_factory=PreviewConfig)
     image: ImageConfig
     llm: LLMConfig
     budget: BudgetConfig = Field(default_factory=BudgetConfig)

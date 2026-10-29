@@ -81,6 +81,33 @@ def create_app(
         # a concurrent worker cannot return a new gate with an older artifact list.
         gate = Gates(store).pending(id)
         production = None
+        preview = None
+        if run.config.get("gameplay_preview"):
+            from spriteforge.stages.asset_store import ProductionStore
+
+            saved = ProductionStore(store, id)
+            reports = [
+                n
+                for n in saved.artifacts
+                if n.startswith("preview/v") and n.endswith("/readability.json")
+            ]
+            versions = sorted(reports, key=lambda n: int(n.split("/")[1][1:]))
+            preview = {
+                "report": saved.read(versions[-1]) if versions else None,
+                "versions": [
+                    {
+                        "version": int(n.split("/")[1][1:]),
+                        "artifact": saved.artifacts[
+                            n.replace("readability.json", "gameplay-4x.png")
+                        ].id,
+                    }
+                    for n in versions
+                ],
+                "cap": min(
+                    run.config["settings"].get("preview", {}).get("max_image_calls", 16),
+                    run.config["budget"]["max_image_calls"],
+                ),
+            }
         if run.config.get("asset_production"):
             from spriteforge.stages.asset_store import ProductionStore
 
@@ -95,11 +122,13 @@ def create_app(
         return {
             "run": run.model_dump(),
             "production": production,
+            "preview": preview,
             "error": next(
                 (
                     e.payload.get("message")
                     for e in reversed(store.events(id))
-                    if e.type in {"run.failed", "production.budget_exhausted"}
+                    if e.type
+                    in {"run.failed", "production.budget_exhausted", "preview.budget_exhausted"}
                 ),
                 None,
             )
@@ -134,6 +163,7 @@ def create_app(
                     if feedback.action == "request_changes" and pending.stage not in {
                         "concept",
                         "assets",
+                        "gameplay",
                     }:
                         raise ValueError("Changes can be requested at the concept review")
                     if feedback.action == "request_changes" and pending.stage == "assets":
@@ -145,6 +175,48 @@ def create_app(
 
                         for value in feedback.form.values():
                             hex_color(value)
+                    if pending.stage == "gameplay":
+                        from spriteforge.stages.asset_models import Manifest
+                        from spriteforge.stages.asset_store import ProductionStore
+                        from spriteforge.stages.preview_models import PreviewChange
+                        from spriteforge.stages.preview_review import validate_change
+
+                        saved = ProductionStore(store, id)
+                        if feedback.action == "approve":
+                            if any(
+                                feedback.form.get(k, "").strip() for k in ("targets", "palette")
+                            ):
+                                raise ValueError(
+                                    "Use Request changes to apply asset, layout or palette edits"
+                                )
+                            reports = [
+                                n for n in saved.artifacts if n.endswith("/readability.json")
+                            ]
+                            report = saved.read(
+                                max(reports, key=lambda n: int(n.split("/")[1][1:]))
+                            )
+                            if any(r["failures"] for r in report["assets"].values()):
+                                raise ValueError("Fix failing asset validators before approval")
+                        elif (
+                            feedback.action == "request_changes"
+                            and feedback.form.get("targets", "").strip()
+                        ):
+                            validate_change(
+                                PreviewChange(
+                                    targets=[
+                                        s.strip()
+                                        for s in feedback.form["targets"].split(",")
+                                        if s.strip()
+                                    ],
+                                    instruction=feedback.text,
+                                    palette=[
+                                        s.strip()
+                                        for s in feedback.form.get("palette", "").split(",")
+                                        if s.strip()
+                                    ],
+                                ),
+                                Manifest.model_validate(saved.read("preview/manifest.json")),
+                            )
             gate = await asyncio.to_thread(Gates(store).respond, id, gate_id, feedback)
         except KeyError:
             raise HTTPException(404, "Gate not found") from None
