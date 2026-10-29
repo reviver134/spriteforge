@@ -1,6 +1,7 @@
 """G1/G2 workflow. Durable artifacts are checkpoints; accepted art is never regenerated."""
 
 import json
+import logging
 from uuid import uuid4
 
 from spriteforge.agents.models import ChangeRequest, Changes
@@ -18,7 +19,6 @@ from spriteforge.providers.mock import MockImageProvider, MockLLMProvider
 from spriteforge.providers.muse_image import MuseImageProvider
 from spriteforge.providers.muse_spark import MuseSparkProvider
 
-from .concept import preview
 from .intake import (
     GameBrief,
     Options,
@@ -33,17 +33,25 @@ from .intake import (
 WORKFLOW = "intake-concept-v1"
 
 
-def start_run(store, cfg, mock=True, assets=False, gameplay_preview=True):
-    return store.create_run(
+def start_run(store, cfg, mock=True, assets=False, gameplay_preview=True, legacy=False, goal=""):
+    if not gameplay_preview and not legacy:
+        raise ValueError("Deprecated concept preview requires explicit --legacy")
+    run = store.create_run(
         {
             "workflow": WORKFLOW,
             "mock": mock,
             "asset_production": assets,
             "gameplay_preview": gameplay_preview,
+            "legacy_preview": legacy,
+            "goal": goal,
             "settings": cfg.model_dump(mode="json"),
             "budget": cfg.budget.model_dump(),
         }
     )
+    if legacy:
+        logging.getLogger(__name__).warning("DEPRECATED: legacy PIL concept preview enabled")
+        store.append_event(run.id, "Director", "preview.deprecated", {"legacy": True})
+    return run
 
 
 def workflow_step(store, run_id):
@@ -58,6 +66,8 @@ def advance_until_gate(store, run_id):
 
 def _step(store, run_id):
     run = store.get_run(run_id)
+    if not run.config.get("gameplay_preview") and not run.config.get("legacy_preview"):
+        raise ValueError("Deprecated concept preview requires explicit --legacy")
     gates = Gates(store)
     if run.status in {"completed", "aborted", "failed", "budget_exhausted"} or gates.pending(
         run_id
@@ -128,6 +138,8 @@ def _step(store, run_id):
         for g in history
         if g.stage in {"genre", "brief", "followups"} and g.response and g.response.text.strip()
     ]
+    if run.config.get("goal"):
+        intake_notes.insert(0, run.config["goal"])
     last = history[-1] if history else None
     memory = KnowledgeStore(store.path.parent / "memory", store, run_id)
     seed(memory)
@@ -244,6 +256,10 @@ def _step(store, run_id):
             },
         )
         return False
+    if not run.config.get("legacy_preview"):
+        raise ValueError("Deprecated concept preview requires explicit --legacy")
+    from .concept import preview
+
     if last.stage == "concept" and last.status == "changes_requested":
         changes = Changes(
             requests=[
@@ -327,7 +343,7 @@ def _step(store, run_id):
             finally:
                 if hasattr(provider, "close"):
                     provider.close()
-        native, enlarged, palette = preview(artifacts[name].data, brief.screen)
+        native, enlarged, palette = preview(artifacts[name].data, brief.screen, legacy=True)
         save(f"concept/v{version}-native.png", native, "Art Director", "image/png")
         save(f"concept/v{version}-pixel.png", enlarged, "Art Director", "image/png")
         save(

@@ -64,7 +64,7 @@ def test_json_validation_retry_once(context):
     provider = MockLLMProvider(budget, [{"value": "bad"}, {"value": 7}])
     assert chat_json(provider, request, Answer).value == 7
     assert len(request.messages) == 1
-    assert len(store.events(run.id)) == 3
+    assert len(store.events(run.id)) == 5
     with pytest.raises(ValidationError):
         chat_json(MockLLMProvider(budget, [{}, {}, {"value": 1}]), request, Answer)
 
@@ -80,7 +80,7 @@ def test_live_key_guard(context, monkeypatch):
             image.generate(ImageRequest(prompt="slime"))
         with pytest.raises(ProviderError, match="META_API_KEY"):
             MuseSparkProvider(config.llm, budget, client).chat(ChatRequest(messages=[]))
-    assert len(store.events(run.id)) == 1
+    assert len([e for e in store.events(run.id) if e.type == "cost.failed"]) == 2
 
 
 def test_meta_request_contracts(context, monkeypatch):

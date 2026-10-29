@@ -196,8 +196,10 @@ class MCPService:
             config = BudgetConfig.model_validate(
                 self.store.get_run(run_id).config.get("budget", {})
             )
-            Budget(self.store, run_id, config).reserve("mcp", intent.tool.split(".", 1)[0])
-            result = redact(await self.client.call(server, definition["name"], intent.arguments))
+            with Budget(self.store, run_id, config).attempt("mcp", intent.tool.split(".", 1)[0]):
+                result = redact(
+                    await self.client.call(server, definition["name"], intent.arguments)
+                )
         except BaseException as exc:
             with self.store.connect() as db:
                 db.execute(

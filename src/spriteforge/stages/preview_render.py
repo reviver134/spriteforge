@@ -33,6 +33,10 @@ class QuietHandler(SimpleHTTPRequestHandler):
 
 
 def capture(directory):
+    return capture_scene(directory)[0]
+
+
+def capture_scene(directory):
     server = ThreadingHTTPServer(
         ("127.0.0.1", 0), partial(QuietHandler, directory=str(directory.parent))
     )
@@ -46,6 +50,14 @@ def capture(directory):
                     viewport={"width": 320, "height": 180}, device_scale_factor=1
                 )
                 errors = []
+                # Expose the Game instance in historical snapshots without changing drawing.
+                html = (directory / "index.html").read_text(encoding="utf-8")
+                if "window.previewGame=" not in html:
+                    html = html.replace("new Phaser.Game(", "window.previewGame=new Phaser.Game(")
+                page.route(
+                    "**/index.html",
+                    lambda route: route.fulfill(body=html, content_type="text/html"),
+                )
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.goto(f"http://127.0.0.1:{server.server_port}/{directory.name}/index.html")
                 page.wait_for_function("window.previewReady === true", timeout=30000)
@@ -54,7 +66,8 @@ def capture(directory):
                     raise RuntimeError("Phaser preview failed: " + "; ".join(errors))
                 if page.evaluate("Phaser.VERSION") != "3.90.0":
                     raise RuntimeError("Unexpected Phaser runtime version")
-                return page.locator("canvas").screenshot()
+                audit = page.evaluate((TEMPLATE / "audit.js").read_text(encoding="utf-8"))
+                return page.locator("canvas").screenshot(), audit
             finally:
                 browser.close()
     finally:
@@ -100,7 +113,8 @@ def render_preview(ctx, plan, layout):
     tinted = Image.new("RGBA", font.size, ImageColor.getrgb(text_color))
     tinted.putalpha(font.getchannel("A"))
     ctx.save(prefix + "/font.png", png(tinted), "Programmer", "image/png")
-    raw = capture(ctx.root / prefix)
+    raw, audit = capture_scene(ctx.root / prefix)
+    ctx.save(prefix + "/render-audit.json", audit, "QA Playtester")
     native = Image.open(io.BytesIO(raw)).convert("RGB")
     if native.size != (320, 180):
         raise ValueError("Phaser screenshot must be exactly 320x180")
@@ -127,6 +141,7 @@ def render_preview(ctx, plan, layout):
         {
             "version": plan.version,
             "hero_logical_height": checks["hero"]["logical_height"],
+            "hero_on_screen_height": audit["hero"]["on_screen_height"],
             "palette_size": len(palette),
             "palette": palette,
             "warnings": [

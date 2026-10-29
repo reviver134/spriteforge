@@ -11,6 +11,7 @@ from spriteforge.core.demo import demo_step
 from spriteforge.core.gates import Feedback, Gates
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
+from spriteforge.core.usage import usage_report
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 from spriteforge.stages.workflow import advance_until_gate as advance_intake
 from spriteforge.stages.workflow import workflow_step as intake_step
@@ -134,19 +135,7 @@ def create_app(
             )
             if run.status in {"failed", "budget_exhausted"}
             else None,
-            "usage": {
-                "image_calls": sum(
-                    bool(e.payload.get("image"))
-                    for e in store.events(id)
-                    if e.type == "cost.reserved"
-                ),
-                "estimated_cost": sum(
-                    e.payload.get("estimated_cost", 0)
-                    for e in store.events(id)
-                    if e.type == "cost.reserved"
-                ),
-                "cap": run.config.get("budget", {}).get("max_image_calls", 150),
-            },
+            "usage": usage_report(store, id).model_dump(),
             "artifacts": [a.model_dump(exclude={"data"}) for a in store.artifacts(id)],
             "gate": gate.model_dump(mode="json") if gate else None,
         }

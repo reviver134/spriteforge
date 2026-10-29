@@ -1,6 +1,7 @@
 """Mood-board crops preserve proportions; these images are never gameplay previews."""
 
 import io
+import logging
 
 import numpy as np
 from PIL import Image
@@ -29,7 +30,10 @@ def center_crop(image, screen=(16, 9)):
     return image.crop((left, top, left + width, top + height))
 
 
-def preview(data, screen):
+def preview(data, screen, *, legacy=False):
+    if not legacy:
+        raise ValueError("Deprecated PIL concept preview requires explicit --legacy")
+    logging.getLogger(__name__).warning("DEPRECATED: rendering legacy PIL concept preview")
     source = center_crop(Image.open(io.BytesIO(data)).convert("RGB"), screen)
     palette = extract_palette(source).colors
     # Full-frame scene: do not chroma-key or isolate a single connected subject.

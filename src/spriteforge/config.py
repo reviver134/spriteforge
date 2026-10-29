@@ -26,6 +26,10 @@ class BudgetConfig(Schema):
     max_calls_per_model: int = Field(default=200, ge=0)
     max_total_calls: int | None = Field(default=None, ge=0)
     image_cost: float = Field(default=0.01, ge=0)
+    # Meta standard Spark rates: https://dev.meta.ai/docs/pricing-rate-limits
+    spark_input_per_million: float = Field(default=1.25, ge=0)
+    spark_cached_input_per_million: float = Field(default=0.15, ge=0)
+    spark_output_per_million: float = Field(default=4.25, ge=0)
     max_estimated_cost: float = Field(default=5, ge=0)
 
 

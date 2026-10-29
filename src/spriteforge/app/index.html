@@ -67,7 +67,8 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  if(current!==selected)return;
  $('status').textContent=d.run.status+' · checkpoint '+d.run.cursor;
  $('error').textContent=d.error||'';
- $('usage').textContent=d.usage?`${d.usage.image_calls} / ${d.usage.cap} image calls · estimated cost $${d.usage.estimated_cost.toFixed(2)} (configured estimate)`:'';
+ const u=d.usage, dollars=v=>v==null?'unknown':'$'+v.toFixed(6);
+ $('usage').textContent=u?`${u.image_calls} / ${u.cap} image calls (${dollars(u.estimated_image_cost)}) · Spark: ${u.spark.calls} calls, ${u.spark.input_tokens ?? 'unknown'} input / ${u.spark.output_tokens ?? 'unknown'} output tokens, ${u.spark.cached_input_tokens ?? 'unknown'} cached input (${dollars(u.spark.estimated_cost)}) · total estimate ${dollars(u.estimated_total_cost)} · failed attempts: ${u.failed_attempts} (excluded)${u.spark.missing_usage_calls ? ' · token usage unavailable for '+u.spark.missing_usage_calls+' calls' : ''}`:'';
  renderProduction(d);
  renderPreview(d);
  $('artifacts').replaceChildren();for(const a of d.artifacts.filter(a=>a.mime.startsWith('image/')&&(!a.name.startsWith('production/')||a.name.endsWith('/sprite.png'))&&(!a.name.startsWith('preview/')||a.name.endsWith('/sprite.png')||a.name.endsWith('/gameplay-4x.png'))&&(!a.name.startsWith('mood/')||a.name.endsWith('/landscape.png')))){await renderArtifact(a,$('artifacts'));}

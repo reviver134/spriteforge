@@ -63,6 +63,8 @@ def manifest_for(ctx):
 
 
 def approve_preview(ctx, gate, plan, manifest):
+    from spriteforge.core.usage import usage_report
+
     records = [asset_record(ctx, ident, version) for ident, version in plan.versions.items()]
     if any(r.status != "accepted" for r in records):
         raise ValueError("Fix failing asset validators before approving this preview")
@@ -78,6 +80,9 @@ def approve_preview(ctx, gate, plan, manifest):
     for record in records:
         ctx.lock(record, locking)
     ctx.save("preview/locked-assets.json", {r.id: r.model_dump() for r in records}, "Director")
+    ctx.save(
+        "preview/run-report.json", usage_report(ctx.store, ctx.run_id).model_dump(), "Director"
+    )
     ctx.save(
         "approval.json",
         {

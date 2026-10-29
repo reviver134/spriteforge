@@ -24,30 +24,30 @@ class MuseImageProvider(MetaHTTP):
         self.config, self.budget = config, budget
 
     def _call(self, request: ImageRequest, edit: bool) -> ImageResult:
-        if not os.environ.get("META_API_KEY"):
-            raise ProviderError("META_API_KEY is required for live Meta providers")
-        body = {
-            "model": self.config.model,
-            "prompt": request.prompt,
-            "n": 1,
-            "size": "x".join(map(str, request.size)),
-            "response_format": "b64_json",
-            "output_format": "png",
-            "reasoning_strength": request.reasoning_strength,
-        }
-        if edit:
-            body["images"] = [{"image_url": data_url(ref)} for ref in request.references]
-        self.budget.reserve("meta", self.config.model, image=True)
-        result = self.post(self.config.edit_path if edit else self.config.generate_path, body)
-        try:
-            data = base64.b64decode(result["data"][0]["b64_json"], validate=True)
-            with Image.open(io.BytesIO(data)) as image:
-                image.verify()
-        except (KeyError, IndexError, ValueError, OSError):
-            raise ProviderError("Meta returned invalid image data") from None
-        return ImageResult(
-            data=data, metadata={"model": self.config.model, "usage": result.get("usage", {})}
-        )
+        with self.budget.attempt("meta", self.config.model, image=True):
+            if not os.environ.get("META_API_KEY"):
+                raise ProviderError("META_API_KEY is required for live Meta providers")
+            body = {
+                "model": self.config.model,
+                "prompt": request.prompt,
+                "n": 1,
+                "size": "x".join(map(str, request.size)),
+                "response_format": "b64_json",
+                "output_format": "png",
+                "reasoning_strength": request.reasoning_strength,
+            }
+            if edit:
+                body["images"] = [{"image_url": data_url(ref)} for ref in request.references]
+            result = self.post(self.config.edit_path if edit else self.config.generate_path, body)
+            try:
+                data = base64.b64decode(result["data"][0]["b64_json"], validate=True)
+                with Image.open(io.BytesIO(data)) as image:
+                    image.verify()
+            except (KeyError, IndexError, ValueError, OSError):
+                raise ProviderError("Meta returned invalid image data") from None
+            return ImageResult(
+                data=data, metadata={"model": self.config.model, "usage": result.get("usage", {})}
+            )
 
     def generate(self, request: ImageRequest) -> ImageResult:
         if request.references:

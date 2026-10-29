@@ -9,6 +9,7 @@ from spriteforge.core.credentials import load_credentials
 from spriteforge.core.gates import Feedback, Gates
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
+from spriteforge.core.usage import usage_report
 from spriteforge.stages.workflow import start_run, workflow_step
 
 ROOT = Path("workspace/gate2-live")
@@ -16,9 +17,10 @@ ROOT = Path("workspace/gate2-live")
 
 def advance(store, ident):
     while workflow_step(store, ident):
-        calls = [e for e in store.events(ident) if e.type == "cost.reserved"]
+        usage = usage_report(store, ident)
         print(
-            f"Checkpoint saved. Provider calls: {len(calls)}/25; image calls: {sum(e.payload['image'] for e in calls)}/16",
+            f"Checkpoint saved. Successful calls: {usage.successful_calls}/25; "
+            f"images: {usage.image_calls}/16; failed attempts: {usage.failed_attempts}",
             flush=True,
         )
 
@@ -79,15 +81,12 @@ def main():
             ),
         )
         advance(store, run.id)
-    events = [e for e in store.events(run.id) if e.type == "cost.reserved"]
     gate = Gates(store).pending(run.id)
     summary = {
         "run_id": run.id,
         "status": store.get_run(run.id).status,
         "pending_gate": gate.stage if gate else None,
-        "total_calls": len(events),
-        "image_calls": sum(e.payload["image"] for e in events),
-        "estimated_image_cost": round(sum(e.payload["estimated_cost"] for e in events), 4),
+        "usage": usage_report(store, run.id).model_dump(),
         "root": str((ROOT / "runs" / run.id).resolve()),
     }
     (ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

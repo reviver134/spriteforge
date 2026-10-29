@@ -18,7 +18,7 @@ def setup(tmp_path, cap=150):
     store = Store(tmp_path / "state.sqlite3")
     cfg = load_config()
     cfg.budget = BudgetConfig(max_image_calls=cap)
-    run = start_run(store, cfg, gameplay_preview=False)
+    run = start_run(store, cfg, gameplay_preview=False, legacy=True)
     workflow_step(store, run.id)
     return store, run.id
 
@@ -102,7 +102,7 @@ def test_scene_preview_keeps_corners_and_nearest_pixels():
 
     image = Image.new("RGB", (320, 180), "#00FF00")
     image.putpixel((0, 0), (255, 0, 0))
-    native, enlarged, _ = preview(png(image), (320, 180))
+    native, enlarged, _ = preview(png(image), (320, 180), legacy=True)
     small = Image.open(io.BytesIO(native))
     big = Image.open(io.BytesIO(enlarged))
     assert small.getpixel((0, 0)) != small.getpixel((50, 50))
@@ -152,7 +152,7 @@ def test_failed_brief_resume_preserves_notes_and_checkpoints(tmp_path, monkeypat
         "spriteforge.cli.serve", lambda store, run_id, *args: workflow_step(store, run_id)
     )
     result = CliRunner().invoke(
-        app, ["resume", ident, "--workspace", str(tmp_path), "--no-open-browser"]
+        app, ["resume", ident, "--legacy", "--workspace", str(tmp_path), "--no-open-browser"]
     )
     assert result.exit_code == 0, result.output
     assert Gates(store).pending(ident).stage == "followups"

@@ -18,6 +18,11 @@ budget:
   max_image_calls: 150
   max_calls_per_model: 200
   image_cost: 0.01
+  # Standard Spark USD / million tokens, verified 2026-10-29:
+  # https://dev.meta.ai/docs/pricing-rate-limits
+  spark_input_per_million: 1.25
+  spark_cached_input_per_million: 0.15
+  spark_output_per_million: 4.25
   max_estimated_cost: 5.0
 
 memory:

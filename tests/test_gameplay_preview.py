@@ -1,11 +1,13 @@
 """Gate 2 acceptance: renderer pixels, bounded calls, revisions and immutable approval."""
 
 import json
+import shutil
 
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
+from playwright.sync_api import Error as BrowserError
 from pydantic import ValidationError
 
 from spriteforge.app.server import create_app
@@ -17,6 +19,7 @@ from spriteforge.stages.concept import center_crop
 from spriteforge.stages.intake import GameBrief
 from spriteforge.stages.preview_assets import PreviewContext
 from spriteforge.stages.preview_models import RoomLayout, block_manifest, example_layout
+from spriteforge.stages.preview_render import capture_scene
 from spriteforge.stages.workflow import advance_until_gate, start_run, workflow_step
 
 
@@ -99,6 +102,29 @@ def test_real_phaser_render_targeted_changes_palette_and_lock(tmp_path, small_mo
     # HUD is code/font-drawn: its background differs from the heart and key text pixels.
     assert np.any(native[5:11, 7:14] != native[0, 0])
     assert np.any(native[5:11, 68:92] != native[0, 0])
+    audit = json.loads((root / "preview/v1/render-audit.json").read_text())
+    assert audit["hero"]["on_screen_height"] == audit["hero"]["logical_height"]
+    assert audit["hero"]["on_screen_height"] < 48  # opaque artwork, not its canvas
+    assert audit["sprites"] and all(s["scale_x"] == s["scale_y"] == 1 for s in audit["sprites"])
+    bad = tmp_path / "scale-regression"
+    shutil.copytree(root / "preview/v1", bad)
+    room = bad / "runtime/room.js"
+    original = room.read_text()
+    # Test non-hero sprites and tiles too, not just the named hero.
+    for asset, scale, error in [
+        ("hero", 1.5, "Non-integer"),
+        ("enemy_1", 0.5, "Non-integer"),
+        ("floor_1", 1.25, "Non-integer"),
+        ("hero", 2, "scale 1"),
+    ]:
+        room.write_text(
+            original.replace(
+                "const hud=",
+                f"this.children.list.find(o=>o.frame?.name==='{asset}').setScale({scale});const hud=",
+            )
+        )
+        with pytest.raises(BrowserError, match=error):
+            capture_scene(bad)
     ctx = PreviewContext(store, ident)
     registry = ctx.read("preview/v1/registry.json")
     originals = {k: ctx.data(r["artifact"]) for k, r in registry.items()}

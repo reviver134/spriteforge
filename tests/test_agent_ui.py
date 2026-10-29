@@ -52,7 +52,7 @@ def test_browser_gate_restart_and_hero_feedback(tmp_path):
             )
 
         try:
-            process = launch(["start", "--mock", "--agents"])
+            process = launch(["start", "--mock", "--agents", "--legacy"])
             run_id = wait_for_run(client, process)
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
@@ -78,7 +78,7 @@ def test_browser_gate_restart_and_hero_feedback(tmp_path):
                 images = [a for a in before["artifacts"] if a["name"].startswith("assets/")]
                 process.kill()
                 process.wait(timeout=10)
-                process = launch(["resume", run_id])
+                process = launch(["resume", run_id, "--legacy"])
                 assert wait_for_run(client, process) == run_id
                 page.reload(wait_until="domcontentloaded")
                 expect(

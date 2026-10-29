@@ -21,7 +21,7 @@ def test_intake_browser(tmp_path):
             "-m",
             "spriteforge",
             "start",
-            "--intake",
+            "--agents",
             "--mock",
             "--workspace",
             str(tmp_path),

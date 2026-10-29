@@ -1,3 +1,4 @@
+import json
 import threading
 import webbrowser
 from pathlib import Path
@@ -42,18 +43,29 @@ def start(
     agents: bool = False,
     intake: bool = False,
     assets: bool = False,
-    goal: str = "A top-down dungeon crawler with a hero and stone rooms",
+    legacy: bool = False,
+    goal: str = "",
     config: Path | None = None,
     workspace: Path | None = None,
     port: int = 8765,
     open_browser: bool = True,
 ):
-    """Start a local UI; --mock --agents runs role agents and durable human gates."""
+    """Start a local UI; --agents uses the Phaser gameplay preview and human gates."""
     cfg, store = setup(config, workspace)
-    if intake or assets:
+    if legacy:
+        typer.echo("DEPRECATED: --legacy enables the old concept/demo preview.", err=True)
+    if intake or assets or (agents and not legacy):
         from spriteforge.stages.workflow import start_run
 
-        run = start_run(store, cfg, mock=mock, assets=assets)
+        run = start_run(
+            store,
+            cfg,
+            mock=mock,
+            assets=assets,
+            gameplay_preview=not legacy,
+            legacy=legacy,
+            goal=goal,
+        )
         serve(store, run.id, port, open_browser)
         return
     if agents and not mock:
@@ -61,7 +73,10 @@ def start(
     if agents:
         from spriteforge.agents.workflow import start_run
 
-        run = start_run(store, goal, cfg.budget)
+        run = start_run(
+            store, goal or "A top-down dungeon crawler with a hero and stone rooms", cfg.budget
+        )
+        store.append_event(run.id, "Director", "preview.deprecated", {"legacy": True})
         serve(store, run.id, port, open_browser)
         return
     run = (
@@ -70,6 +85,15 @@ def start(
         else None
     )
     serve(store, run.id if run else None, port, open_browser)
+
+
+@app.command()
+def report(id: str, config: Path | None = None, workspace: Path | None = None):
+    """Report successful image/Spark usage and failed attempts from the durable ledger."""
+    from spriteforge.core.usage import usage_report
+
+    _, store = setup(config, workspace)
+    typer.echo(usage_report(store, id).model_dump_json(indent=2))
 
 
 @app.command()
@@ -88,6 +112,7 @@ def resume(
     port: int = 8765,
     open_browser: bool = True,
     assets: bool = False,
+    legacy: bool = False,
 ):
     """Resume from the database checkpoint and show its timeline."""
     _, store = setup(config, workspace)
@@ -95,6 +120,19 @@ def resume(
         run = store.get_run(id)
     except KeyError:
         raise typer.BadParameter(f"Run {id} does not exist") from None
+    old_preview = run.config.get("workflow") == "agent-runtime-mock-v1" or (
+        run.config.get("workflow") == "intake-concept-v1" and not run.config.get("gameplay_preview")
+    )
+    if old_preview:
+        if not legacy:
+            raise typer.BadParameter("This deprecated preview requires explicit --legacy")
+        typer.echo("DEPRECATED: --legacy enables the old concept/demo preview.", err=True)
+        with store.connect() as db:
+            db.execute(
+                "UPDATE runs SET config=? WHERE id=?",
+                (json.dumps({**run.config, "legacy_preview": True}), id),
+            )
+            store._event(db, id, "Director", "preview.deprecated", {"legacy": True})
     if assets:
         from spriteforge.stages.production import enable_production
 

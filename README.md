@@ -10,10 +10,12 @@ for offline development and tests.
 ## Gate 2: gameplay preview
 
 New intake runs stop at a **real Phaser-rendered gameplay screen**. Start with
-`python -m spriteforge start --intake --workspace workspace --no-open-browser`
+`python -m spriteforge start --agents --workspace workspace --no-open-browser`
 (add `--mock` for offline fixtures). Install Chromium once with
-`python -m playwright install chromium`. Existing concept-only runs retain their
-saved workflow and approval history.
+`python -m playwright install chromium`. `--intake` uses the same workflow.
+The deprecated PIL concept and old mock agent demo require explicit `--legacy`
+on start/resume, emit a deprecation warning, and retain their saved history.
+Without that flag, `start --agents` can only enter the Phaser preview workflow.
 
 Choose a palette and optionally request a mood board. Muse receives a landscape
 1536x1024 request; its actual response is center-cropped to exact 16:9, never
@@ -37,6 +39,10 @@ loads the real atlas and layout, then draws hearts, the key counter and weapon
 label using an original bundled bitmap font. Playwright captures the Phaser 3
 canvas at 320x180 and creates an exact nearest-neighbor 4x copy at 1280x720.
 Phaser 3.90.0 and its MIT license are bundled, so rendering makes no CDN requests.
+Every tile and entity draws at scale 1 with `pixelArt` and `roundPixels` enabled.
+The browser capture audits all Image/Sprite world scales, rejecting fractional
+scales (including inherited container scales), zoom, and scales other than 1.
+`render-audit.json` reports the hero's opaque bounds on the actual canvas.
 The implementation was checked against the pinned [Phaser bitmap-font source](https://github.com/phaserjs/phaser/blob/v3.90.0/src/gameobjects/bitmaptext/static/BitmapText.js)
 and [atlas loader](https://github.com/phaserjs/phaser/blob/v3.90.0/src/loader/filetypes/AtlasJSONFile.js).
 
@@ -49,10 +55,16 @@ sources without image calls. Every screenshot, layout, source, asset version,
 validation report and confirmed ChangeRequest remains in history.
 
 `preview.max_image_calls` in `config.yaml` defaults to **16**, including the mood
-board and revisions. The UI shows the stage cap, run cap and configured estimated
-image cost. Failed reservations count; an interrupted image request is not
-automatically replayed. `budget.max_total_calls` can additionally cap all provider
-calls, including Spark. LLM token charges are not estimated.
+board and revisions. The UI and `spriteforge report RUN_ID --workspace WORKSPACE`
+show image costs, Spark input/output/cached-input tokens, and estimated total cost.
+Successful calls consume the cap; failed/network-blocked attempts are logged and
+release their reservations and cost. Pending calls hold capacity to prevent
+concurrent overspending. An interrupted request with an unknown outcome is not
+automatically replayed. `budget.max_total_calls` additionally caps all provider calls.
+Spark estimates use configurable standard rates: $1.25/M input, $0.15/M cached input,
+and $4.25/M output ([Meta pricing](https://dev.meta.ai/docs/pricing-rate-limits),
+verified 2026-10-29). Reasoning tokens are a subset of output, not an extra charge.
+Missing provider usage is reported as unknown, never as a zero-cost total.
 
 Approval writes `style.json` from colors actually used by the asset set and HUD,
 locks all reviewed versions in the production registry, and uses the accepted
@@ -66,8 +78,9 @@ Outputs under `workspace/runs/RUN_ID/`:
 - `preview/assets/ID/vN/`: Muse source, request/reference hashes, processed sprite,
   validation and readability image.
 - `preview/vN/`: `layout.json`, `atlas.png`, `atlas.json`, `gameplay.png`,
-  `gameplay-4x.png`, `readability.json`, and versioned registry/plan.
+  `gameplay-4x.png`, `readability.json`, `render-audit.json`, and versioned registry/plan.
 - `preview/locked-assets.json`, `approval.json`, `style.json`, `anchor.png`: accepted set.
+- `preview/run-report.json`: usage snapshot at G2 approval; CLI/UI show current ledger totals.
 
 `tools/gate2_live.py --start` runs the user-selected bike-rider/zombie acceptance
 brief with 25 total calls and 16 image calls maximum. It pauses at visual gates.
@@ -76,10 +89,13 @@ Resume with `--approve mood_board --note "HUMAN APPROVAL"` or `--approve gamepla
 is `workspace/gate2-live`; calling it again preserves the same run and budget.
 
 Live acceptance on 2026-10-29 completed at G2 with human approval of gameplay v3.
-Run `734a72aaec3b4aea8ff34975804981f5` used **24 total call reservations**, including
-**16 Muse image calls**, below the 25-call total cap. Configured image-cost estimate:
-**$0.16**; Spark token costs and actual provider billing are not included. The first
-network-denied reservation and rejected model proposal count toward the cap.
+Run `734a72aaec3b4aea8ff34975804981f5` used **23 successful Muse calls**: **16 image
+calls ($0.16 estimated)** and **7 Spark calls**, below the 25-call cap. Its one
+network-blocked Spark attempt is excluded by an append-only ledger correction;
+the original 24 reservation events remain auditable. A schema-rejected proposal
+still counts as a successful provider response. Historical Spark tokens were not
+retained, so Spark cost and the combined total are **unknown**. No additional Muse
+calls were made for cleanup. New calls persist normalized token usage and cost.
 
 Evidence is under `workspace/gate2-live/runs/734a72aaec3b4aea8ff34975804981f5/`:
 `preview/v3/gameplay.png` is 320x180; `gameplay-4x.png` is an exact 1280x720
@@ -94,7 +110,12 @@ artistic quality: v2 was rejected by the human, then v3 was revised and approved
 
 Earlier drafts and QA supersession records remain intact. Only the explicitly
 approved v3 set is in `preview/locked-assets.json` and the production registry.
-The run stopped after G2 approval; no later milestone ran.
+The run stopped after G2 approval; no later milestone ran. Cleanup recaptured v3
+through the saved Phaser scene: pixels match the approved screenshot exactly.
+The hero is **40 opaque screen pixels** tall, bounding box `[46,104,82,144)` in
+320x180, with a 48x48 canvas. All **98** rendered tile/entity objects use scale 1.
+Version history remains **v1 → v2 → v3 (approved)**; no replacement version was needed.
+`preview/cleanup-report.json` contains paths, asset IDs, bounds and corrected usage.
 
 Local-first pixel-game builder. Milestone 1 supplies the foundation and a mock demo;
 Milestone 2 adds deterministic pixel processing, validation, palettes, atlases, and
@@ -226,8 +247,8 @@ reservation before its checkpoint commits; reservations are intentionally conser
 
 Configuration lives in `src/spriteforge/config.yaml` (or `--config PATH`). Model IDs,
 base URLs, endpoint paths and budgets are configurable. The image cap defaults to
-150 per run; model call caps and an estimated image-cost cap also apply. LLM token
-pricing is not estimated in this milestone.
+150 per run; model call caps and an estimated cost cap also apply. Spark token
+pricing and failed-attempt accounting are described in the Gate 2 section above.
 
 Live provider adapters read `META_API_KEY` only from the environment. The CLI also
 loads that variable from `.env` in the current directory when it is absent from the
@@ -494,10 +515,10 @@ in config.yaml (defaults: 0 and 0.5 of the best score). CLI overrides are
 ## Agent runtime and gates (Milestone 4)
 
 ```powershell
-spriteforge start --mock --agents --goal "A top-down dungeon crawler"
+spriteforge start --mock --agents --legacy --goal "A top-down dungeon crawler"
 # After stopping the process, including while paused:
 spriteforge runs
-spriteforge resume <id>
+spriteforge resume <id> --legacy
 ```
 
 The acceptance workflow pauses at G1 Brief, G2 Concept preview, G3 Asset contact
@@ -549,7 +570,7 @@ restart test. Install the headless browser once with
 This section describes existing saved concept-only runs. New runs use the real
 gameplay-preview Gate 2 above.
 
-Run `python -m spriteforge start --intake --mock --workspace workspace --no-open-browser`
+Run `python -m spriteforge start --intake --mock --legacy --workspace workspace --no-open-browser`
 and open http://127.0.0.1:8765. Choose a genre, complete or skip the brief fields,
 answer the adaptive follow-ups, and choose a palette/style. Choice chips, free text,
 suggested options and default buttons are available in the questionnaire.
@@ -562,7 +583,7 @@ ChangeRequests, and review v2. All versions remain visible in Artifacts. Edit th
 extracted color swatches before approving. Approval locks `style.json` and
 `anchor.png` in `workspace/runs/<run-id>/`, with `brief.json`, concept versions,
 native previews, and approval provenance alongside them. Resume with
-`python -m spriteforge resume <run-id> --workspace workspace --no-open-browser`.
+`python -m spriteforge resume <run-id> --legacy --workspace workspace --no-open-browser`.
 
 Omit `--mock` to use the configured Muse providers and `META_API_KEY`. Live concept
 generation is opt-in; tests use offline providers. There is no revision-count

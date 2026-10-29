@@ -31,11 +31,11 @@ class SpriteForgePreview extends Phaser.Scene {
     }
     for(let row=0;row<11;row++)for(let col=0;col<20;col++){
       const id=room.tiles[row][col];if(id==='empty')continue;
-      if(iso)this.add.image(88+(col-row)*8,36+(col+row)*4,'iso-'+id).setOrigin(.5,0);
-      else this.add.image(col*16,row*16,'blocks',id).setOrigin(0);
+      if(iso)this.add.image(88+(col-row)*8,36+(col+row)*4,'iso-'+id).setOrigin(.5,0).setScale(1);
+      else this.add.image(col*16,row*16,'blocks',id).setOrigin(0).setScale(1);
     }
     for(const entity of [...room.entities].sort((a,b)=>a.y-b.y))
-      this.add.image(entity.x,entity.y,'blocks',entity.asset).setOrigin(.5,1);
+      this.add.image(entity.x,entity.y,'blocks',entity.asset).setOrigin(.5,1).setScale(1);
     const hud=this.add.graphics();hud.fillStyle(color(0),1);hud.fillRect(0,0,320,16);
     hud.fillStyle(color(palette.length-1),1);
     const heart=['0110110','1111111','1111111','0111110','0011100','0001000'];
