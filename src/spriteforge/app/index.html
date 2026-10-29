@@ -142,6 +142,11 @@ $('gate-form').onsubmit=async e=>{e.preventDefault();const gate=renderedGate;if(
 function choose(){if(source)source.close();selected=$('runs').value;renderedGate=null;$('timeline').replaceChildren();refresh();
  source=new EventSource('/api/runs/'+selected+'/events');source.onmessage=e=>{const d=JSON.parse(e.data);
  const li=document.createElement('li');li.textContent=d.timestamp+' · '+d.agent+' · '+d.type+' · '+(d.payload.message||'');
+ if(d.type==='router.decision'||d.type==='router.outcome'){
+   const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');
+   summary.textContent=d.type==='router.decision'?'Capability selection':'Capability usage';
+   pre.textContent=JSON.stringify(d.payload,null,2);details.append(summary,pre);li.append(details);
+ }
  $('timeline').append(li);refresh();};source.addEventListener('done',()=>{source.close();refresh();});
  source.addEventListener('worker-error',e=>{$('error').textContent=JSON.parse(e.data);source.close();});}
 fetch('/api/runs').then(r=>r.json()).then(d=>{for(const r of d.runs){const o=document.createElement('option');

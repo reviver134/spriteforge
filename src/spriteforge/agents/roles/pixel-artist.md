@@ -5,6 +5,7 @@ model: mock
 allowed_tools:
 - generate_asset
 allowed_skills: [pixel-art-prompting, sprite-animation-frames]
+required_skills: [pixel-art-prompting]
 memory_scopes:
 - project
 max_steps: 8

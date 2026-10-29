@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from spriteforge.config import RouterConfig, load_config
 from spriteforge.core.security import redact
 from spriteforge.core.state import Artifact, Store
 from spriteforge.mcp.service import ConfirmationRequired, MCPService
@@ -20,6 +21,8 @@ from spriteforge.skills.catalog import SkillCatalog
 
 from .cancellation import cancelled, check_active
 from .roles import Role
+from .router import build_catalog, token_units
+from .routing_state import RoutingStore
 
 
 class AgentTask(BaseModel):
@@ -98,11 +101,18 @@ class AgentRuntime:
         tools: dict[str, Tool] | None = None,
         skills: dict[str, str] | None = None,
         mcp: MCPService | None = None,
+        router_config: RouterConfig | None = None,
+        router_provider: LLMProvider | None = None,
     ):
         self.store, self.run_id, self.memory, self.provider = store, run_id, memory, provider
         self.tools, self.skills = tools or {}, skills or {}
         self.catalog = SkillCatalog(store.path.parent)
         self.mcp = mcp or MCPService(store)
+        settings = store.get_run(run_id).config
+        self.router_config = router_config or RouterConfig.model_validate(
+            settings.get("settings", settings).get("router", load_config().router.model_dump())
+        )
+        self.router_provider = router_provider
         with store.connect() as db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS agent_checkpoints (run_id TEXT, task_id TEXT, body TEXT, PRIMARY KEY(run_id,task_id))"
@@ -120,6 +130,7 @@ class AgentRuntime:
             self.store.append_event(self.run_id, role.name, "agent.paused", {"task_id": task.id})
             raise
         except Exception as exc:
+            RoutingStore(self.store, self.run_id, task.id).outcome("failed")
             self.store.append_event(
                 self.run_id, role.name, "agent.failed", {"error": type(exc).__name__}
             )
@@ -136,6 +147,7 @@ class AgentRuntime:
             )
             if prior:
                 schema.model_validate_json(prior.data)
+                RoutingStore(self.store, self.run_id, task.id).outcome("completed")
                 return prior
         # Redact before retrieval or model dispatch, including Librarian inputs.
         snippets = await invoke(
@@ -161,17 +173,27 @@ class AgentRuntime:
                     else None,
                 }
             )
-        available = self.catalog.available(role)
-        missing_skills = set(role.allowed_skills) - self.skills.keys() - available.keys()
-        if missing_skills:
-            raise ValueError(f"Unavailable skills: {sorted(missing_skills)}")
+        # Revalidate mutable Role objects before using their permissions.
+        role = Role.model_validate(role.model_dump())
         tools = {name: self.tools[name] for name in role.allowed_tools if name in self.tools}
         mcp_tools = self.mcp.registry.allowed(role)
-        summaries = self.catalog.summaries(role) + [
-            {"name": n, "description": "Provided skill"}
-            for n in role.allowed_skills
-            if n in self.skills
-        ]
+        provider = self.provider[role.model] if isinstance(self.provider, dict) else self.provider
+        catalog = build_catalog(role, self.catalog, self.skills, tools, mcp_tools)
+        routing = RoutingStore(self.store, self.run_id, task.id)
+        routed = await routing.prepare(
+            role,
+            task.goal,
+            catalog,
+            self.router_config,
+            self.router_provider or provider,
+            invoke,
+            self.catalog,
+            self.skills,
+        )
+        selected = routed.decision
+        tools = {n: t for n, t in tools.items() if n in selected.selected_tools}
+        mcp_tools = {n: t for n, t in mcp_tools.items() if n in selected.selected_tools}
+        summaries = [c.model_dump() for c in catalog.skills if c.name in selected.selected_skills]
         skill_spec = {
             "type": "function",
             "function": {
@@ -197,6 +219,9 @@ class AgentRuntime:
                                 "inputs": inputs,
                                 "memory": [s.model_dump() for s in snippets],
                                 "skills": summaries,
+                                "required_skill_bodies": {
+                                    n: routed.bodies[n] for n in role.required_skills
+                                },
                             }
                         )
                     ),
@@ -209,7 +234,7 @@ class AgentRuntime:
                     "type": "function",
                     "function": {
                         "name": n,
-                        "description": t.get("description", ""),
+                        "description": next(c.description for c in catalog.tools if c.name == n),
                         "parameters": t.get("inputSchema", {}),
                     },
                 }
@@ -217,7 +242,6 @@ class AgentRuntime:
             ],
             json_schema=schema.model_json_schema(),
         )
-        provider = self.provider[role.model] if isinstance(self.provider, dict) else self.provider
         retried = False
         with self.store.connect() as db:
             row = db.execute(
@@ -274,14 +298,50 @@ class AgentRuntime:
                     call = ToolCall.model_validate(raw)
                     if call.name == "load_skill":
                         name = call.arguments["name"]
-                        if name in self.skills and name in role.allowed_skills:
-                            body = self.skills[name]
+                        if name not in selected.selected_skills:
+                            raise PermissionError(f"Skill not selected: {name}")
+                        if name not in role.allowed_skills and name not in self.catalog.headers(role):
+                            raise PermissionError(f"Skill permission revoked: {name}")
+                        resource = call.arguments.get("resource", "SKILL.md")
+                        if resource == "SKILL.md":
+                            body = routed.bodies[name]
                         else:
-                            body = self.catalog.load(
-                                role, name, call.arguments.get("resource", "SKILL.md")
-                            )
+                            # References cannot evade the shared context budget.
+                            body = self.catalog.load(role, name, resource)
+                        # Required bodies and prior loads are accounted separately below;
+                        # never append a duplicate body or an over-budget reference.
+                        loaded = sum(
+                            token_units(m.content or "")
+                            for m in request.messages
+                            if m.role == "tool" and m.content and '"body"' in m.content
+                        )
+                        pinned = sum(
+                            token_units(json.dumps({n: routed.bodies[n]}))
+                            for n in role.required_skills
+                        )
                         payload = {"name": name, "body": body}
+                        already_loaded = name in role.required_skills or any(
+                            m.role == "tool"
+                            and m.content
+                            and json.loads(m.content).get("name") == name
+                            and "body" in json.loads(m.content)
+                            for m in request.messages
+                        )
+                        if already_loaded and resource == "SKILL.md":
+                            payload = {"name": name, "already_loaded": True}
+                        elif (
+                            pinned + loaded + token_units(json.dumps(payload))
+                            > self.router_config.token_budget
+                        ):
+                            payload = {
+                                "name": name,
+                                "error": "Skill context token budget exhausted",
+                            }
+                        else:
+                            routing.used("skills", name)
                     elif "." in call.name and call.name not in tools:
+                        if call.name not in mcp_tools:
+                            raise PermissionError(f"Tool not selected or permitted: {call.name}")
                         payload = await self.mcp.call(
                             self.run_id,
                             role,
@@ -289,6 +349,8 @@ class AgentRuntime:
                             call.arguments,
                             f"{task.id}:{step}:{call.id}",
                         )
+                        if not payload.get("isError", False):
+                            routing.used("tools", call.name)
                     else:
                         payload = None
                     if payload is not None:
@@ -312,6 +374,7 @@ class AgentRuntime:
                     tool = tools[call.name]
                     arguments = tool.arguments.model_validate(call.arguments)
                     answer = tool.result.model_validate(await invoke(tool.handler, arguments))
+                    routing.used("tools", call.name)
                     self.store.append_event(
                         self.run_id,
                         role.name,
@@ -360,5 +423,6 @@ class AgentRuntime:
                 data=json.dumps(redact(output.model_dump(mode="json"))).encode(),
             )
             self.store.save_artifact(artifact, role.name, "agent.completed")
+            routing.outcome("completed")
             return artifact
         raise RuntimeError(f"Step cap reached: {role.name}")

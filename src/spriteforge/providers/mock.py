@@ -60,6 +60,10 @@ class MockLLMProvider:
 
     def chat(self, request: ChatRequest) -> ChatResult:
         with self.budget.attempt("mock", "scripted-llm"):
+            if (request.json_schema or {}).get("title") == "Selection":
+                from spriteforge.agents.router import mock_selection
+
+                return ChatResult(content=mock_selection(request).model_dump_json())
             if not self.responses:
                 raise RuntimeError("Mock script exhausted")
             response = self.responses.popleft()

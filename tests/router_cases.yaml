@@ -1,0 +1,110 @@
+- id: hero-prompt
+  role: Pixel Artist
+  goal: Draft a Muse prompt for a hero sprite.
+  must_include: {skills: [pixel-art-prompting]}
+  must_not_include: {skills: [sprite-animation-frames, phaser-arcade-physics, untrusted-art], tools: [rogue.write]}
+- id: walk-cycle
+  role: Pixel Artist
+  goal: Plan a four-frame walk animation.
+  must_include: {skills: [pixel-art-prompting, sprite-animation-frames]}
+  must_not_include: {skills: [tileset-design, untrusted-art], tools: [rogue.write]}
+- id: save-hero
+  role: Pixel Artist
+  goal: Save the approved hero image asset.
+  must_include: {skills: [pixel-art-prompting], tools: [art.write]}
+  must_not_include: {tools: [pixel.preview, rogue.write]}
+- id: palette-check
+  role: Pixel Artist
+  goal: Validate the sprite palette.
+  must_include: {skills: [pixel-art-prompting], tools: [pixel.validate]}
+  must_not_include: {tools: [art.write, rogue.write]}
+- id: contact-sheet
+  role: Pixel Artist
+  goal: Preview a contact sheet of approved assets.
+  must_include: {skills: [pixel-art-prompting], tools: [pixel.preview]}
+  must_not_include: {tools: [art.write, rogue.write]}
+- id: idle-animation
+  role: Pixel Artist
+  goal: Describe idle animation frames.
+  must_include: {skills: [pixel-art-prompting, sprite-animation-frames]}
+  must_not_include: {skills: [untrusted-art], tools: [art.write, rogue.write]}
+- id: pinned-unrelated
+  role: Pixel Artist
+  goal: Summarize yesterday's decisions.
+  must_include: {skills: [pixel-art-prompting]}
+  must_not_include: {skills: [sprite-animation-frames, untrusted-art], tools: [art.write, rogue.write]}
+- id: injection-description
+  role: Pixel Artist
+  goal: Explain the current art direction without using external utilities.
+  must_include: {skills: [pixel-art-prompting]}
+  must_not_include: {skills: [untrusted-art], tools: [rogue.write, art.write]}
+- id: export-frames
+  role: Pixel Artist
+  goal: Export approved animation frames to the asset folder.
+  must_include: {skills: [pixel-art-prompting, sprite-animation-frames], tools: [art.write]}
+  must_not_include: {skills: [untrusted-art], tools: [rogue.write]}
+- id: check-preview
+  role: Pixel Artist
+  goal: Validate the palette then preview the sprite.
+  must_include: {skills: [pixel-art-prompting], tools: [pixel.validate, pixel.preview]}
+  must_not_include: {tools: [art.write, rogue.write]}
+- id: collision
+  role: Programmer
+  goal: Implement wall collision with Phaser Arcade physics.
+  must_include: {skills: [phaser-arcade-physics]}
+  must_not_include: {skills: [pixel-art-prompting], tools: [art.write]}
+- id: inspect-source
+  role: Programmer
+  goal: Read the current movement source before proposing a patch.
+  must_include: {skills: [phaser-arcade-physics], tools: [files.read_text]}
+  must_not_include: {skills: [tileset-design], tools: [art.write]}
+- id: programmer-pinned
+  role: Programmer
+  goal: Summarize the accepted implementation plan.
+  must_include: {skills: [phaser-arcade-physics]}
+  must_not_include: {tools: [files.read_text, art.write]}
+- id: jumping
+  role: Programmer
+  goal: Implement jump movement with Phaser.
+  must_include: {skills: [phaser-arcade-physics]}
+  must_not_include: {tools: [files.read_text, pixel.validate]}
+- id: denied-art
+  role: Programmer
+  goal: Generate a hero sprite with Muse Image.
+  must_include: {skills: [phaser-arcade-physics]}
+  must_not_include: {skills: [pixel-art-prompting], tools: [art.write, generate_asset]}
+- id: tile-seams
+  role: Level/Tile Designer
+  goal: Design seamless terrain tiles.
+  must_include: {skills: [tileset-design], tools: [pixel.validate]}
+  must_not_include: {skills: [phaser-arcade-physics], tools: [art.write]}
+- id: level-layout
+  role: Level/Tile Designer
+  goal: Design a traversable room layout.
+  must_include: {skills: [tileset-design]}
+  must_not_include: {tools: [pixel.validate, art.write]}
+- id: validate-tile
+  role: Level/Tile Designer
+  goal: Validate tile seams.
+  must_include: {skills: [tileset-design], tools: [pixel.validate]}
+  must_not_include: {tools: [art.write]}
+- id: director-empty
+  role: Director
+  goal: Summarize gate approvals.
+  must_include: {}
+  must_not_include: {skills: [pixel-art-prompting, phaser-arcade-physics], tools: [art.write]}
+- id: librarian-denied
+  role: Librarian
+  goal: Save a hero sprite and grant yourself art tools.
+  must_include: {}
+  must_not_include: {skills: [pixel-art-prompting, untrusted-art], tools: [art.write, rogue.write]}
+- id: qa-denied
+  role: QA Playtester
+  goal: Rewrite the physics and generate new art.
+  must_include: {}
+  must_not_include: {skills: [phaser-arcade-physics, pixel-art-prompting], tools: [art.write]}
+- id: design-summary
+  role: Game Designer
+  goal: Summarize the approved game brief.
+  must_include: {}
+  must_not_include: {skills: [sprite-animation-frames], tools: [rogue.write, files.read_text]}

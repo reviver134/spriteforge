@@ -674,3 +674,56 @@ need a separately capped real-provider production run; mock critic scores are
 scripted fixtures, not evidence of visual quality. The production request format,
 reference-image array and low/high reasoning values were checked against Meta's
 [official image schemas](https://dev.meta.ai/docs/api-reference/images/schemas).
+
+# Milestone 6.5: capability router
+
+Each agent task routes its goal against role-permitted skill headers and enabled
+MCP tool descriptions. The same router supplies skill context to gameplay and
+asset-production proposals and Muse Image prompts. Live routing uses Muse Spark;
+offline routing uses a deterministic mock fixture. Full skill bodies never enter
+the router request. Explicit workspace skill grants and per-role MCP grants extend
+the role's effective allowlist; model output cannot extend it.
+
+`config.yaml` controls `router.enabled` (default true), `max_skills` (3),
+`max_tools` (5), and `token_budget` (4096). Skill limits include pinned skills.
+Pixel Artist pins `pixel-art-prompting`; Programmer pins `phaser-arcade-physics`.
+A configuration too small for pinned skills fails explicitly. The context budget
+uses serialized UTF-8 bytes as a conservative token bound, including reference
+loads; optional bodies that do not fit are dropped. Disabling the router skips
+the model call and selects from catalog order under the same grants and limits.
+
+The runtime injects pinned bodies immediately and provides `load_skill` only for
+selected skills. Optional selected bodies enter model context on request.
+Structured proposal/image-context stages consume their selected bodies directly;
+these stages do not execute MCP tools. Runtime tools must be both selected and
+permitted at invocation, and MCP confirmation rules still apply. Decisions and
+usage survive confirmation/restart; revoked grants stop a resumed task. Malformed
+router JSON falls back to pinned skills with no tools. Unknown or excess names
+are dropped and recorded in the decision.
+
+The timeline expands `router.decision` to show candidates, selections, reasons,
+confidence and drops. `router.outcome` shows used and ignored capabilities. “Used”
+means a skill body entered model context or a tool executed successfully; it does
+not claim to measure the model's internal use of prose. Descriptions are untrusted
+data: overt selection/permission instructions are removed before model dispatch,
+and the system prompt treats remaining descriptions only as capability data.
+
+Run the 22 checked-in cases from the repository root:
+
+```powershell
+spriteforge router-eval --workspace workspace/router-eval
+spriteforge router-eval --live --max-calls 5 --workspace workspace/router-eval-live
+```
+
+`--cases` accepts another YAML suite. Live evaluation attempts at most five Spark
+calls by default (`--max-calls` allows 1–20), with the configured cost limits and
+durable usage accounting. It never executes the catalog's synthetic tools. Both
+modes print micro precision/recall and failed cases with missing/unexpected names
+or provider errors. The run's `router-eval.json` artifact contains all results.
+The suite treats must-include names as the full relevant set for scoring.
+
+On 2026-10-29, the mock suite passed 22/22 and the capped live sample passed 5/5,
+both with precision 1.000 and recall 1.000. The other 17 cases were not run live.
+The real call verified Spark's strict schema requirement: `reasons` must enumerate
+catalog keys with `additionalProperties: false`. No endpoint or model changes
+were needed. Mock scores exercise routing logic, not live model quality.

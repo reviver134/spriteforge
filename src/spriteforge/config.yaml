@@ -1,4 +1,9 @@
 workspace: ~/spriteforge-workspace
+router:
+  enabled: true
+  max_skills: 3
+  max_tools: 5
+  token_budget: 4096 # conservative UTF-8 byte bound for loaded skill context
 preview:
   max_image_calls: 16
   mood_board: true

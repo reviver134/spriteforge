@@ -1,10 +1,16 @@
 """Role proposals and selected skill/prompt context for production."""
 
+import asyncio
+import json
 from pathlib import Path
 
 from spriteforge.agents.roles import load_roles
+from spriteforge.agents.router import build_catalog
+from spriteforge.agents.routing_state import RoutingStore
+from spriteforge.agents.runtime import invoke
 from spriteforge.config import BudgetConfig, Config
 from spriteforge.core.cost import Budget
+from spriteforge.mcp.registry import Registry
 from spriteforge.memory.okf.seed import seed
 from spriteforge.memory.okf.store import KnowledgeStore
 from spriteforge.pixel.schemas import Style
@@ -51,7 +57,9 @@ class ProductionContext(ProductionStore):
             if self.run.config["mock"]
             else MuseSparkProvider(self.cfg.llm, self.budget)
         )
+        routing = None
         try:
+            routing = self.route_context(name, role, prompt, provider)
             result = chat_json(
                 provider,
                 ChatRequest(
@@ -61,16 +69,42 @@ class ProductionContext(ProductionStore):
                             content=str(load_roles()[role].model_dump())
                             + "\nHuman brief notes override untouched genre defaults. Return only the requested JSON.",
                         ),
-                        Message(role="user", content=prompt, images=list(images)),
+                        Message(
+                            role="user",
+                            content=prompt
+                            + "\nSelected skill guidance:\n"
+                            + json.dumps(routing.state.bodies),
+                            images=list(images),
+                        ),
                     ]
                 ),
                 schema,
             )
             self.save(name, result.model_dump(), role)
+            routing.outcome("completed")
             return result
+        except Exception:
+            if routing:
+                routing.outcome("failed")
+            raise
         finally:
             if hasattr(provider, "close"):
                 provider.close()
+
+    def route_context(self, name, role_name, goal, provider):
+        """Structured/image stages consume skill context; they do not execute MCP calls."""
+        role = load_roles()[role_name]
+        skills = SkillCatalog(self.store.path.parent)
+        catalog = build_catalog(
+            role, skills, {}, {}, Registry(self.store.path.parent).allowed(role)
+        )
+        routing = RoutingStore(self.store, self.run_id, "context:" + name)
+        asyncio.run(
+            routing.prepare(role, goal, catalog, self.cfg.router, provider, invoke, skills, {})
+        )
+        for selected in routing.state.decision.selected_skills:
+            routing.used("skills", selected)
+        return routing
 
     def prompt_context(self, task):
         name = f"production/context/{task.spec.type}-{'frame' if task.base else 'base'}.json"
@@ -83,18 +117,26 @@ class ProductionContext(ProductionStore):
             patterns = [
                 memory.show(s.id).body for s in snippets if s.id.startswith("prompt-patterns/")
             ]
-            catalog = SkillCatalog(self.store.path.parent)
-            role = load_roles()["Pixel Artist"]
-            summaries = catalog.summaries(role)
-            wanted = ["pixel-art-prompting"] + (["sprite-animation-frames"] if task.base else [])
-            skills = []
-            for summary in summaries:
-                if summary["name"] in wanted:
-                    skills.append(catalog.load(role, summary["name"]))
+            provider = (
+                MockLLMProvider(self.budget)
+                if self.run.config["mock"]
+                else MuseSparkProvider(self.cfg.llm, self.budget)
+            )
+            try:
+                goal = f"Prepare Muse pixel-art prompt guidance for {task.spec.type} " + (
+                    "animation frames" if task.base else "base artwork"
+                )
+                routing = self.route_context(name, "Pixel Artist", goal, provider)
+                skills = list(routing.state.bodies.values())
+                for selected in routing.state.decision.selected_skills:
                     self.store.append_event(
-                        self.run_id, "Pixel Artist", "skill.loaded", {"name": summary["name"]}
+                        self.run_id, "Pixel Artist", "skill.loaded", {"name": selected}
                     )
-            self.save(name, {"patterns": patterns, "skills": skills})
+                self.save(name, {"patterns": patterns, "skills": skills})
+                routing.outcome("completed")
+            finally:
+                if hasattr(provider, "close"):
+                    provider.close()
         return str(self.read(name))
 
     def prompt(self, task, instruction):

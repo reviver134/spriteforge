@@ -72,6 +72,14 @@ def test_browser_gate_restart_and_hero_feedback(tmp_path):
                     page.get_by_role("heading", name="G3 Asset contact sheet", exact=True)
                 ).to_be_visible()
                 expect(page.locator("#gate-artifacts img")).to_have_count(3)
+                decisions = page.locator("#timeline li").filter(has_text="router.decision")
+                expect(decisions.first).to_be_visible()
+                decisions.first.locator("summary").click()
+                expect(decisions.first.locator("pre")).to_contain_text('"selected"')
+                outcomes = page.locator("#timeline li").filter(has_text="router.outcome")
+                expect(outcomes.first).to_be_visible()
+                outcomes.first.locator("summary").click()
+                expect(outcomes.first.locator("pre")).to_contain_text('"ignored"')
                 before = client.get(f"/api/runs/{run_id}").json()
                 assert before["run"]["status"] == "paused"
                 gate_id = before["gate"]["id"]

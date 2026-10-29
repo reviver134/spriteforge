@@ -43,10 +43,18 @@ class PreviewConfig(Schema):
     mood_board: bool = True
 
 
+class RouterConfig(Schema):
+    enabled: bool = True
+    max_skills: int = Field(default=3, ge=0, le=100)
+    max_tools: int = Field(default=5, ge=0, le=100)
+    token_budget: int = Field(default=4096, ge=0)
+
+
 class Config(Schema):
     workspace: Path
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     preview: PreviewConfig = Field(default_factory=PreviewConfig)
+    router: RouterConfig = Field(default_factory=RouterConfig)
     image: ImageConfig
     llm: LLMConfig
     budget: BudgetConfig = Field(default_factory=BudgetConfig)

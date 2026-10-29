@@ -5,6 +5,7 @@ import re
 from typing import Any
 
 USAGE_COUNTERS = {
+    "token_budget",
     "input_tokens",
     "output_tokens",
     "cached_input_tokens",

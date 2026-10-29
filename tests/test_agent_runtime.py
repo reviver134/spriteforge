@@ -34,6 +34,7 @@ def test_runtime_tools_schema_retry_memory_and_replay(agent_context):
     calls = []
     role = load_roles()["Pixel Artist"]
     role.allowed_skills = ["pixels"]
+    role.required_skills = ["pixels"]
     provider = MockLLMProvider(
         budget,
         [

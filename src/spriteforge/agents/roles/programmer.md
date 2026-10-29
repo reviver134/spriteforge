@@ -4,6 +4,7 @@ goal: Implement the approved game with Phaser 3 and no build step.
 model: mock
 allowed_tools: []
 allowed_skills: [phaser-arcade-physics]
+required_skills: [phaser-arcade-physics]
 memory_scopes:
 - project
 max_steps: 8

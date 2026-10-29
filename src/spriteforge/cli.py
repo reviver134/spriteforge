@@ -74,7 +74,10 @@ def start(
         from spriteforge.agents.workflow import start_run
 
         run = start_run(
-            store, goal or "A top-down dungeon crawler with a hero and stone rooms", cfg.budget
+            store,
+            goal or "A top-down dungeon crawler with a hero and stone rooms",
+            cfg.budget,
+            router=cfg.router,
         )
         store.append_event(run.id, "Director", "preview.deprecated", {"legacy": True})
         serve(store, run.id, port, open_browser)
@@ -85,6 +88,76 @@ def start(
         else None
     )
     serve(store, run.id if run else None, port, open_browser)
+
+
+@app.command()
+def router_eval(
+    live: bool = False,
+    max_calls: int = typer.Option(5, min=1, max=20),
+    cases: Path = Path("tests/router_cases.yaml"),
+    config: Path | None = None,
+    workspace: Path | None = None,
+):
+    """Report router precision/recall; --live makes at most --max-calls Spark requests."""
+    from uuid import uuid4
+
+    from spriteforge.agents.router_eval import evaluate, read_cases
+    from spriteforge.core.cost import Budget
+    from spriteforge.core.state import Artifact
+    from spriteforge.providers.mock import MockLLMProvider
+    from spriteforge.providers.muse_spark import MuseSparkProvider
+
+    cfg, store = setup(config, workspace)
+    suite = read_cases(cases)
+    limits = (
+        cfg.budget.model_copy(
+            update={
+                "max_total_calls": min(
+                    cfg.budget.max_total_calls
+                    if cfg.budget.max_total_calls is not None
+                    else max_calls,
+                    max_calls,
+                )
+            }
+        )
+        if live
+        else cfg.budget
+    )
+    run = store.create_run(
+        {
+            "workflow": "router-eval",
+            "budget": limits.model_dump(),
+            "settings": cfg.model_dump(mode="json"),
+        }
+    )
+    budget = Budget(store, run.id, limits)
+    provider = MuseSparkProvider(cfg.llm, budget) if live else MockLLMProvider(budget)
+    try:
+        report = evaluate(
+            provider, suite, cfg.router, store.path.parent, live=live, max_calls=max_calls
+        )
+    finally:
+        if live:
+            provider.close()
+    store.save_artifact(
+        Artifact(
+            id=uuid4().hex,
+            run_id=run.id,
+            name="router-eval.json",
+            mime="application/json",
+            data=report.model_dump_json(indent=2).encode(),
+        ),
+        "Router",
+        "router.eval",
+    )
+    with store.connect() as db:
+        db.execute("UPDATE runs SET status='completed' WHERE id=?", (run.id,))
+    typer.echo(f"{report.mode}: {report.evaluated} cases, {report.skipped} skipped")
+    typer.echo(f"Precision: {report.precision:.3f}  Recall: {report.recall:.3f}")
+    typer.echo(f"Failures: {len(report.failures)}")
+    for failure in report.failures:
+        typer.echo(failure.model_dump_json())
+    typer.echo(f"Run: {run.id} (router-eval.json contains all results)")
 
 
 @app.command()

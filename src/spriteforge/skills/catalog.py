@@ -81,11 +81,38 @@ class SkillCatalog:
             for n, s in self.available(role).items()
         ]
 
+    def headers(self, role):
+        """Read only frontmatter for routing; never read unselected bodies."""
+        allowed = set(role.allowed_skills) | set(self.grants().roles.get(role.name, []))
+        result = {}
+        for root in (Path(__file__).with_name("builtin"), self.root):
+            for path in sorted(root.glob("*/SKILL.md")):
+                if path.is_symlink() or path.parent.is_symlink():
+                    raise ValueError("Skill resources cannot be symlinks")
+                with path.open(encoding="utf-8-sig") as stream:
+                    if stream.readline().strip() != "---":
+                        raise ValueError("SKILL.md requires YAML frontmatter")
+                    lines = []
+                    for line in stream:
+                        if line.strip() == "---":
+                            break
+                        lines.append(line)
+                        if sum(map(len, lines)) > 16384:
+                            raise ValueError("Skill frontmatter too large")
+                    else:
+                        raise ValueError("Unterminated skill frontmatter")
+                header = SkillHeader.model_validate(yaml.safe_load("".join(lines)))
+                if header.name in allowed:
+                    if header.name in result:
+                        raise ValueError(f"Duplicate skill: {header.name}")
+                    result[header.name] = (header, path.parent)
+        return result
+
     def load(self, role, name, resource="SKILL.md"):
-        skills = self.available(role)
+        skills = self.headers(role)
         if name not in skills:
             raise PermissionError(f"Skill not allowed: {name}")
-        skill = skills[name]
+        skill = read_skill(skills[name][1])
         if resource == "SKILL.md":
             return skill.body
         path = (skill.directory / resource).resolve()

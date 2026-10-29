@@ -77,6 +77,17 @@ def test_skill_install_scope_progressive_load_and_remove(tmp_path):
 
     class Provider:
         def chat(self, request):
+            if (request.json_schema or {}).get("title") == "Selection":
+                return ChatResult(
+                    content=json.dumps(
+                        {
+                            "selected_skills": ["sample-art"],
+                            "selected_tools": [],
+                            "reasons": {"sample-art": "Silhouettes"},
+                            "confidence": 1,
+                        }
+                    )
+                )
             requests.append(request.model_copy(deep=True))
             if len(requests) == 1:
                 return ChatResult(
@@ -135,6 +146,7 @@ def test_mcp_confirmation_permissions_replay_and_redaction(tmp_path, monkeypatch
             == 409
         )
     assert len(client.calls) == 1
+
     asyncio.run(
         service.call(ident, roles["Pixel Artist"], "art.write", {"path": "hero.png"}, "one")
     )
@@ -185,6 +197,10 @@ def test_runtime_resumes_confirmed_call_without_regeneration(tmp_path):
     artifact = asyncio.run(runtime.run(role, task, RoleOutput))
     assert RoleOutput.model_validate_json(artifact.data).summary == "saved"
     assert len(client.calls) == 1
+    events = store.events(ident)
+    assert len([e for e in events if e.type == "router.decision"]) == 1
+    outcome = next(e.payload for e in events if e.type == "router.outcome")
+    assert outcome["used"]["tools"] == ["art.write"]
 
 
 def test_sdk_stdio_read_server_and_escape(tmp_path):
@@ -202,6 +218,35 @@ def test_sdk_stdio_read_server_and_escape(tmp_path):
         assert result["isError"]
 
     asyncio.run(exercise())
+
+
+def test_routing_rechecks_mcp_grants_after_pause(tmp_path):
+    store, ident, service, client = context(tmp_path)
+    provider = MockLLMProvider(
+        Budget(store, ident, BudgetConfig()),
+        [
+            ChatResult(
+                tool_calls=[
+                    {"id": "write1", "name": "art.write", "arguments": {"path": "hero.png"}}
+                ]
+            ),
+            {"summary": "saved"},
+        ],
+    )
+    role = load_roles()["Pixel Artist"]
+    runtime = AgentRuntime(
+        store, ident, KnowledgeStore(tmp_path / "memory", store, ident), provider, mcp=service
+    )
+    task = AgentTask(id="revoked", goal="save hero")
+    with pytest.raises(ConfirmationRequired):
+        asyncio.run(runtime.run(role, task, RoleOutput))
+    decision = next(e.payload for e in store.events(ident) if e.type == "router.decision")
+    candidate = next(c for c in decision["candidates"]["tools"] if c["name"] == "art.write")
+    assert candidate["risk_class"] == "confirm-required"
+    service.registry.disable("art", role.name)
+    with pytest.raises(PermissionError, match="revoked"):
+        asyncio.run(runtime.run(role, task, RoleOutput))
+    assert not client.calls
 
 
 def test_policy_disable_confirmation_and_definition_change_revokes(tmp_path):

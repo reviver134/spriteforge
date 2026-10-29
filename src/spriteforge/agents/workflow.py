@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from spriteforge.config import BudgetConfig
+from spriteforge.config import BudgetConfig, RouterConfig, load_config
 from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Gates, new_gate
 from spriteforge.core.state import Store
@@ -38,7 +38,13 @@ class Flow(BaseModel):
     source_gate: str | None = None
 
 
-def start_run(store: Store, goal: str, budget: BudgetConfig, roles_directory: Path | None = None):
+def start_run(
+    store: Store,
+    goal: str,
+    budget: BudgetConfig,
+    roles_directory: Path | None = None,
+    router: RouterConfig | None = None,
+):
     # Snapshot user edits for this run; subsequent runs reload the Markdown files.
     roles = load_roles(roles_directory)
     required = {
@@ -58,6 +64,7 @@ def start_run(store: Store, goal: str, budget: BudgetConfig, roles_directory: Pa
             "workflow": WORKFLOW,
             "goal": goal,
             "budget": budget.model_dump(),
+            "router": (router or load_config().router).model_dump(),
             "roles": {name: role.model_dump() for name, role in roles.items()},
         }
     )

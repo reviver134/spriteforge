@@ -94,6 +94,11 @@ def test_real_phaser_render_targeted_changes_palette_and_lock(tmp_path, small_mo
     answer(store, ident)  # Approve mood, build blocks, render real Phaser in Chromium.
     root = tmp_path / "runs" / ident
     assert Gates(store).pending(ident).stage == "gameplay"
+    router_events = [e for e in store.events(ident) if e.type == "router.decision"]
+    pixel_decisions = [e for e in router_events if e.agent == "Pixel Artist"]
+    assert pixel_decisions
+    assert all("pixel-art-prompting" in e.payload["selected"]["skills"] for e in pixel_decisions)
+    assert any(e.type == "router.outcome" for e in store.events(ident))
     assert len(calls(store, ident)) == 13
     native = np.array(Image.open(root / "preview/v1/gameplay.png").convert("RGB"))
     large = np.array(Image.open(root / "preview/v1/gameplay-4x.png"))
