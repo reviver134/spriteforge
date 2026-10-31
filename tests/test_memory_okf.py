@@ -224,10 +224,10 @@ def test_optional_external_validator_is_invoked(memory, monkeypatch):
 
 
 def test_seed_library_complete_idempotent_and_git_committed(memory):
-    assert seed(memory) == 19
+    assert seed(memory) == 20  # 11 genres (world-building added) + 9 other seeds
     assert seed(memory) == 0
     assert all(e.metadata.trust_tier == "human-reviewed" for e in memory.scan()[0])
-    assert "Seed 10 genres" in git.git(memory.root, "log", "-1", "--format=%s")
+    assert "Seed 11 genres" in git.git(memory.root, "log", "-1", "--format=%s")
     assert not validate(memory, external=False).errors
     for genre in [e for e in seed_entries() if e.id.startswith("genres/")]:
         for heading in [

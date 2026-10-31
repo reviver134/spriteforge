@@ -74,7 +74,8 @@ def seed(store: KnowledgeStore) -> int:
     if missing:
         store.write_batch(
             missing,
-            "Seed 10 genres, 4 art styles, 4 Phaser patterns and Muse prompt pattern",
+            f"Seed {sum(e.id.startswith('genres/') for e in seed_entries())} genres, "
+            "4 art styles, 4 Phaser patterns and Muse prompt pattern",
             verified_by="human:project-owner",
         )
     return len(missing)

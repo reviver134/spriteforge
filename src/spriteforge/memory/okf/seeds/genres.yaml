@@ -53,6 +53,17 @@
   animations: Farmer idle/walk/tool use; crop growth stages; watering effect; NPC idle/walk; day transition.
   pitfalls: [Chores without choices, Invisible tool range, Unclear day rollover, Excessive waiting]
   questions: ["If time advances, real-time or sleeping to the next day?", "Is the focus crops, relationships, or decorating?", "If energy is limited, what makes spending it interesting?", "How many crop types fit the first build?", "Should missed watering destroy a crop or delay it?", "If NPC schedules exist, must they be simulated or scripted?"]
+- id: world-building
+  title: World building and sandbox
+  perspective: Three-quarter top-down camera over an open map where the player gathers resources and places structures on a readable grid.
+  controls: WASD or arrows to move; Space uses the tool on the tile in front; X places the selected structure.
+  mechanics: Gather wood and stone from the world, place huts, fences and paths on free tiles, grow a small settlement, and meet a building goal.
+  entities: [builder, tree, rock, resource pile, hut, fence, path, villager, animal]
+  palette: Natural greens and earth tones; placed structures must contrast with terrain and show where they can go.
+  assets: {builder: 1, villager: 2, terrain-tiles: 6, resources: 4, structures: 6, props: 6, ui: 6}
+  animations: Builder idle/walk/tool swing; tree and rock hit shake; structure placement pop; villager idle/walk.
+  pitfalls: [Placement without feedback, Resource grind without goals, Unreadable occupied tiles, Too many structure types at once]
+  questions: ["What does the player build first, and what does it unlock?", "Which resources exist, and where do they come from?", "Is there a goal (population, buildings, coins) or is it pure sandbox?", "Can structures be removed or moved once placed?", "Are there villagers or animals living in the world?", "How large should the first map be?"]
 - id: puzzle
   title: Grid puzzle
   perspective: Fixed top-down board with all relevant state visible and no camera movement.
