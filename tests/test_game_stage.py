@@ -109,3 +109,51 @@ def test_play_route_serves_only_the_build(tmp_path):
         assert r.status_code == 200, r.text
         assert Gates(store).pending(ident).title.startswith("G4 Playtest v2")
 
+
+def test_g1_genre_comes_from_the_prompt_and_accepts_any_genre(tmp_path):
+    store = Store(tmp_path / "state.sqlite3")
+    goal = "a side scrolling game where a fox jumps between platforms collecting berries"
+    run = start_run(store, load_config(), mock=True, goal=goal)
+    workflow_step(store, run.id)
+    rule = Gates(store).pending(run.id).form_schema["properties"]["genre"]
+    # Free text with suggestions (not a fixed list); the default is read from the prompt.
+    assert "enum" not in rule and rule["default"] == "Side-scrolling platformer"
+    assert {"Turn-based roguelike", "Scrolling shmup"} <= set(rule["suggestions"])
+
+    # A genre that is not seeded becomes a custom genre the brief and design are written for.
+    answer(store, run.id, form={"genre": "Fox berry dash"})
+    genre = read(store, run.id, "genre.json")
+    assert genre["id"] == "custom/fox-berry-dash" and genre["title"] == "Fox berry dash"
+    assert "# Adaptive questions" in genre["body"]
+    brief_form = Gates(store).pending(run.id).form_schema["properties"]
+    assert any(k.startswith("seed_") for k in brief_form)
+    assert brief_form["perspective"]["default"] == brief_form["perspective"]["suggestions"][0]
+    answer(store, run.id)
+    answer(store, run.id)
+    assert read(store, run.id, "brief.json")["genre"] == "custom/fox-berry-dash"
+    assert Gates(store).pending(run.id).stage == "design"
+
+
+def test_g1_genre_pick_helpers():
+    from spriteforge.stages.intake import GenrePick, custom_genre_body, genre_form, match_genre
+
+    class Meta:
+        description = "Waves of monsters"
+
+    class Entry:
+        id, title, metadata, body = "genres/shmup", "Scrolling shmup", Meta(), ""
+
+    genres = [Entry()]
+    pick = GenrePick(
+        genre="Top-down arena survival",
+        description="Survive 10 minutes against monsters from the corners.",
+        closest=["genres/shmup", "genres/unknown"],
+        questions=["Auto-attack?", "How many upgrade choices?"],
+    )
+    rule = genre_form(pick, genres, "Any genre.")["properties"]["genre"]
+    assert rule["suggestions"] == ["Top-down arena survival", "Scrolling shmup"]
+    assert match_genre("scrolling SHMUP", genres) is genres[0]
+    assert match_genre("genres/shmup", genres) is genres[0]
+    assert match_genre("Top-down arena survival", genres) is None
+    body = custom_genre_body(pick, genres)
+    assert "1. Auto-attack?" in body and "* Scrolling shmup: Waves of monsters" in body

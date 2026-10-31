@@ -192,9 +192,12 @@ def make_manifest(ctx):
     name = "production/manifest.json"
     if name in ctx.artifacts:
         return Manifest.model_validate(ctx.read(name))
-    memory = KnowledgeStore(ctx.store.path.parent / "memory", ctx.store, ctx.run_id)
-    seed(memory)
-    entry = memory.show(ctx.brief.genre)
+    if "genre.json" in ctx.artifacts:
+        genre_body = ctx.read("genre.json")["body"]
+    else:
+        memory = KnowledgeStore(ctx.store.path.parent / "memory", ctx.store, ctx.run_id)
+        seed(memory)
+        genre_body = memory.show(ctx.brief.genre).body
     prompt = (
         "Produce a complete but small AssetSpec manifest for this brief using the genre asset checklist. "
         "Human notes override default descriptions. Include actors, terrain, items, UI and effects as needed. "
@@ -204,7 +207,7 @@ def make_manifest(ctx):
         "No sprite sheets: each generated output is one frame.\nBrief: "
         + ctx.brief.model_dump_json()
         + "\nGenre checklist and mechanics:\n"
-        + entry.body
+        + genre_body
         + "\nStyle: "
         + ctx.style.model_dump_json()
         + f"\nImage cap: {ctx.budget.config.max_image_calls}"

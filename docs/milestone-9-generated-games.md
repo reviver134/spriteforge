@@ -69,7 +69,7 @@ One live Spark call returned a complete 375-line Phaser game through strict json
 
 `spriteforge start --agents [--goal "<prompt>"]` now runs:
 
-    G1 genre -> brief -> follow-up questions          (unchanged)
+    G1 genre -> brief -> follow-up questions          (genre and brief read from the prompt)
     G2 design gate   game/design/vK.json/.md           text -> design v(K+1); empty -> build
     build vN         art (library first, else Muse), Programmer, static checks, full-session
                      playtest, repairs, recording       -> game/vN/*, runs/<id>/game/vN/build
@@ -98,3 +98,26 @@ Removed: `src/spriteforge/kits/` (3 kits, runtime, compose, interpret, skins, CL
 `preview.mode: kit` and `preview.max_art_calls` in saved runs load as `game` (legacy). The image
 cap per build is now 16. Report artifacts store per-entity data as lists, because the secret
 scrubber blanks dict keys containing "key" (an entity called `key` or `monkey`).
+
+### G1 is no longer a fixed genre list
+
+Before, G1 offered the 11 seeded genres as a closed list (default: dungeon crawler) and a brief
+prefilled with dungeon defaults, so the survival prompt had to be squeezed into "Turn-based
+roguelike" and Spark had to ask whether to drop its turn and stairs rules. Now:
+
+* **Genre** (`genre-pick.json`): the Game Designer reads the prompt and names its genre in the
+  prompt's own terms, with up to 3 seeded genres as references and 2-6 open questions. The
+  gate field is free text: the suggestion is the default, seeded titles are chips, and the
+  human can type any genre.
+* A seeded title or id uses that genre entry. Anything else becomes `custom/<slug>` with a body
+  written for the idea (mechanics, adaptive questions, related seeded genres as references
+  only). Typing a genre different from the suggestion asks Spark once more to describe it.
+* **Brief** (`brief-defaults.json`): every brief field is drafted from the prompt and the genre
+  instead of the dungeon defaults; the draft is the first suggestion chip.
+* Offline/mock and runs without a prompt use a word-overlap guess against the seeded genres.
+  Drop-in genres in `memory/genres/*.md` still appear as suggestions.
+
+Live check (survival prompt): genre "Top-down arena survival" (references: dungeon crawler,
+shmup, beat-em-up), brief "10-minute survival run", "WASD to move with auto-attack", "Ramping
+spawn rate, variety, health and speed over 10 minutes", four questions about attacks, upgrade
+choices, difficulty ramp and the win condition.

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from uuid import uuid4
 
 from spriteforge.agents.models import ChangeRequest, Changes
@@ -20,13 +21,22 @@ from spriteforge.providers.muse_image import MuseImageProvider
 from spriteforge.providers.muse_spark import MuseSparkProvider
 
 from .intake import (
+    BriefDraft,
     GameBrief,
+    GenrePick,
     Options,
     Questions,
     brief_form,
+    brief_prompt,
+    custom_genre_body,
+    default_draft,
     default_options,
     field,
     followups,
+    genre_form,
+    genre_prompt,
+    guess_genre,
+    match_genre,
     propose,
 )
 
@@ -34,9 +44,16 @@ WORKFLOW = "intake-concept-v1"
 
 
 GENRE_NOTE = (
-    "Any genre works: the agents write the game's code from your answers, using the art "
-    "library first and Muse Image for anything it lacks."
+    "Any genre works: pick a suggestion or type your own. The agents write the game's code "
+    "from your answers, using the art library first and Muse Image for anything it lacks."
 )
+
+
+def brief_defaults(artifacts, genre):
+    """Brief defaults saved at the genre step; runs from before drafting use the genre's."""
+    if "brief-defaults.json" in artifacts:
+        return BriefDraft.model_validate_json(artifacts["brief-defaults.json"].data)
+    return default_draft(genre["body"])
 
 
 def start_run(store, cfg, mock=True, assets=False, gameplay_preview=True, legacy=False, goal=""):
@@ -154,42 +171,70 @@ def _step(store, run_id):
     last = history[-1] if history else None
     memory = KnowledgeStore(store.path.parent / "memory", store, run_id)
     seed(memory)
+    goal = run.config.get("goal", "")
+    genres = [e for e in memory.scan()[0] if e.id.startswith("genres/") and not e.private]
     if last is None:
-        entries, _ = memory.scan()
-        genres = [e for e in entries if e.id.startswith("genres/") and not e.private]
-        memory.retrieve("genre game design", token_budget=1500)
+        memory.retrieve("genre game design " + goal, token_budget=1500)
         save("genres.json", {e.id: e.title for e in genres}, "Game Designer")
+        fallback = guess_genre(goal, genres)
+        if not goal.strip():
+            save("genre-pick.json", fallback.model_dump(), "Game Designer")
+        pick = ask(
+            "Game Designer", genre_prompt(goal, genres), GenrePick, fallback, "genre-pick.json"
+        )
         open_gate(
             "genre",
             "G1 Choose a genre",
-            form_schema={
-                "type": "object",
-                "properties": {
-                    "genre": {
-                        "type": "string",
-                        "title": "Genre",
-                        "description": GENRE_NOTE,
-                        "enum": [e.id for e in genres],
-                        "default": "genres/top-down-dungeon-crawler",
-                    }
-                },
-            },
+            ["genre-pick.json"],
+            form_schema=genre_form(pick, genres, GENRE_NOTE),
         )
         return False
     if last.stage == "genre":
-        ident = last.response.form.get("genre") or "genres/top-down-dungeon-crawler"
-        entry = memory.show(ident)
-        save("genre.json", {"id": ident, "body": entry.body}, "Game Designer")
-        open_gate("brief", "G1 Game brief", form_schema=brief_form(entry))
+        pick = (
+            GenrePick.model_validate(read("genre-pick.json"))
+            if "genre-pick.json" in artifacts
+            else guess_genre(goal, genres)  # runs whose genre gate opened before suggestions
+        )
+        text = (last.response.form.get("genre") or pick.genre).strip()
+        entry = match_genre(text, genres)
+        if entry:
+            genre = {"id": entry.id, "title": entry.title, "body": entry.body}
+        else:
+            if text.lower() != pick.genre.lower():
+                pick = ask(
+                    "Game Designer",
+                    genre_prompt(f"{goal}\nThe human chose the genre: {text}", genres),
+                    GenrePick,
+                    pick.model_copy(update={"genre": text}),
+                    "genre-custom.json",
+                )
+            slug = "-".join(re.findall(r"[a-z0-9]+", text.lower()))[:48].strip("-") or "game"
+            genre = {
+                "id": f"custom/{slug}",
+                "title": text,
+                "body": custom_genre_body(pick, genres),
+            }
+        save("genre.json", genre, "Game Designer")
+        draft = default_draft(genre["body"])
+        if not goal.strip():
+            save("brief-defaults.json", draft.model_dump(), "Game Designer")
+        draft = ask(
+            "Game Designer",
+            brief_prompt(goal, genre["title"], genre["body"]),
+            BriefDraft,
+            draft,
+            "brief-defaults.json",
+        )
+        open_gate("brief", "G1 Game brief", form_schema=brief_form(genre["body"], draft))
         return False
     if last.stage == "brief":
-        entry = memory.show(read("genre.json")["id"])
-        properties = brief_form(entry)["properties"]
+        genre = read("genre.json")
+        properties = brief_form(genre["body"], brief_defaults(artifacts, genre))["properties"]
         values = {
             k: last.response.form.get(k) or v.get("default", "") for k, v in properties.items()
         }
         answers = {k: values.pop(k) for k in list(values) if k.startswith("seed_")}
-        brief = GameBrief(genre=entry.id, answers=answers, notes=intake_notes, **values)
+        brief = GameBrief(genre=genre["id"], answers=answers, notes=intake_notes, **values)
         save("brief-draft.json", brief.model_dump(), "Game Designer")
         # Separate context also repairs legacy drafts without overwriting saved artifacts.
         save("brief-notes.json", {"notes": intake_notes}, "Game Designer")
@@ -197,8 +242,8 @@ def _step(store, run_id):
             "Game Designer",
             "Ask 2-4 specific follow-up questions based on this brief and its answers: "
             + brief.model_dump_json()
-            + "\nGenre:\n"
-            + entry.body,
+            + f"\nGenre: {genre.get('title', genre['id'])}\n"
+            + genre["body"],
             Questions,
             followups(brief),
             "followups.json",
