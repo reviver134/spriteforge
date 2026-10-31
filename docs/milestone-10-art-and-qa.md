@@ -159,6 +159,30 @@ no sparkles) look clean. The 12x10 runner, drawn 35 pixels across, is still smal
 The gem got a Meta HTTP 500 and became a placeholder; a failed call now uses the retry and is
 sent again unchanged.
 
+### Layout probe: does a denser sheet give smaller frames? (`tools/probe_layouts.py`)
+
+2026-10-31, 18 image calls: 3 subjects, each drawn as N copies of one pose in 6 layouts.
+Long side of a frame in pixels (median over copies; the target is the design's long side):
+
+| layout | request | runner (12) | knight (16) | gem (8) |
+| --- | --- | --- | --- | --- |
+| 1x1 | 1024x1024 | 32 | 24 | 13 |
+| 3x2 | 1792x1024 | 30 | 42 | 14 |
+| 4x1 | 2048x512 | 44 | 23 | 15 |
+| 6x2 | 1536x512 (new, accepted -> 2736x912) | 24 | 22 | 13 |
+| 4x4 | 1024x1024 | 24 | 29 | 12 |
+| 8x2 | 2048x512 | 39 | 22 | 9 |
+
+* More slots help a little and unevenly: 6x2 was among the best for all three (1.4-2x the
+  target against 1.5-2.7x for one image), but no layout reached the target and the same
+  layout varies a lot between subjects (4x1: knight 23, runner 44). Muse picks the pixel
+  size mostly by subject.
+* Copies in one sheet come out the same size (best and median differ by 0-3 px), so picking
+  the best copy does not make a sprite smaller. It does help with damage: asked for 6x2,
+  Muse drew 7 wolves per row, and equal-cell slicing cut through some of them.
+* Equal-cell slicing is therefore fragile whenever Muse draws a different count; slicing by
+  connected components (each copy stands alone on magenta) would not be.
+
 ### Tests
 
 `tests/test_art_spec.py`: prompt wording (view, grid, scale, anchor, light, palette; no "top"
