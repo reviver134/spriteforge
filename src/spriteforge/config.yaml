@@ -17,6 +17,9 @@ game:
   # frame gets a slot of the image, so Muse draws it with fewer, bigger pixels, close to the
   # requested grid, and the sprite animates. 1 = one image per sprite.
   sheet_frames: 4
+  # A Muse sprite's frame takes the shape Muse drew (about the design's area) instead of
+  # squeezing it into the design box; the Programmer sees the real size in assets.json.
+  adapt_size: true
   max_code_kb: 200
   playtest_fps: 30
   record_seconds: 20

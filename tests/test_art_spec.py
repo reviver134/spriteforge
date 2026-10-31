@@ -12,8 +12,10 @@ from spriteforge.core.state import Store
 from spriteforge.game.art import (
     ArtPick,
     MuseOptions,
+    art_size,
     art_spec,
     keyword_plan,
+    main_row,
     make_art,
     muse_frame,
     muse_prompt,
@@ -199,7 +201,8 @@ def test_empty_retry_keeps_first_frame_and_its_problems(budget):
     wide = Image.new("RGB", (600, 300), (255, 0, 255))
     wide.paste((40, 90, 200), (50, 120, 550, 180))  # a flat bar: far too wide for 16x16
     images = ScriptedImages(budget, [png(wide), magenta()])
-    art = make_art(d, keyword_plan(d), generate=images)
+    single = MuseOptions(sheet_frames=1, adapt_size=False)  # the box is kept: aspect counts
+    art = make_art(d, keyword_plan(d), generate=images, options=single)
     assert len(images.requests) == 2 and art.filled["hero"].source == "muse"
     assert any("accepted with problems: the subject is too wide" in w for w in art.warnings)
 
@@ -281,3 +284,53 @@ def test_sheet_sprite_animates_and_retries_empty_cells(budget):
     hero = art.filled["hero"]
     assert hero.meta["anims"] == {"idle": [0, 4], "walk": [4, 4]} and hero.meta["frame"] == [16, 16]
     assert Image.open(io.BytesIO(hero.png)).size == (16 * 8, 16)
+
+
+def test_frame_follows_the_art_shape(budget):
+    assert art_size((12, 8), (45, 23)) == (14, 7)  # spread wings: wider, about the same area
+    assert art_size((16, 16), (15, 16)) == (16, 16)  # within 15%: the design box stays
+    assert art_size((12, 10), (17, 26)) == (9, 14)
+    bat = Entity(id="bat", role="enemy", look="-", behaviour="-", width=12, height=8,
+                 animations=["fly", "death"])  # fmt: skip
+    assert main_row(sheet_rows(bat, 4)) == 1  # sized by its flying pose, not idle or death
+    assert main_row(sheet_rows(ent("rock", "prop", "-"), 4)) == 0
+    d = hero_only()
+    d.entities[0].animations = ["idle", "walk"]
+    bat = block_sprite(24, 12, (90, 60, 40))  # drawn 2:1 in a 16x16 box
+    sheet = sheet_of([bat] * 8, 4, 30, 800)
+    images = ScriptedImages(budget, [sheet])
+    art = make_art(d, keyword_plan(d), generate=images, options=MuseOptions(sizes=SIZES))
+    hero = art.filled["hero"]
+    assert len(images.requests) == 1  # no aspect retry: the frame took the art's shape
+    assert hero.meta["frame"] == [23, 11] and hero.record["frame_size"] == [23, 11]
+    assert Image.open(io.BytesIO(hero.png)).size == (23 * 8, 11)
+    assert any("follows the art" in r for r in hero.reasons)
+
+
+def test_tiny_sprites_get_one_simple_row():
+    gem = Entity(id="gem", role="pickup", look="a gem", behaviour="-", width=8, height=8,
+                 animations=["spin", "collect"])  # fmt: skip
+    rows = sheet_rows(gem, 4)
+    assert [name for name, _ in rows] == ["idle"] and "sparkle" not in str(rows)
+    spec = art_spec(gem, fallback_design("x"), (8, 8), 16, SIZES)
+    prompt = sheet_prompt(spec, muse_pick("gem", "a gem"), 4, 1, rows[0][1])
+    assert "tiny icons" in prompt and "no sparkles" in prompt
+    big = art_spec(ent("orc", "enemy", "-"), fallback_design("x"), (16, 16), 16, SIZES)
+    assert "tiny icons" not in sheet_prompt(big, muse_pick("orc", "an orc"), 4, 1, ["a", "b"])
+
+
+def test_failed_call_is_sent_again_unchanged(budget):
+    class FlakyOnce(ScriptedImages):
+        def generate(self, request):
+            if not self.requests:
+                self.requests.append(request)
+                raise RuntimeError("Meta HTTP 500: internal server error")
+            return super().generate(request)
+
+    d = hero_only()
+    images = FlakyOnce(budget, [])
+    art = make_art(d, keyword_plan(d), generate=images)
+    first, second = images.requests
+    assert second.prompt == first.prompt and second.reasoning_strength == "low"
+    assert art.filled["hero"].source == "muse"
+    assert any("Muse Image failed" in w for w in art.warnings)

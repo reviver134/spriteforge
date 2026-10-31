@@ -135,8 +135,29 @@ defeated".
 the first attempt. Brute (32x35 per frame for 16x16), portal, rock and heart animate cleanly
 and keep their size across frames. Weak: small creatures whose design box does not fit their
 pose (grub 12x10 drawn tall, bat 12x8 with spread wings, 8x8 gem shard with sparkles) come
-out small and busy after the shrink, and still get aspect warnings. Next lever: let the design
-size follow what Muse drew, or ask for fewer, simpler poses for 8 px sprites.
+out small and busy after the shrink, and still get aspect warnings.
+
+**Two fixes for small creatures** (tried on request):
+
+* *The frame follows the art* (`game.adapt_size: true`, `art_size`). When the shape Muse drew
+  differs from the design box by more than 15%, the sprite's frame takes the drawn shape at
+  about the box's area (a 12x8 bat flying with spread wings becomes 13x7; a grub drawn tall in
+  a 12x10 box becomes 9x14). The shape comes from the main row: the movement row (walk, run,
+  fly) if there is one, else idle; the other rows shrink to fit it. The aspect retry is
+  skipped, since the frame now has the art's aspect. The Programmer writes the code after
+  the art, from `assets.json`, so it uses the real frame size; locked art keeps its
+  `frame_size`. Sizing from all rows was tried first and changed little (wide death poses
+  average the shape out); sizing from idle shrank a flying bat's main animation.
+* *Tiny sprites are simple* (longest side 10 px or less): one idle row of nearly identical
+  poses (other animations show it) and "tiny icons: one bold, simple silhouette with at
+  most 4 colours and a dark outline; no sparkles, glow, particles, trails or effects".
+
+**Third live build** (`workspace/m10-1-sheets3`): 7 image calls, about $0.21, no aspect
+retries (the second build had 3), code passed on the first attempt. The shambler (14x14 box,
+frame 13x15 from the art), brute, portal and the 8x8 magic bolt (a clean 4-frame fireball,
+no sparkles) look clean. The 12x10 runner, drawn 35 pixels across, is still small and busy.
+The gem got a Meta HTTP 500 and became a placeholder; a failed call now uses the retry and is
+sent again unchanged.
 
 ### Tests
 

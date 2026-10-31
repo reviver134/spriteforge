@@ -681,8 +681,9 @@ def muse_prompt(spec: ArtSpec, pick: ArtPick, has_ref: bool = False) -> str:
         )
     return (
         f"Pixel art for a 2D game. Draw: {pick.prompt.strip().rstrip('.')}. Draw it once, in "
-        f"one state only. {shape} {spec_details(spec, has_ref)} No text, no lettering, no "
-        "frame, no drop shadow."
+        f"one state only. {shape} "
+        + (TINY_STYLE + " " if tiny(spec.grid) and spec.role not in {"tile", "background"} else "")
+        + f"{spec_details(spec, has_ref)} No text, no lettering, no frame, no drop shadow."
     )
 
 
@@ -719,8 +720,9 @@ def sheet_prompt(
         "the subject has the same size, colours and design in every frame, standing on the "
         f"same baseline. Each frame is a tiny sprite drawn on a {w}×{h} grid of big square "
         "pixels, one solid colour per cell, no anti-aliasing, no gradients inside a cell. "
-        f"Frames, left to right, top to bottom: {listed} {spec_details(spec, has_ref)} No "
-        "text, no numbers, no lettering, no drop shadow."
+        f"Frames, left to right, top to bottom: {listed} "
+        + (TINY_STYLE + " " if tiny(spec.grid) else "")
+        + f"{spec_details(spec, has_ref)} No text, no numbers, no lettering, no drop shadow."
     )
 
 
@@ -746,7 +748,7 @@ def read_sprite(
     return image, info
 
 
-def muse_frame(spec: ArtSpec, raw: bytes, grid_confidence: float = 0.6):
+def muse_frame(spec: ArtSpec, raw: bytes, grid_confidence: float = 0.6, adapt: bool = False):
     """Raw Muse image -> a frame of `spec.grid` size, and how it was made. Big-pixel art is
     read back one cell per pixel ("native"); anything else is fitted ("fit")."""
     image = Image.open(io.BytesIO(raw)).convert("RGBA")
@@ -755,6 +757,8 @@ def muse_frame(spec: ArtSpec, raw: bytes, grid_confidence: float = 0.6):
         source, info = read_sprite(image, grid_confidence)
         if source is None:
             return Image.new("RGBA", size), info
+        if adapt:
+            size = art_size(size, source.size)
         native = source.width <= size[0] and source.height <= size[1]
         if info["mode"] == "native" and not native:
             # Muse often draws more cells than asked: shrink the clean cells, not the raw image.
@@ -796,8 +800,33 @@ OBJECT_POSES = {
 }  # fmt: skip
 
 
+# Sprites this small (longest side, px) read best as one bold shape: one idle row of nearly
+# identical poses (the other animations show it), and no sparkles or effects.
+TINY = 10
+TINY_POSES = ["still", "still, its highlight one pixel higher", "still",
+              "still, its highlight one pixel lower"]  # fmt: skip
+TINY_STYLE = (
+    "These are tiny icons: one bold, simple silhouette with at most 4 colours and a dark "
+    "outline; no sparkles, glow, particles, trails or effects outside the shape."
+)
+
+
+def tiny(grid: tuple[int, int]) -> bool:
+    return max(grid) <= TINY
+
+
+def main_row(rows: list[tuple[str, list[str]]]) -> int:
+    """The movement row (walk, run, fly, ...) if there is one, else idle (row 0)."""
+    moving = {"walk", "fly"}
+    return next(
+        (i for i, (name, _) in enumerate(rows) if POSE_ALIASES.get(name, name) in moving), 0
+    )
+
+
 def sheet_rows(e: Entity, frames: int) -> list[tuple[str, list[str]]]:
     """One row per animation (idle first, at most 4), `frames` poses each."""
+    if tiny((e.width, e.height)):
+        return [("idle", [f"idle: {p}" for p in TINY_POSES[:frames]])]
     names = list(dict.fromkeys(["idle", *e.animations]))[:4]
     rows = []
     for name in names:
@@ -810,8 +839,25 @@ def sheet_rows(e: Entity, frames: int) -> list[tuple[str, list[str]]]:
     return rows
 
 
+def art_size(box: tuple[int, int], extent: tuple[int, int]) -> tuple[int, int]:
+    """A frame with the drawn art's aspect ratio and about the design box's area, when the two
+    shapes differ by more than 15% (a bat with spread wings in a square box); else the box."""
+    a = min(3.0, max(1 / 3, extent[0] / extent[1]))
+    w, h = box
+    if abs(math.log(a / (w / h))) <= math.log(1.15):
+        return tuple(box)
+    nh = math.sqrt(w * h / a)
+    return (min(128, max(4, round(nh * a))), min(128, max(4, round(nh))))
+
+
 def muse_sheet(
-    spec: ArtSpec, raw: bytes, cols: int, rows: int, grid_confidence: float = 0.6
+    spec: ArtSpec,
+    raw: bytes,
+    cols: int,
+    rows: int,
+    grid_confidence: float = 0.6,
+    adapt: bool = False,
+    main_row: int = 0,
 ) -> tuple[list[Image.Image], list[dict]]:
     """Slice a sheet into `cols` x `rows` equal cells (row by row) and read each frame. The
     frames of a row (one animation) share one scale; empty cells repeat the first frame with
@@ -838,6 +884,10 @@ def muse_sheet(
     size, anchor = spec.grid, anchor_for(spec.role)
     if all(src is None for src, _ in read):
         return [Image.new("RGBA", size) for _ in read], [info for _, info in read]
+    if adapt:  # the frame takes the main row's shape (what the player sees most)
+        main = read[main_row * cols : (main_row + 1) * cols]
+        drawn = [s for s, _ in main if s is not None] or [s for s, _ in read if s is not None]
+        size = art_size(size, (max(s.width for s in drawn), max(s.height for s in drawn)))
     # One shrink per row (an animation), so frames do not pulse in size; a wide death row
     # does not shrink the idle row. Frames without a grid are fitted on their own.
     shrink = []
@@ -876,9 +926,10 @@ def seams_match(tile: Image.Image) -> bool:
     return True
 
 
-def check_frame(spec: ArtSpec, frame: Image.Image, info: dict) -> list[str]:
-    """What is wrong with a processed Muse frame, as sentences for the retry prompt."""
-    w, h = spec.grid
+def check_frame(spec: ArtSpec, frame: Image.Image, info: dict, aspect: bool = True) -> list[str]:
+    """What is wrong with a processed Muse frame, as sentences for the retry prompt. With
+    `aspect` off (the frame took the art's shape) the subject's aspect is not checked."""
+    w, h = frame.size if not aspect else spec.grid
     if not frame.getchannel("A").getbbox():
         return ["no subject: nothing usable was drawn on the magenta background"]
     problems = []
@@ -890,7 +941,7 @@ def check_frame(spec: ArtSpec, frame: Image.Image, info: dict) -> list[str]:
         return problems
     sw, sh = info.get("subject") or frame.getchannel("A").getbbox()[2:]
     ratio = (sw / sh) / (w / h)
-    if not 1 / 1.35 <= ratio <= 1.35:
+    if aspect and not 1 / 1.35 <= ratio <= 1.35:
         problems.append(
             f"the subject is {'too wide' if ratio > 1 else 'too tall'} for its {w}×{h} grid "
             f"(aspect {sw / sh:.2f}, wanted about {w / h:.2f})"
@@ -1037,6 +1088,8 @@ class MuseOptions:
     # `game.sheet_frames`: sprites are drawn as a sheet, this many frames per animation row
     # (each frame gets a slot of the image, so Muse uses fewer, bigger pixels); 1 = one image
     sheet_frames: int = 4
+    # `game.adapt_size`: a sprite's frame takes the drawn art's shape (about the design's area)
+    adapt_size: bool = True
 
 
 @dataclass
@@ -1063,10 +1116,11 @@ class Muse:
         }
         if old and all(old.get(k) == v for k, v in key.items()):
             reasons = [p.reason or "Muse art", "unchanged request: reused, no image call"]
-            record = {**key, "raw": old["raw"], "reused_from": old["version"]}
+            record = {**key, "raw": old["raw"], "reused_from": old["version"],
+                      "frame_size": old.get("frame_size")}  # fmt: skip
             source = f"muse (locked, from v{old['version']})"
             if old.get("anims"):
-                meta = sprite_meta(e, tuple(size), old["anims"])
+                meta = sprite_meta(e, tuple(old.get("frame_size") or size), old["anims"])
                 return Filled(old["png"], source, reasons, meta, "sprite",
                               {**record, "anims": old["anims"]})  # fmt: skip
             image = Image.open(io.BytesIO(old["png"])).convert("RGBA")
@@ -1100,7 +1154,7 @@ class Muse:
             )
             edit_of = old["version"]
         request = ImageRequest(prompt=prompt, size=spec.request_size, references=refs)
-        best, problems, history, made = None, [], [], 0
+        best, problems, history, made, failed = None, [], [], 0, False
         for attempt in range(1 + self.options.retries):
             if attempt:
                 if self.calls >= self.max_calls:
@@ -1109,30 +1163,32 @@ class Muse:
                         f"({self.max_calls}) reached"
                     )
                     break
-                request = request.model_copy(
-                    update={
-                        "prompt": "The last attempt was wrong: " + "; ".join(problems)
-                        + ". Fix that. " + prompt,
-                        "reasoning_strength": "high",
-                    }
-                )  # fmt: skip
+                if not failed:  # a failed call (e.g. HTTP 500) is sent again as it was
+                    request = request.model_copy(
+                        update={
+                            "prompt": "The last attempt was wrong: " + "; ".join(problems)
+                            + ". Fix that. " + prompt,
+                            "reasoning_strength": "high",
+                        }
+                    )  # fmt: skip
             self.calls += 1
             made += 1
             try:
                 raw = self.generate(request, bool(refs))
+                conf, adapt = self.options.grid_confidence, self.options.adapt_size
                 if rows:
-                    frames, infos = muse_sheet(
-                        spec, raw, n, len(rows), self.options.grid_confidence
-                    )
+                    frames, infos = muse_sheet(spec, raw, n, len(rows), conf, adapt, main_row(rows))
                 else:
-                    frame, info = muse_frame(spec, raw, self.options.grid_confidence)
+                    frame, info = muse_frame(spec, raw, conf, adapt)
                     frames, infos = [frame], [info]
             except Exception as exc:  # noqa: BLE001 -- one failed image must not sink the build
                 detail = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
                 self.warnings.append(f"{e.id}: Muse Image failed ({type(exc).__name__}: "
                                      f"{detail})")  # fmt: skip
-                break
-            problems = check_frame(spec, frames[0], infos[0])
+                failed, problems = True, ["the image request failed"]
+                continue
+            failed = False
+            problems = check_frame(spec, frames[0], infos[0], aspect=not adapt)
             empty = [i + 1 for i, info in enumerate(infos) if info.get("subject") is None]
             if empty and len(empty) < len(frames):
                 problems.append(
@@ -1184,18 +1240,22 @@ class Muse:
             "frame": info,
             "problems": problems,
         }
+        fw, fh = frames[0].size  # the design's box, or the art's shape (`adapt_size`)
+        record["frame_size"] = [fw, fh]
+        if (fw, fh) != tuple(size):
+            reasons.append(f"frame {fw}x{fh} follows the art (design box {size[0]}x{size[1]})")
         if not rows:
             return single_frame(e, limit_palette(frames[0]), "muse", reasons, record)
         # One palette for the whole strip, so frames keep identical colours.
-        strip = Image.new("RGBA", (size[0] * len(frames), size[1]))
+        strip = Image.new("RGBA", (fw * len(frames), fh))
         for i, f in enumerate(frames):
-            strip.paste(f, (i * size[0], 0))
+            strip.paste(f, (i * fw, 0))
         strip = limit_palette(strip)
         anims = {name: [i * n, n] for i, (name, _) in enumerate(rows)}
         for name in e.animations:  # beyond four rows: show the idle row
             anims.setdefault(name, [0, n])
         record.update(anims=anims, frames_read=[i["mode"] for i in infos])
-        return Filled(png(strip), "muse", reasons, sprite_meta(e, tuple(size), anims),
+        return Filled(png(strip), "muse", reasons, sprite_meta(e, (fw, fh), anims),
                       "sprite", record)  # fmt: skip
 
     def greybox(self, e: Entity, size, why: str) -> Filled:

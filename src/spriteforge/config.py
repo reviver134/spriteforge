@@ -69,6 +69,7 @@ class GameConfig(Schema):
     native_grid_confidence: float = Field(default=0.6, ge=0, le=1)  # big-pixel grid read-back
     # Muse sprites as sheets: frames per animation row (1 = one image per sprite)
     sheet_frames: int = Field(default=4, ge=1, le=6)
+    adapt_size: bool = True  # a Muse sprite's frame takes the drawn art's shape
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)
