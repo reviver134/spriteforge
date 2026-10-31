@@ -12,12 +12,22 @@ from spriteforge.core.state import Store
 
 
 class Feedback(BaseModel):
-    action: Literal["approve", "request_changes", "abort"]
+    # "submit" is for gates with empty_feedback_approves: empty text approves, text revises.
+    action: Literal["approve", "request_changes", "abort", "submit"]
     tags: list[Literal["art", "gameplay", "controls", "difficulty", "bug"]] = Field(
         default_factory=list
     )
     text: str = Field(default="", max_length=10000)
     form: dict = Field(default_factory=dict)
+
+    def resolved(self, gate: "Gate") -> "Feedback":
+        """Turn a single feedback box into a decision. Only gates that opt in accept it."""
+        if self.action != "submit":
+            return self
+        if not gate.empty_feedback_approves:
+            raise ValueError("This gate needs Approve or Request changes")
+        action = "request_changes" if self.text.strip() else "approve"
+        return self.model_copy(update={"action": action})
 
 
 class Gate(BaseModel):
@@ -31,6 +41,8 @@ class Gate(BaseModel):
     changes: Changes | None = None
     status: Literal["pending", "approved", "changes_requested", "aborted", "superseded"] = "pending"
     response: Feedback | None = None
+    # One feedback box: submitting it empty approves, any text requests another revision.
+    empty_feedback_approves: bool = False
 
 
 class Gates:
@@ -107,6 +119,7 @@ class Gates:
             gate = Gate.model_validate_json(row[0])
             if gate.status != "pending":
                 raise ValueError("Gate already answered")
+            feedback = feedback.resolved(gate)
             if gate.kind == "confirm_changes" and feedback.action == "request_changes":
                 raise ValueError("Approve or abort the parsed requests")
             if feedback.action == "request_changes" and not feedback.text.strip():

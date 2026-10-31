@@ -246,7 +246,9 @@ def test_spark_router_schema_is_closed():
 
 
 def test_budget_counts_unicode_as_serialized_context(tmp_path):
-    runtime, _, _ = runtime_context(tmp_path, ScriptedRouter(), config=RouterConfig(token_budget=900))
+    runtime, _, _ = runtime_context(
+        tmp_path, ScriptedRouter(), config=RouterConfig(token_budget=900)
+    )
     # JSON escapes expand this to more than 1,200 bytes in the actual model context.
     runtime.skills["pixel-art-prompting"] = "é" * 200
     with pytest.raises(ValueError, match="cannot fit required"):

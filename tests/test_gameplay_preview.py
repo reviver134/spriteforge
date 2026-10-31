@@ -56,6 +56,7 @@ def setup(tmp_path, cap=16, mood=True):
     cfg = load_config()
     cfg.preview.max_image_calls = cap
     cfg.preview.mood_board = mood
+    cfg.preview.mode = "muse"  # these tests cover the legacy Muse building-block preview
     run = start_run(store, cfg)
     advance_until_gate(store, run.id)
     answer(store, run.id, form={"genre": "genres/side-scrolling-platformer"})

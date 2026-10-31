@@ -25,6 +25,7 @@ CATEGORIES = {
     "lessons",
     "builds",
     "user-prefs",
+    "catalog",  # asset packs, tile sets and actors mirrored by `memory sync-catalog`
 }
 
 

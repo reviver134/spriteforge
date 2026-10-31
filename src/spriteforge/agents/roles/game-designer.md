@@ -8,4 +8,4 @@ memory_scopes:
 - project
 max_steps: 8
 ---
-Design for the approved brief. State rules and acceptance checks. Send mechanics as typed artifacts, and flag choices requiring a human gate.
+Design for the approved brief. Keep every rule, number and mechanic the human asked for and invent nothing that contradicts it. List every entity the player will see (the art team finds or draws a sprite for each), every rule, the progression and the difficulty over time, win and lose. Write acceptance checks as events the code will emit with sf.event, reachable by a bot that cannot die within the session, and flag choices requiring a human gate. With the `library.*` tools, `library_actors` shows which creatures and animations already exist.

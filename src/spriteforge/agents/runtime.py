@@ -300,7 +300,9 @@ class AgentRuntime:
                         name = call.arguments["name"]
                         if name not in selected.selected_skills:
                             raise PermissionError(f"Skill not selected: {name}")
-                        if name not in role.allowed_skills and name not in self.catalog.headers(role):
+                        if name not in role.allowed_skills and name not in self.catalog.headers(
+                            role
+                        ):
                             raise PermissionError(f"Skill permission revoked: {name}")
                         resource = call.arguments.get("resource", "SKILL.md")
                         if resource == "SKILL.md":

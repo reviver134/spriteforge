@@ -5,6 +5,7 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import httpx
 from playwright.sync_api import expect, sync_playwright
@@ -15,6 +16,10 @@ def test_intake_browser(tmp_path):
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
     url = f"http://127.0.0.1:{port}"
+    # This test covers the legacy Muse building-block preview in the browser.
+    config = tmp_path / "config.yaml"
+    default = (Path(__file__).parents[1] / "src" / "spriteforge" / "config.yaml").read_text()
+    config.write_text(default.replace("mode: game", "mode: muse"), encoding="utf-8")
     process = subprocess.Popen(
         [
             sys.executable,
@@ -25,6 +30,8 @@ def test_intake_browser(tmp_path):
             "--mock",
             "--workspace",
             str(tmp_path),
+            "--config",
+            str(config),
             "--port",
             str(port),
             "--no-open-browser",

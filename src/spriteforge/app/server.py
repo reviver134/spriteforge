@@ -149,10 +149,13 @@ def create_app(
             if run.config.get("workflow") == INTAKE:
                 pending = Gates(store).pending(id)
                 if pending and pending.id == gate_id:
+                    feedback = feedback.resolved(pending)
                     if feedback.action == "request_changes" and pending.stage not in {
                         "concept",
                         "assets",
                         "gameplay",
+                        "design",
+                        "playtest",
                     }:
                         raise ValueError("Changes can be requested at the concept review")
                     if feedback.action == "request_changes" and pending.stage == "assets":
@@ -222,6 +225,23 @@ def create_app(
             await asyncio.to_thread(store.fail, id, str(exc))
             raise HTTPException(500, redact(str(exc))) from None
         return {"gate": gate.model_dump(mode="json"), "run": store.get_run(id).model_dump()}
+
+    @app.get("/api/runs/{id}/play/{version}/{path:path}")
+    def play(id: str, version: str, path: str):
+        """Serve a generated game build so the reviewer can play it, not just watch it."""
+        import mimetypes
+        import re
+
+        require_run(id)
+        if not re.fullmatch(r"v\d+", version):
+            raise HTTPException(404, "Unknown build version")
+        root = (store.path.parent / "runs" / id / "game" / version / "build").resolve()
+        target = (root / (path or "index.html")).resolve()
+        if not target.is_relative_to(root) or not target.is_file():
+            raise HTTPException(404, "Not part of this build")
+        media = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        return Response(target.read_bytes(), media_type=media,
+                        headers={"X-Content-Type-Options": "nosniff"})  # fmt: skip
 
     @app.get("/api/artifacts/{id}")
     def artifact(id: str):

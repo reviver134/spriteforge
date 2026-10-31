@@ -19,6 +19,18 @@ def open_store(workspace: Path) -> KnowledgeStore:
     return store
 
 
+@app.command("sync-catalog")
+def sync_catalog_command(workspace: Path = Path("workspace")):
+    """Mirror asset packs, tile sets and actors into memory under catalog/ (one commit)."""
+    from .okf.catalog import sync_catalog
+
+    result = sync_catalog(open_store(workspace))
+    typer.echo(
+        f"catalog: {result['total']} entries, {result['updated']} written, "
+        f"{result['deprecated']} deprecated"
+    )
+
+
 @app.command()
 def init(workspace: Path = Path("workspace")):
     """Initialize the local Git corpus and seed library without overwriting entries."""

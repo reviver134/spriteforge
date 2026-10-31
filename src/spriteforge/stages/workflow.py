@@ -33,6 +33,12 @@ from .intake import (
 WORKFLOW = "intake-concept-v1"
 
 
+GENRE_NOTE = (
+    "Any genre works: the agents write the game's code from your answers, using the art "
+    "library first and Muse Image for anything it lacks."
+)
+
+
 def start_run(store, cfg, mock=True, assets=False, gameplay_preview=True, legacy=False, goal=""):
     if not gameplay_preview and not legacy:
         raise ValueError("Deprecated concept preview requires explicit --legacy")
@@ -73,6 +79,11 @@ def _step(store, run_id):
         run_id
     ):
         return False
+    history = gates.all(run_id)
+    if history and history[-1].stage in {"design", "playtest"}:
+        from .game import game_step
+
+        return game_step(store, run_id)
     if (
         run.config.get("asset_production")
         and (not run.config.get("gameplay_preview") or run.config.get("preview_production_enabled"))
@@ -157,6 +168,7 @@ def _step(store, run_id):
                     "genre": {
                         "type": "string",
                         "title": "Genre",
+                        "description": GENRE_NOTE,
                         "enum": [e.id for e in genres],
                         "default": "genres/top-down-dungeon-crawler",
                     }
@@ -208,6 +220,10 @@ def _step(store, run_id):
         brief.notes = intake_notes
         brief.answers.update(last.response.form)
         save("brief.json", brief.model_dump(), "Game Designer")
+        if run.config.get("gameplay_preview") and cfg.preview.mode == "game":
+            from .game import game_step
+
+            return game_step(store, run_id)
         snippets = memory.retrieve(
             "art-styles " + brief.genre + " " + brief.mood, token_budget=2500, relative_score=0
         )

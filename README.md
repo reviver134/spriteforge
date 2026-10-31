@@ -727,3 +727,20 @@ both with precision 1.000 and recall 1.000. The other 17 cases were not run live
 The real call verified Spark's strict schema requirement: `reasons` must enumerate
 catalog keys with `additionalProperties: false`. No endpoint or model changes
 were needed. Mock scores exercise routing logic, not live model quality.
+
+# Milestone 9: games written from the prompt
+
+Kits (milestone 8, `docs/milestone-8-genre-kits.md`) are superseded and removed. Muse Spark now
+writes each game's Phaser code from the prompt against a small SDK (`src/spriteforge/game/sdk`);
+deterministic code checks it, plays the whole session headless with the game's own bot and sends
+failures back for bounded repairs. Art comes from the local library first, otherwise Muse Image.
+
+```bash
+python -m spriteforge game make "a 10 minute top-down survival game" --out out/g   # live
+python -m spriteforge game make "a slime arena" --out out/m --mock                  # offline
+python -m spriteforge start --agents --goal "<prompt>"   # G1 -> G2 design -> build -> G4 playtest
+```
+
+In the harness, G2 shows the design (text revises it, empty approves) and G4 shows the build
+report, art sheet and play link; feedback only redoes what it is about. Details:
+`docs/milestone-9-generated-games.md`.
