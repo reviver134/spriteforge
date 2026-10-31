@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import re
 from collections import deque
 
 from PIL import Image, ImageDraw
@@ -42,7 +43,18 @@ class MockImageProvider:
                 painter.rectangle((8, 8, 94, 20), fill="#181825")
                 painter.rectangle((12, 12, 70, 16), fill="#E75B65")
                 image = scene
-            image = image.resize(request.size, Image.Resampling.NEAREST)
+            if layout := re.search(r"(\d+) columns by (\d+) rows", request.prompt):
+                # A sprite sheet: the same synthetic sprite in every cell.
+                cols, rows = int(layout[1]), int(layout[2])
+                sheet = Image.new("RGBA", (32 * cols, 32 * rows), (0, 0, 0, 0))
+                for i in range(cols * rows):
+                    sheet.paste(image, ((i % cols) * 32, (i // cols) * 32))
+                k = min(request.size[0] // sheet.width, request.size[1] // sheet.height) or 1
+                sheet = sheet.resize((sheet.width * k, sheet.height * k), Image.Resampling.NEAREST)
+                image = Image.new("RGBA", request.size, (0, 0, 0, 0))  # keeps cells square
+                image.paste(sheet, ((image.width - sheet.width) // 2, 0))
+            else:
+                image = image.resize(request.size, Image.Resampling.NEAREST)
             buffer = io.BytesIO()
             image.save(buffer, format="PNG")
             return ImageResult(data=buffer.getvalue(), metadata={"provider": "mock"})

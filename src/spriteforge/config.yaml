@@ -13,6 +13,10 @@ game:
   max_art_calls: 16 # Muse Image calls per build for entities the library cannot supply
   art_retry: 1 # one redraw (reasoning_strength high) when a frame fails check_frame
   native_grid_confidence: 0.6 # below this, Muse art is fitted instead of read cell by cell
+  # Muse sprites are drawn as sheets (a row of frames per animation, up to 4 rows): each
+  # frame gets a slot of the image, so Muse draws it with fewer, bigger pixels, close to the
+  # requested grid, and the sprite animates. 1 = one image per sprite.
+  sheet_frames: 4
   max_code_kb: 200
   playtest_fps: 30
   record_seconds: 20
@@ -28,7 +32,8 @@ image:
   # tools/probe_art_spec.py 2026-10-31, all accepted: 1024x1024 -> 1600x1600,
   # 1792x1024 -> 2016x1152, 1024x1536 -> 1280x1920. With the grid wording Muse draws big
   # square pixels but chooses its own cell count (16x16 asked: 21x27 cells, ~46 px each).
-  sizes: [[1024, 1024], [1792, 1024], [1024, 1536]]
+  # tools/probe_sheet.py 2026-10-31: 2048x512 (4:1) accepted -> 3200x800.
+  sizes: [[1024, 1024], [1792, 1024], [1024, 1536], [2048, 512]]
 llm:
   base_url: https://api.meta.ai
   model: muse-spark-1.3

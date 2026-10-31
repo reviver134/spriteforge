@@ -57,17 +57,20 @@ def _pitch(gaps: np.ndarray, top: float) -> float | None:
     return float(np.median(gaps[np.abs(gaps - best) <= 0.1 * best]))
 
 
-def detect_cells(image: Image.Image, min_boundaries: int = 8) -> Grid | None:
+def detect_cells(
+    image: Image.Image, min_boundaries: int = 8, pitch: float | None = None
+) -> Grid | None:
     """Cell edges of a big-pixel image, or None. Image models draw cells of slightly uneven
     size, a little different per axis, with the odd half-cell detail, so the edges are the
     detected colour boundaries themselves, with a line added inside every gap that spans
-    several cells and edges closer than half a cell skipped."""
+    several cells and edges closer than half a cell skipped. `pitch` skips the estimate
+    (frames of one sprite sheet share the pitch they were drawn at)."""
     rgba = np.asarray(image.convert("RGBA"))
     axes = [np.array(_boundaries(rgba, 1)), np.array(_boundaries(rgba, 0))]
     if min(len(a) for a in axes) < 2 or sum(len(a) for a in axes) < min_boundaries:
         return None
     gaps = np.concatenate([np.diff(a) for a in axes])
-    pitch = _pitch(gaps, max(MIN_PITCH, min(image.size) / 2))
+    pitch = pitch or _pitch(gaps, max(MIN_PITCH, min(image.size) / 2))
     if pitch is None:
         return None
     lines = tuple(

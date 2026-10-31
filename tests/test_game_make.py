@@ -237,7 +237,11 @@ def test_make_game_offline_end_to_end(tmp_path):
     assert result.report["model_calls"]["image"] == 4
     # Each Muse request is recorded with its size and art spec.
     art = {e["entity"]: e for e in json.loads((out / "art.json").read_text())["entities"]}
-    assert art["gem"]["request"]["size"] == [1024, 1024]
+    # Sprites are drawn as sheets: the gem (no animations) is one 4-frame row at 4:1.
+    assert art["gem"]["request"]["size"] == [2048, 512]
+    assets = json.loads((out / "build" / "assets.json").read_text())
+    assert assets["sprites"]["slime"]["anims"] == {"idle": [0, 4], "walk": [4, 4]}
+    assert assets["sprites"]["gem"]["anims"] == {"idle": [0, 4]}
     assert art["gem"]["spec"]["grid"] == [8, 8] and "8×8 grid" in art["gem"]["muse_prompt"]
     assert art["floor"]["spec"]["anchor"].startswith("fills the whole grid")
     assert art["slime"]["frame"]["mode"] in {"native", "native-resized", "fit"}

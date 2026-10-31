@@ -679,6 +679,14 @@ def muse_prompt(spec: ArtSpec, pick: ArtPick, has_ref: bool = False) -> str:
             "grid, centred in the image, on a flat pure magenta (#FF00FF) background with "
             "nothing else in the image."
         )
+    return (
+        f"Pixel art for a 2D game. Draw: {pick.prompt.strip().rstrip('.')}. Draw it once, in "
+        f"one state only. {shape} {spec_details(spec, has_ref)} No text, no lettering, no "
+        "frame, no drop shadow."
+    )
+
+
+def spec_details(spec: ArtSpec, has_ref: bool) -> str:
     details = [
         f"View: {spec.view}.",
         f"Size: {spec.scale_note}.",
@@ -687,51 +695,173 @@ def muse_prompt(spec: ArtSpec, pick: ArtPick, has_ref: bool = False) -> str:
         f"Lighting: {spec.light}.",
         f"Outline: {spec.outline}.",
         f"Palette: use only these colours: {', '.join(spec.palette)}." if spec.palette else "",
-    ]
-    style = (
         "Match the reference image's pixel-art style exactly: outline weight, shading, palette "
         "and level of detail. The reference is a style example only; do not copy its subject."
         if has_ref
-        else f"Crisp retro pixel art, hard pixel edges. Look: {spec.look}."
-    )
+        else f"Crisp retro pixel art, hard pixel edges. Look: {spec.look}.",
+    ]
+    return " ".join(d for d in details if d)
+
+
+def sheet_prompt(
+    spec: ArtSpec, pick: ArtPick, cols: int, rows: int, frames: list[str], has_ref: bool = False
+) -> str:
+    """Several small frames of one subject in one image: a sprite sheet read like a slide
+    show, left to right, top to bottom. Each frame gets a slot of the image, so Muse draws it
+    with fewer, bigger pixels than a sprite that fills the whole image."""
+    w, h = spec.grid
+    listed = " ".join(f"{i + 1}. {f.strip().rstrip('.')}." for i, f in enumerate(frames))
     return (
-        f"Pixel art for a 2D game. Draw: {pick.prompt.strip().rstrip('.')}. Draw it once, in "
-        f"one state only. {shape} {' '.join(d for d in details if d)} {style} No text, no "
-        "lettering, no frame, no drop shadow."
+        f"Pixel art sprite sheet for a 2D game: {len(frames)} frames of the same subject, "
+        f"{pick.prompt.strip().rstrip('.')}. Lay them out as {cols} columns by {rows} rows of "
+        "equal cells on one flat pure magenta (#FF00FF) background, no grid lines, no borders. "
+        "Each frame sits whole inside its own cell, centred, with magenta space around it; "
+        "the subject has the same size, colours and design in every frame, standing on the "
+        f"same baseline. Each frame is a tiny sprite drawn on a {w}×{h} grid of big square "
+        "pixels, one solid colour per cell, no anti-aliasing, no gradients inside a cell. "
+        f"Frames, left to right, top to bottom: {listed} {spec_details(spec, has_ref)} No "
+        "text, no numbers, no lettering, no drop shadow."
     )
+
+
+def read_sprite(
+    image: Image.Image, grid_confidence: float, pitch: float | None = None
+) -> tuple[Image.Image | None, dict]:
+    """Key a raw sprite image; return its big pixels one per pixel when drawn on a grid
+    (info mode "native"), else the keyed subject itself (mode "fit"); None when empty."""
+    info: dict = {"raw_size": list(image.size), "mode": "fit"}
+    image = prepare_source(image, ProcessingOptions(detect_grid=False), ProcessingReport())
+    if not image.getbbox():
+        return None, {**info, "subject": None}
+    info["subject"] = list(image.size)
+    grid = detect_cells(image, pitch=pitch)
+    if grid:
+        info.update(cell=round(grid.pitch, 1), confidence=round(grid.confidence, 2))
+    if grid and grid.confidence >= grid_confidence:
+        small = sample_cells(image, grid)
+        if bbox := small.getbbox():
+            small = small.crop(bbox)
+            info.update(mode="native", logical=list(small.size))
+            return small, info
+    return image, info
 
 
 def muse_frame(spec: ArtSpec, raw: bytes, grid_confidence: float = 0.6):
     """Raw Muse image -> a frame of `spec.grid` size, and how it was made. Big-pixel art is
     read back one cell per pixel ("native"); anything else is fitted ("fit")."""
     image = Image.open(io.BytesIO(raw)).convert("RGBA")
-    size, sprite = spec.grid, spec.role not in {"tile", "background"}
-    info: dict = {"raw_size": list(image.size), "mode": "fit"}
-    if sprite:
-        image = prepare_source(image, ProcessingOptions(detect_grid=False), ProcessingReport())
-        if not image.getbbox():
-            return Image.new("RGBA", size), {**info, "subject": None}
-    info["subject"] = list(image.size)
+    size = spec.grid
+    if spec.role not in {"tile", "background"}:
+        source, info = read_sprite(image, grid_confidence)
+        if source is None:
+            return Image.new("RGBA", size), info
+        native = source.width <= size[0] and source.height <= size[1]
+        if info["mode"] == "native" and not native:
+            # Muse often draws more cells than asked: shrink the clean cells, not the raw image.
+            info["mode"] = "native-resized"
+        grow = info["mode"] == "fit"
+        return fit_sprite(source, size, anchor_for(spec.role), grow=grow), info
+    info: dict = {"raw_size": list(image.size), "mode": "fit", "subject": list(image.size)}
     grid = detect_cells(image)
     if grid:
         info.update(cell=round(grid.pitch, 1), confidence=round(grid.confidence, 2))
-    small = sample_cells(image, grid) if grid and grid.confidence >= grid_confidence else None
-    if small is not None and sprite and (bbox := small.getbbox()):
-        small = small.crop(bbox)
-        info["logical"] = list(small.size)
-        native = small.width <= size[0] and small.height <= size[1]
-        # Muse often draws more cells than asked: shrink the clean cells, not the raw image.
-        info["mode"] = "native" if native else "native-resized"
-        return fit_sprite(small, size, anchor_for(spec.role), grow=not native), info
-    elif small is not None and not sprite:
-        info["logical"] = list(small.size)
-        info["mode"] = "native" if small.size == tuple(size) else "native-resized"
-        image = small
+    if grid and grid.confidence >= grid_confidence:
+        image = sample_cells(image, grid)
+        info["logical"] = list(image.size)
+        info["mode"] = "native" if image.size == tuple(size) else "native-resized"
     if spec.role == "tile":
         return fit_tile(image, size), info
-    if spec.role == "background":
-        return mode_resize(image, size).convert("RGBA"), info
-    return fit_sprite(image, size, anchor_for(spec.role)), info
+    return mode_resize(image, size).convert("RGBA"), info
+
+
+# --- sprite sheets: several small frames in one Muse image ----------------------------------
+
+# Poses per animation, one per frame (4 frames; fewer frames take the first ones).
+POSES = {
+    "idle": ["standing still", "breathing in, a little taller", "standing still",
+             "breathing out, a little lower"],
+    "walk": ["left foot forward", "feet passing under the body", "right foot forward",
+             "feet passing under the body"],
+    "fly": ["wings up", "wings level", "wings down", "wings level"],
+    "attack": ["winding up", "striking", "follow-through", "recovering"],
+    "hurt": ["recoiling from a hit", "flashing", "recoiling", "recovering"],
+    # Not "fading away": Muse paints it translucent, which keys to a pink smear.
+    "death": ["hit, recoiling", "falling", "lying on the ground", "lying flat, defeated"],
+}  # fmt: skip
+POSE_ALIASES = {"run": "walk", "move": "walk", "chase": "walk", "hop": "walk", "jump": "walk",
+                "shoot": "attack", "cast": "attack", "hit": "hurt", "die": "death"}  # fmt: skip
+OBJECT_POSES = {
+    "pickup": ["still", "a small glint", "a bright glint", "a small glint"],
+    "projectile": ["in flight", "in flight, trail flickers", "in flight", "in flight, trail flickers"],
+}  # fmt: skip
+
+
+def sheet_rows(e: Entity, frames: int) -> list[tuple[str, list[str]]]:
+    """One row per animation (idle first, at most 4), `frames` poses each."""
+    names = list(dict.fromkeys(["idle", *e.animations]))[:4]
+    rows = []
+    for name in names:
+        poses = (
+            OBJECT_POSES.get(e.role, ["still"] * 4)
+            if name == "idle" and e.role in {"pickup", "projectile", "prop"}
+            else POSES.get(POSE_ALIASES.get(name, name))
+        ) or [f"{name.replace('_', ' ')}, pose {i + 1}" for i in range(4)]
+        rows.append((name, [f"{name.replace('_', ' ')}: {p}" for p in poses[:frames]]))
+    return rows
+
+
+def muse_sheet(
+    spec: ArtSpec, raw: bytes, cols: int, rows: int, grid_confidence: float = 0.6
+) -> tuple[list[Image.Image], list[dict]]:
+    """Slice a sheet into `cols` x `rows` equal cells (row by row) and read each frame. The
+    frames of a row (one animation) share one scale; empty cells repeat the first frame with
+    something in it."""
+    sheet = Image.open(io.BytesIO(raw)).convert("RGBA")
+    cw, ch = sheet.width / cols, sheet.height / rows
+    cells = [
+        sheet.crop((round(c * cw), round(r * ch), round((c + 1) * cw), round((r + 1) * ch)))
+        for r in range(rows)
+        for c in range(cols)
+    ]
+    read = [read_sprite(cell, grid_confidence) for cell in cells]
+    # One sheet, one pixel size: a frame read at another pitch (often half, doubling its
+    # cells) is read again at the sheet's median pitch.
+    pitches = [i["cell"] for s, i in read if s is not None and i["mode"] == "native"]
+    if pitches:
+        shared = float(np.median(pitches))
+        read = [
+            read_sprite(cell, grid_confidence, shared)
+            if src is not None and abs(info.get("cell", shared) - shared) > 0.2 * shared
+            else (src, info)
+            for cell, (src, info) in zip(cells, read, strict=True)
+        ]
+    size, anchor = spec.grid, anchor_for(spec.role)
+    if all(src is None for src, _ in read):
+        return [Image.new("RGBA", size) for _ in read], [info for _, info in read]
+    # One shrink per row (an animation), so frames do not pulse in size; a wide death row
+    # does not shrink the idle row. Frames without a grid are fitted on their own.
+    shrink = []
+    for r in range(rows):
+        row = read[r * cols : (r + 1) * cols]
+        native = [src for src, info in row if src is not None and info["mode"] == "native"]
+        shrink.append(min((min(size[0] / s.width, size[1] / s.height) for s in native), default=1))
+    frames, infos = [], []
+    for n, (src, info) in enumerate(read):
+        k = shrink[n // cols]
+        if src is None:
+            frames.append(None)
+        elif info["mode"] == "native":
+            if k < 1:
+                src = mode_resize(
+                    src, (max(1, round(src.width * k)), max(1, round(src.height * k)))
+                )
+                info["mode"] = "native-resized"
+            frames.append(fit_sprite(src, size, anchor, grow=False))
+        else:
+            frames.append(fit_sprite(src, size, anchor))
+        infos.append(info)
+    first = next(f for f in frames if f is not None)
+    return [f if f is not None else first.copy() for f in frames], infos
 
 
 def seams_match(tile: Image.Image) -> bool:
@@ -904,6 +1034,9 @@ class MuseOptions:
     sizes: list[tuple[int, int]] = field(default_factory=lambda: [SQUARE])  # `image.sizes`
     retries: int = 1  # `game.art_retry`: redraws of a frame that fails `check_frame`
     grid_confidence: float = 0.6  # `game.native_grid_confidence`
+    # `game.sheet_frames`: sprites are drawn as a sheet, this many frames per animation row
+    # (each frame gets a slot of the image, so Muse uses fewer, bigger pixels); 1 = one image
+    sheet_frames: int = 4
 
 
 @dataclass
@@ -920,16 +1053,24 @@ class Muse:
 
     def art(self, e: Entity, design: GameDesign, p: ArtPick, size) -> Filled:
         old = self.previous(e.id)
-        key = {"prompt": p.prompt, "reference": p.reference, "size": list(size)}
+        n = self.options.sheet_frames
+        rows = sheet_rows(e, n) if n > 1 and e.role not in {"tile", "background"} else []
+        key = {
+            "prompt": p.prompt,
+            "reference": p.reference,
+            "size": list(size),
+            "sheet": [n, len(rows)] if rows else None,
+        }
         if old and all(old.get(k) == v for k, v in key.items()):
             reasons = [p.reason or "Muse art", "unchanged request: reused, no image call"]
-            return single_frame(
-                e,
-                Image.open(io.BytesIO(old["png"])).convert("RGBA"),
-                f"muse (locked, from v{old['version']})",
-                reasons,
-                {**key, "raw": old["raw"], "reused_from": old["version"]},
-            )
+            record = {**key, "raw": old["raw"], "reused_from": old["version"]}
+            source = f"muse (locked, from v{old['version']})"
+            if old.get("anims"):
+                meta = sprite_meta(e, tuple(size), old["anims"])
+                return Filled(old["png"], source, reasons, meta, "sprite",
+                              {**record, "anims": old["anims"]})  # fmt: skip
+            image = Image.open(io.BytesIO(old["png"])).convert("RGBA")
+            return single_frame(e, image, source, reasons, record)
         if self.generate is None or self.calls >= self.max_calls:
             why = (
                 "no image provider"
@@ -939,7 +1080,15 @@ class Muse:
             return self.greybox(e, size, why)
         ref = reference_image(p.reference) if p.reference else None
         spec = art_spec(e, design, tuple(size), self.hero_px, self.options.sizes, ref)
-        prompt = muse_prompt(spec, p, ref is not None)
+        if rows:
+            layout = (size[0] * n, size[1] * len(rows))
+            spec = spec.model_copy(
+                update={"request_size": request_size(layout, self.options.sizes)}
+            )
+            poses = [pose for _, row in rows for pose in row]
+            prompt = sheet_prompt(spec, p, n, len(rows), poses, ref is not None)
+        else:
+            prompt = muse_prompt(spec, p, ref is not None)
         refs = [png(ref)] if ref is not None else []
         edit_of = None
         if old and old.get("raw"):  # feedback changed this entity: edit the previous image
@@ -971,26 +1120,45 @@ class Muse:
             made += 1
             try:
                 raw = self.generate(request, bool(refs))
-                frame, info = muse_frame(spec, raw, self.options.grid_confidence)
+                if rows:
+                    frames, infos = muse_sheet(
+                        spec, raw, n, len(rows), self.options.grid_confidence
+                    )
+                else:
+                    frame, info = muse_frame(spec, raw, self.options.grid_confidence)
+                    frames, infos = [frame], [info]
             except Exception as exc:  # noqa: BLE001 -- one failed image must not sink the build
                 detail = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
                 self.warnings.append(f"{e.id}: Muse Image failed ({type(exc).__name__}: "
                                      f"{detail})")  # fmt: skip
                 break
-            problems = check_frame(spec, frame, info)
+            problems = check_frame(spec, frames[0], infos[0])
+            empty = [i + 1 for i, info in enumerate(infos) if info.get("subject") is None]
+            if empty and len(empty) < len(frames):
+                problems.append(
+                    f"frames {', '.join(map(str, empty))} of the {n}x{len(rows)} sheet are "
+                    "empty; draw every frame inside its own cell"
+                )
             history.append(problems)
-            if frame.getchannel("A").getbbox():
-                best = (raw, frame, info, request, problems)
+            if frames[0].getchannel("A").getbbox():
+                best = (raw, frames, infos, request, problems)
             if not problems:
                 break
         if best is None:
             return self.greybox(e, size, "no usable Muse image")
-        raw, frame, info, request, problems = best  # the kept frame's own problems
+        raw, frames, infos, request, problems = best  # the kept frames' own problems
         if problems:
             self.warnings.append(f"{e.id}: accepted with problems: {'; '.join(problems)}")
-        frame = limit_palette(frame)
+        info = infos[0]
         cells = "x".join(map(str, info["logical"])) + " cells, " if "logical" in info else ""
         readback = f"{info['mode']} ({cells}from {info['raw_size'][0]}x{info['raw_size'][1]})"
+        if rows:
+            modes = [i["mode"] for i in infos]
+            readback = (
+                f"{len(frames)}-frame sheet ({n}x{len(rows)}), "
+                + ", ".join(f"{modes.count(m)} {m}" for m in dict.fromkeys(modes))
+                + f"; frame 1 {readback}"
+            )
         reasons = [
             p.reason or "Muse art",
             f"style example: {p.reference}"
@@ -1016,7 +1184,19 @@ class Muse:
             "frame": info,
             "problems": problems,
         }
-        return single_frame(e, frame, "muse", reasons, record)
+        if not rows:
+            return single_frame(e, limit_palette(frames[0]), "muse", reasons, record)
+        # One palette for the whole strip, so frames keep identical colours.
+        strip = Image.new("RGBA", (size[0] * len(frames), size[1]))
+        for i, f in enumerate(frames):
+            strip.paste(f, (i * size[0], 0))
+        strip = limit_palette(strip)
+        anims = {name: [i * n, n] for i, (name, _) in enumerate(rows)}
+        for name in e.animations:  # beyond four rows: show the idle row
+            anims.setdefault(name, [0, n])
+        record.update(anims=anims, frames_read=[i["mode"] for i in infos])
+        return Filled(png(strip), "muse", reasons, sprite_meta(e, tuple(size), anims),
+                      "sprite", record)  # fmt: skip
 
     def greybox(self, e: Entity, size, why: str) -> Filled:
         self.warnings.append(f"{e.id}: {why}; greybox placeholder used")

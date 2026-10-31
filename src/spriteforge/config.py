@@ -67,6 +67,8 @@ class GameConfig(Schema):
     max_art_calls: int = Field(default=16, ge=0, le=40)  # Muse Image calls per build
     art_retry: int = Field(default=1, ge=0, le=2)  # redraws of a Muse frame that fails checks
     native_grid_confidence: float = Field(default=0.6, ge=0, le=1)  # big-pixel grid read-back
+    # Muse sprites as sheets: frames per animation row (1 = one image per sprite)
+    sheet_frames: int = Field(default=4, ge=1, le=6)
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)

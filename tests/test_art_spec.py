@@ -17,7 +17,10 @@ from spriteforge.game.art import (
     make_art,
     muse_frame,
     muse_prompt,
+    muse_sheet,
     request_size,
+    sheet_prompt,
+    sheet_rows,
 )
 from spriteforge.game.design import Entity, fallback_design
 from spriteforge.providers.base import ImageResult
@@ -199,3 +202,82 @@ def test_empty_retry_keeps_first_frame_and_its_problems(budget):
     art = make_art(d, keyword_plan(d), generate=images)
     assert len(images.requests) == 2 and art.filled["hero"].source == "muse"
     assert any("accepted with problems: the subject is too wide" in w for w in art.warnings)
+
+
+# --- sprite sheets: several small frames in one Muse image ----------------------------------
+
+
+def test_sheet_prompt_lists_layout_and_poses():
+    d = fallback_design("arena")
+    e = Entity(id="orc", role="enemy", look="a green orc", behaviour="-", width=16, height=16,
+               animations=["run", "attack"])  # fmt: skip
+    rows = sheet_rows(e, 4)
+    assert [name for name, _ in rows] == ["idle", "run", "attack"]
+    assert rows[1][1][0] == "run: left foot forward"  # run uses the walk poses
+    spec = art_spec(e, d, (16, 16), 16, SIZES)
+    prompt = sheet_prompt(
+        spec, muse_pick("orc", "a green orc"), 4, 3, [p for _, r in rows for p in r]
+    )
+    for part in ["4 columns by 3 rows", "12 frames", "16×16 grid", "attack: striking", "45°"]:
+        assert part in prompt, part
+    gem = sheet_rows(ent("gem", "pickup", "a gem"), 4)
+    assert gem == [("idle", ["idle: still", "idle: a small glint", "idle: a bright glint",
+                             "idle: a small glint"])]  # fmt: skip
+    assert request_size((16 * 4, 16), SIZES + [(2048, 512)]) == (2048, 512)
+
+
+def block_sprite(w, h, color) -> Image.Image:
+    rgba = np.zeros((h, w, 4), dtype=np.uint8)
+    shades = [color, tuple(c // 2 for c in color), (240, 240, 240)]
+    for y in range(h):
+        for x in range(w):
+            rgba[y, x] = (*shades[(x + 2 * y) % 3], 255)
+    rgba[0, :, :3] = rgba[-1, :, :3] = rgba[:, 0, :3] = rgba[:, -1, :3] = (20, 20, 30)
+    return Image.fromarray(rgba)
+
+
+def sheet_of(sprites, cols=None, cell=30, slot=1000) -> bytes:
+    """A Muse-like sheet: each sprite blown up x`cell` in its own magenta slot, row by row."""
+    cols = cols or len(sprites)
+    rows = -(-len(sprites) // cols)
+    sheet = Image.new("RGB", (slot * cols, slot * rows), (255, 0, 255))
+    for i, s in enumerate(sprites):
+        if s is None:
+            continue
+        big = s.resize((s.width * cell, s.height * cell), Image.Resampling.NEAREST)
+        x, y = (i % cols) * slot, (i // cols) * slot
+        sheet.paste(big, (x + (slot - big.width) // 2, y + (slot - big.height) // 2), big)
+    return png(sheet)
+
+
+def test_sheet_frames_share_one_scale():
+    spec = art_spec(ent("orc", "enemy", "-"), fallback_design("x"), (16, 16), 16, SIZES)
+    frames, infos = muse_sheet(
+        spec, sheet_of([block_sprite(14, 14, (60, 160, 60)), block_sprite(14, 20, (60, 160, 60))]),
+        2, 1,
+    )  # fmt: skip
+    assert [i["logical"] for i in infos] == [[14, 14], [14, 20]]
+    heights = [f.getchannel("A").getbbox()[3] - f.getchannel("A").getbbox()[1] for f in frames]
+    assert heights == [11, 16]  # both shrunk by 16/20, not each to fill its frame
+    assert all(f.size == (16, 16) for f in frames)
+    fits, _ = muse_sheet(spec, sheet_of([block_sprite(12, 12, (60, 160, 60))] * 2), 2, 1)
+    assert np.array_equal(np.asarray(fits[0]), np.asarray(fits[1]))  # 1:1, no rescale
+
+
+def test_sheet_sprite_animates_and_retries_empty_cells(budget):
+    d = hero_only()
+    d.entities[0].animations = ["idle", "walk"]
+    knight = block_sprite(12, 14, (180, 180, 200))
+    gappy = sheet_of([knight, knight, None, knight, knight, knight, knight, knight], 4, 30, 500)
+    images = ScriptedImages(budget, [gappy])
+    art = make_art(d, keyword_plan(d), generate=images, options=MuseOptions(sizes=SIZES))
+    first, second = images.requests
+    assert "4 columns by 2 rows" in first.prompt and "walk: right foot forward" in first.prompt
+    assert first.size == (1792, 1024)
+    assert (
+        second.reasoning_strength == "high"
+        and "frames 3 of the 4x2 sheet are empty" in second.prompt
+    )
+    hero = art.filled["hero"]
+    assert hero.meta["anims"] == {"idle": [0, 4], "walk": [4, 4]} and hero.meta["frame"] == [16, 16]
+    assert Image.open(io.BytesIO(hero.png)).size == (16 * 8, 16)

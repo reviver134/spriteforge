@@ -133,6 +133,7 @@ def produce_art(
             sizes=cfg.image.sizes,
             retries=cfg.game.art_retry,
             grid_confidence=cfg.game.native_grid_confidence,
+            sheet_frames=cfg.game.sheet_frames,
         )
         return make_art(
             design,

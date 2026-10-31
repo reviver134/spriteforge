@@ -84,6 +84,60 @@ Requests used 1024x1024 for sprites and 1792x1024 for the `dark_veil` background
   aspect warnings.
 * Not re-run live after the confidence change (the raw images give the same input).
 
+### Sprite sheets: several small frames in one image (added after M10.1, by request)
+
+Muse picks its own pixel count for a sprite that fills the image. Asked for several frames
+in one image, it gives each frame only a slot, so each frame has far fewer, bigger pixels,
+close to the requested grid, and the frames form an animation.
+
+`tools/probe_sheet.py` (2026-10-31, 4 image calls, 16x16 knight unless noted):
+
+| layout | request | returned | pixels per frame |
+| --- | --- | --- | --- |
+| walk cycle 4x1 | 2048x512 (new, accepted) | 3200x800 | 12-13 x 14, all `native` (1:1) |
+| walk cycle 2x2 | 1024x1024 | 1600x1600 | 18-34 x 32-33 |
+| 4 directions x 4 walk frames | 1024x1024 | 1600x1600 | 15-20 x 20-22, same design in all 16 |
+| 8x8 gem sparkle 2x2 | 1024x1024 | 1600x1600 | 6 x 7, `native` (a thin sparkle breaks one frame) |
+
+Single images of the same subjects came back 21-32 pixels tall for 16x16.
+
+**Build.** Muse sprites (not tiles or backgrounds) are now drawn as a sheet
+(`sheet_prompt`): `game.sheet_frames` (4) columns, one row per animation (idle first, at
+most 4 rows), with a pose per frame (walk: left foot forward, passing, right foot forward,
+passing; attack: wind-up, strike, follow-through, recover; pickups: glints; ...). The request
+size follows the sheet's aspect (4x1 -> 2048x512, 4x2 -> 1792x1024, 4x4 -> square).
+`muse_sheet` cuts equal cells and reads each frame:
+
+* all frames of a sheet were drawn at one pixel size, so a frame read at a pitch more than
+  20% off the sheet's median is read again at the median (a rock frame read at half pitch
+  came out twice as big as the others);
+* frames of one row (one animation) share one shrink, so the animation does not pulse;
+  rows are scaled separately, so a wide death row does not shrink the idle row;
+* a frame without a grid is fitted on its own; an empty cell repeats the first frame, and
+  empty cells are a problem for the one retry;
+* one palette limit over the whole strip keeps colours identical across frames.
+
+The sprite becomes a strip with `anims: {name: [start, 4]}`, which the SDK already plays.
+Locked art is reused as the strip. Offline, the mock image provider draws its sprite in
+every cell of a requested sheet. `game.sheet_frames: 1` restores one image per sprite.
+
+**Live (survival prompt, same Spark design shape):** 10 image calls, about $0.24, the same
+as with single images. Pixels per frame, single image -> sheet: slime 50x45 -> 16x15, heart
+31x24 -> 13x13, rock 27x26 -> 19x15, brute 57x51 -> 29x32, gem 16x16 -> 11x12 (8x8 grid),
+magic bolt 20x23 -> 8x8. Every sprite animates (slime: idle, hop, hurt, death; brute: walk,
+attack). Still weak: the cave bat spreads its wings 45 pixels wide in a 12x10 box, so its
+frames are shrunk hard; the design's box is too small for a flying bat. The "fading away"
+death pose came back translucent and keyed to a pink smear; it is now "lying flat,
+defeated".
+
+**Second live build** with the row scale, shared pitch and new death pose
+(`workspace/m10-1-sheets2`): 13 image calls (3 aspect retries), about $0.26, code passed on
+the first attempt. Brute (32x35 per frame for 16x16), portal, rock and heart animate cleanly
+and keep their size across frames. Weak: small creatures whose design box does not fit their
+pose (grub 12x10 drawn tall, bat 12x8 with spread wings, 8x8 gem shard with sparkles) come
+out small and busy after the shrink, and still get aspect warnings. Next lever: let the design
+size follow what Muse drew, or ask for fewer, simpler poses for 8 px sprites.
+
 ### Tests
 
 `tests/test_art_spec.py`: prompt wording (view, grid, scale, anchor, light, palette; no "top"
@@ -91,4 +145,5 @@ in side view), request sizes, exact read-back of a 14x12 sprite blown up x100 wi
 jitter, noise and JPEG (alpha identical, colours within 3, same colour count: JPEG shifts a
 colour by a value or two, so bit-exact colours are not possible), fit fallback on a gradient,
 retry at high reasoning strength, no retry at the cap, and an empty retry keeping the first
-frame. `test_game_make` checks that `art.json` records request size and spec.
+frame. Sheets: prompt layout and poses, one scale per row, an animated strip, and a retry
+when sheet cells are empty. `test_game_make` checks that `art.json` records request size and spec.
