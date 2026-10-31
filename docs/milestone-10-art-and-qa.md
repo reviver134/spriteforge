@@ -183,6 +183,25 @@ Long side of a frame in pixels (median over copies; the target is the design's l
 * Equal-cell slicing is therefore fragile whenever Muse draws a different count; slicing by
   connected components (each copy stands alone on magenta) would not be.
 
+### Two game bugs found by playing the build (SDK fixes)
+
+Playing `workspace/m10-1-sheets3` by hand showed two bugs the bot playtest did not:
+
+* *Projectiles froze where they were fired.* The code set a bolt's velocity, then added it
+  to `this.physics.add.group()`. Phaser 3.90 applies the group's defaults on add, velocity 0
+  included. `sf.js` now keeps a body's velocity on group add unless the group sets a default
+  velocity itself. The bot never noticed: enemies walked into the frozen bolts.
+* *After a restart the player could not move.* `sf.input` cached each scene's keys by scene
+  object; `scene.restart()` keeps the object but Phaser drops its keys, so the restarted
+  scene read dead keys. The cache is now cleared on scene shutdown.
+
+Both were reproduced with Playwright on the live build (old SDK: bolt stays at 160,90,
+player does not move after restart; new SDK: bolt flies, player moves 72 px in 1 s) and are
+covered by `tests/test_game_sdk.py` (fails with the old SDK). Harness quirk found on the way:
+`sfRun` stops after one frame once a `lose` event has been counted, also after a restart, so
+restart tests must step frame by frame. M10.4's QA tests (real keys, restart, lose path) are
+the planned guard against this class of bug.
+
 ### Tests
 
 `tests/test_art_spec.py`: prompt wording (view, grid, scale, anchor, light, palette; no "top"

@@ -67,4 +67,6 @@ speeds and distances you tune in pixels by it. Use only the ids listed in the as
 * Camera: `this.cameras.main.startFollow(player, true, 0.2, 0.2)` for worlds larger than the
   screen; set `this.physics.world.setBounds(...)` to the world size.
 * On lose, show a message and let the player restart with `this.scene.restart()`.
+* Physics groups: `this.physics.add.group()` then `group.add(sprite)` keeps a velocity set
+  before the add (the SDK guards this); input keeps working after `this.scene.restart()`.
 * Keep each file under ~600 lines; split helpers into extra files if needed.

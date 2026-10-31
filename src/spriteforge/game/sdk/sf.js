@@ -73,6 +73,9 @@
     if (!k) {
       k = scene.input.keyboard.addKeys('LEFT,RIGHT,UP,DOWN,W,A,S,D,SPACE,Z,J,X,K,SHIFT');
       keys.set(scene, k);
+      // scene.restart() keeps the scene object but drops its keys: forget them, or the
+      // restarted scene would read dead keys and the player could not move.
+      scene.events.once('shutdown', () => keys.delete(scene));
     }
     const x = (k.RIGHT.isDown || k.D.isDown) - (k.LEFT.isDown || k.A.isDown);
     const y = (k.DOWN.isDown || k.S.isDown) - (k.UP.isDown || k.W.isDown);
@@ -202,6 +205,7 @@
     Object.assign(sf.assets, window.SF_ASSETS || {});
     const [w, h] = opts.size || sf.assets.screen;
     const still = flags.capture || flags.headless;
+    keepVelocityOnGroupAdd();
     sf.game = new Phaser.Game({
       // Canvas even in playtests: text and tile sprites need a renderer; playtests skip
       // drawing by stepping with headlessStep (logic only) instead.
@@ -219,6 +223,24 @@
     });
     sf.game.events.on('prestep', (time, delta) => tick(delta));
   };
+
+  /* Adding a body to a physics group (this.physics.add.group()) applies the group's defaults,
+     including velocity 0, so a projectile given its velocity before group.add() froze where it
+     was fired. Keep the body's velocity unless the group sets a default velocity itself. */
+  function keepVelocityOnGroupAdd() {
+    const G = Phaser.Physics && Phaser.Physics.Arcade && Phaser.Physics.Arcade.Group;
+    if (!G || G.prototype.sfKeepsVelocity) return;
+    const add = G.prototype.createCallbackHandler;
+    G.prototype.createCallbackHandler = function (child) {
+      const v = child.body && {x: child.body.velocity.x, y: child.body.velocity.y};
+      add.call(this, child);
+      const d = this.defaults || {};
+      if (v && child.body && (v.x || v.y) && !d.setVelocityX && !d.setVelocityY) {
+        child.body.setVelocity(v.x, v.y);
+      }
+    };
+    G.prototype.sfKeepsVelocity = true;
+  }
 
   /* ---------- harness hooks: fixed steps, no wall clock ------------------------------------- */
   const manual = {t: 0};
