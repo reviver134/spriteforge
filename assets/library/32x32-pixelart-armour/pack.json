@@ -1,0 +1,257 @@
+{
+  "id": "32x32-pixelart-armour",
+  "title": "32x32 Pixel Art Assets 04: Armour",
+  "author": "unknown",
+  "source_url": "",
+  "license": "CC0",
+  "license_url": "",
+  "license_verified": true,
+  "notes": "Inventory/pickup icons, single 32x32 sprites, transparent background. No license file in the download. License CC0 as stated by the user on 2026-10-30; download page URL not yet recorded. characters/Hands.png is not part of this pack (origin unknown, not imported). Re-ingested from characters/ on 2026-10-30 (no license file in that folder); license as recorded when the pack was first added.",
+  "original_archive": "characters",
+  "redistributable": true,
+  "ai_allowed": true,
+  "faces": "right",
+  "assets": [
+    {
+      "id": "32x32-pixelart-armour/magiciansrobe",
+      "file": "32x32-pixelart-armour/equipment/magiciansrobe.png",
+      "category": "equipment",
+      "subcategory": "armour",
+      "name": "magicians robe",
+      "tags": [
+        "armour",
+        "cloth",
+        "icon",
+        "light",
+        "mage",
+        "magiciansrobe",
+        "outfit",
+        "robe"
+      ],
+      "size": [
+        32,
+        32
+      ],
+      "cell": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "colors": 15,
+      "opaque_bbox": [
+        1,
+        4,
+        31,
+        29
+      ],
+      "transparent_background": true,
+      "sha256": "a27bdb5af24e768db88532fc15a6d362a4b266baf9d4e035c8db94cd74427ace"
+    },
+    {
+      "id": "32x32-pixelart-armour/whiteshirt",
+      "file": "32x32-pixelart-armour/equipment/whiteshirt.png",
+      "category": "equipment",
+      "subcategory": "armour",
+      "name": "white shirt",
+      "tags": [
+        "armour",
+        "cloth",
+        "icon",
+        "light",
+        "noble",
+        "outfit",
+        "whiteshirt"
+      ],
+      "size": [
+        32,
+        32
+      ],
+      "cell": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "colors": 12,
+      "opaque_bbox": [
+        2,
+        1,
+        30,
+        31
+      ],
+      "transparent_background": true,
+      "sha256": "244ff62dc552e77a1391bd59f87796886ee19ef0f139659fc74f94c6ec29fb94"
+    },
+    {
+      "id": "32x32-pixelart-armour/velvetoutfit",
+      "file": "32x32-pixelart-armour/equipment/velvetoutfit.png",
+      "category": "equipment",
+      "subcategory": "armour",
+      "name": "velvet outfit",
+      "tags": [
+        "armour",
+        "cloth",
+        "icon",
+        "light",
+        "noble",
+        "outfit",
+        "velvetoutfit"
+      ],
+      "size": [
+        32,
+        32
+      ],
+      "cell": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "colors": 23,
+      "opaque_bbox": [
+        1,
+        1,
+        31,
+        31
+      ],
+      "transparent_background": true,
+      "sha256": "abf1e324a49653f044f7e6b1d48bfffb8c87c69a11caf7d083c6a18bf3429950"
+    },
+    {
+      "id": "32x32-pixelart-armour/chainmail",
+      "file": "32x32-pixelart-armour/equipment/chainmail.png",
+      "category": "equipment",
+      "subcategory": "armour",
+      "name": "chainmail",
+      "tags": [
+        "armour",
+        "chainmail",
+        "icon",
+        "mail",
+        "medium",
+        "metal",
+        "outfit"
+      ],
+      "size": [
+        32,
+        32
+      ],
+      "cell": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "colors": 17,
+      "opaque_bbox": [
+        1,
+        1,
+        31,
+        31
+      ],
+      "transparent_background": true,
+      "sha256": "5d49d2fbeedcdfe1e30e0ec4b32e52fc90b505e2ce6cf883787529b477be7688"
+    },
+    {
+      "id": "32x32-pixelart-armour/monksrobe",
+      "file": "32x32-pixelart-armour/equipment/monksrobe.png",
+      "category": "equipment",
+      "subcategory": "armour",
+      "name": "monks robe",
+      "tags": [
+        "armour",
+        "cloth",
+        "hood",
+        "icon",
+        "light",
+        "monksrobe",
+        "outfit",
+        "robe"
+      ],
+      "size": [
+        32,
+        32
+      ],
+      "cell": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "colors": 13,
+      "opaque_bbox": [
+        1,
+        1,
+        31,
+        31
+      ],
+      "transparent_background": true,
+      "sha256": "aa58c29ef386376232f367c321b7169db3349a515c9c709722d3b58f46b0e86f"
+    },
+    {
+      "id": "32x32-pixelart-armour/platemail",
+      "file": "32x32-pixelart-armour/equipment/platemail.png",
+      "category": "equipment",
+      "subcategory": "armour",
+      "name": "plate mail",
+      "tags": [
+        "armour",
+        "heavy",
+        "icon",
+        "mail",
+        "metal",
+        "outfit",
+        "plate",
+        "platemail"
+      ],
+      "size": [
+        32,
+        32
+      ],
+      "cell": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "colors": 11,
+      "opaque_bbox": [
+        1,
+        1,
+        31,
+        31
+      ],
+      "transparent_background": true,
+      "sha256": "a66ba8cea817c20ef0fa9e790cb9b23b8489672b36b7cfb4651ff895969317b2"
+    },
+    {
+      "id": "32x32-pixelart-armour/leatherjerkin",
+      "file": "32x32-pixelart-armour/equipment/leatherjerkin.png",
+      "category": "equipment",
+      "subcategory": "armour",
+      "name": "leather jerkin",
+      "tags": [
+        "armour",
+        "icon",
+        "leather",
+        "leatherjerkin",
+        "light",
+        "outfit"
+      ],
+      "size": [
+        32,
+        32
+      ],
+      "cell": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "colors": 10,
+      "opaque_bbox": [
+        2,
+        1,
+        30,
+        31
+      ],
+      "transparent_background": true,
+      "sha256": "6263a0bcfaf356d0ce56b7e1e7a1c842104298004a20f7e9493fcd7a3996bf6e"
+    }
+  ],
+  "usage": "ship"
+}

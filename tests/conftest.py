@@ -6,6 +6,12 @@ from spriteforge.core.gates import ScriptedHuman
 from spriteforge.core.state import Store
 
 
+@pytest.fixture(autouse=True)
+def empty_asset_library(tmp_path_factory, monkeypatch):
+    """Tests see an empty asset library unless they build one, so G2 keeps its Muse path."""
+    monkeypatch.setenv("SPRITEFORGE_LIBRARY", str(tmp_path_factory.mktemp("no-library")))
+
+
 @pytest.fixture
 def scripted_human():
     return ScriptedHuman
