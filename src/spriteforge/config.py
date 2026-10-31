@@ -14,6 +14,8 @@ class ImageConfig(Schema):
     model: str
     generate_path: str
     edit_path: str
+    # Sizes Muse Image has accepted live; requests pick the one nearest the subject's aspect.
+    sizes: list[tuple[int, int]] = Field(default_factory=lambda: [(1024, 1024)], min_length=1)
 
 
 class LLMConfig(Schema):
@@ -63,6 +65,8 @@ class GameConfig(Schema):
 
     max_repairs: int = Field(default=3, ge=0, le=6)  # Programmer fix rounds after failed checks
     max_art_calls: int = Field(default=16, ge=0, le=40)  # Muse Image calls per build
+    art_retry: int = Field(default=1, ge=0, le=2)  # redraws of a Muse frame that fails checks
+    native_grid_confidence: float = Field(default=0.6, ge=0, le=1)  # big-pixel grid read-back
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)

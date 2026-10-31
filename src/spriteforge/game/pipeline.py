@@ -28,7 +28,16 @@ from spriteforge.providers.mock import MockImageProvider, MockLLMProvider
 from spriteforge.providers.muse_image import MuseImageProvider
 from spriteforge.providers.muse_spark import MuseSparkProvider
 
-from .art import ArtPlan, ArtResult, art_prompt, art_sheet, keyword_plan, library_context, make_art
+from .art import (
+    ArtPlan,
+    ArtResult,
+    MuseOptions,
+    art_prompt,
+    art_sheet,
+    keyword_plan,
+    library_context,
+    make_art,
+)
 from .build import build_game
 from .codegen import (
     GameCode,
@@ -120,8 +129,18 @@ def produce_art(
 ) -> ArtResult:
     generate, close = models.image_generator()
     try:
+        options = MuseOptions(
+            sizes=cfg.image.sizes,
+            retries=cfg.game.art_retry,
+            grid_confidence=cfg.game.native_grid_confidence,
+        )
         return make_art(
-            design, plan, generate=generate, max_calls=cfg.game.max_art_calls, previous=previous
+            design,
+            plan,
+            generate=generate,
+            max_calls=cfg.game.max_art_calls,
+            previous=previous,
+            options=options,
         )
     finally:
         close()
@@ -139,6 +158,9 @@ def art_summary(art: ArtResult) -> dict:
                 "source": f.source,
                 "reasons": f.reasons,
                 "muse_prompt": f.record.get("muse_prompt"),
+                "request": f.record.get("request"),
+                "spec": f.record.get("spec"),
+                "frame": f.record.get("frame"),
             }
             for eid, f in art.filled.items()
         ],

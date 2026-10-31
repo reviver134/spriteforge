@@ -10,14 +10,21 @@ backdrop, or `muse`. Code enforces the rule, the model only proposes:
   asset as style reference (never an `ai_allowed: false` pack; text-only if none exists);
 * there is no "placeholder" choice: greybox art appears only when the per-build image-call cap
   is reached or Muse fails, and each one is reported as a warning;
-* Muse output is keyed, cropped, mode-filtered to the entity's size and snapped to its own 16
-  main colours; the library reference steers Muse's style. Unchanged requests reuse earlier
-  Muse art (locked) and changed ones become edits of the previous image.
+* every Muse request renders an `ArtSpec` built by code: view, exact pixel grid, size against
+  the hero, anchor, facing, light, outline and palette, sent at the verified image size closest
+  to the subject's aspect ratio;
+* Muse output is keyed and read back cell by cell when it was drawn on a big-pixel grid
+  (`pixel.grid`), else cropped and mode-filtered to the entity's size; then snapped to its own
+  16 main colours. `check_frame` catches wrong aspect, fill, empty images and seams; one retry
+  at high reasoning strength fixes them, or the frame is kept with a warning. The library
+  reference steers Muse's style. Unchanged requests reuse earlier Muse art (locked) and
+  changed ones become edits of the previous image.
 
 Nothing here talks to a model directly: callers pass `generate(request, edit) -> png bytes`.
 """
 
 import io
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -29,6 +36,7 @@ from pydantic import Field
 
 from spriteforge.agents.models import Contract
 from spriteforge.library.store import contact_sheet, library_root, load_packs, search
+from spriteforge.pixel.grid import detect_cells, sample_cells
 from spriteforge.pixel.palette import extract_palette, quantize
 from spriteforge.pixel.schemas import ProcessingOptions, ProcessingReport
 from spriteforge.pixel.source import mode_resize, prepare_source
@@ -39,7 +47,7 @@ from .design import Entity, GameDesign
 from .tilesets import backdrop_layers, load_tilesets, pick_variant, tile_ids, tile_image
 
 MAX_OBJECT_PX = 128
-MUSE_SIZE = (1024, 1024)  # the only size verified live (returns 1600x1600)
+SQUARE = (1024, 1024)  # the size every config verifies; others come from `image.sizes`
 PERSPECTIVE_TAGS = {"side": {"side-view", "side", "platformer"}, "topdown": {"top-down"}}
 CAMERA_TAGS = {"side-view": PERSPECTIVE_TAGS["side"], "top-down": PERSPECTIVE_TAGS["topdown"]}
 # Muse calls go to what the player needs to read the game first.
@@ -425,13 +433,16 @@ def resolve_plan(plan: ArtPlan, design: GameDesign) -> tuple[dict[str, ArtPick],
 # --- turning images into game art -----------------------------------------------------------
 
 
-def fit_sprite(image: Image.Image, size: tuple[int, int], anchor: str = "bottom") -> Image.Image:
+def fit_sprite(
+    image: Image.Image, size: tuple[int, int], anchor: str = "bottom", grow: bool = True
+) -> Image.Image:
     """Crop to content and shrink (mode filter, aspect kept) into a w x h cell."""
     w, h = size
     if bbox := image.getchannel("A").getbbox():
         image = image.crop(bbox)
     k = min(w / image.width, h / image.height)
-    k = int(k) if k >= 1 else k  # grow only by whole pixels; shrink with the mode filter
+    # grow only by whole pixels (never for art already at its native grid); shrink by mode
+    k = (int(k) if grow else 1) if k >= 1 else k
     target = (max(1, round(image.width * k)), max(1, round(image.height * k)))
     small = mode_resize(image, target) if target != image.size else image
     cell = Image.new("RGBA", (w, h))
@@ -468,8 +479,8 @@ def limit_palette(image: Image.Image, colors: int = 16) -> Image.Image:
     return Image.fromarray(rgba)
 
 
-def anchor_for(e: Entity) -> str:
-    return "bottom" if e.role in {"player", "enemy", "prop"} else "center"
+def anchor_for(role: str) -> str:
+    return "bottom" if role in {"player", "enemy", "prop"} else "center"
 
 
 def sprite_meta(e: Entity, frame: tuple[int, int], anims: dict[str, list[int]], **extra) -> dict:
@@ -508,7 +519,7 @@ def actor_art(e: Entity, actor: Actor, size, topdown: bool, faces: str, hue: str
 
 
 def object_art(e: Entity, asset: dict, size) -> Filled:
-    frames = [fit_sprite(f, size, anchor_for(e)) for f in asset_frames(asset)][:8]
+    frames = [fit_sprite(f, size, anchor_for(e.role)) for f in asset_frames(asset)][:8]
     strip = Image.new("RGBA", (size[0] * len(frames), size[1]))
     for i, f in enumerate(frames):
         strip.paste(f, (i * size[0], 0))
@@ -550,42 +561,219 @@ def placeholder(e: Entity, size) -> Image.Image:
     return img
 
 
-def muse_prompt(e: Entity, design: GameDesign, pick: ArtPick, size, has_ref: bool) -> str:
-    view = "side view" if design.camera == "side-view" else "3/4 top-down view"
-    w, h = size
+# --- the art spec: what every Muse request states, built by code -----------------------------
+
+VIEWS = {
+    "top-down": "top-down 3/4 view: the camera is tilted about 45°, we see the top and the "
+    "front of the subject",
+    "side-view": "flat side view (profile), the camera level with the subject",
+}
+# Side-view prompts must not say "top": Muse then tilts the camera.
+LIGHT = {"top-down": "light from the top-left", "side-view": "light from the upper left"}
+# Hex values for colour words in the design's look, when no style example gives a palette.
+COLOR_HEX = {
+    "red": "#C83232", "crimson": "#A01E32", "orange": "#E07828", "yellow": "#F0D040",
+    "gold": "#E0B030", "golden": "#E0B030", "green": "#3C9C3C", "lime": "#96D23C",
+    "teal": "#1E9696", "cyan": "#32C8DC", "blue": "#3264D2", "navy": "#1E2864",
+    "purple": "#8040C0", "violet": "#9650D2", "pink": "#E070B0", "magenta": "#C83CA0",
+    "brown": "#7C5030", "tan": "#C8A078", "black": "#141418", "white": "#F0F0F0",
+    "grey": "#808088", "gray": "#808088", "silver": "#BEBEC8", "bone": "#E6DCC0",
+}  # fmt: skip
+
+
+class ArtSpec(Contract):
+    role: str
+    view: str
+    grid: tuple[int, int]
+    scale_note: str
+    anchor: str
+    facing: str
+    light: str
+    outline: str
+    palette: list[str] = Field(max_length=16)
+    request_size: tuple[int, int]
+    look: str = ""  # the design's art direction, for text-only requests
+
+
+def look_palette(text: str) -> list[str]:
+    """Hex codes and colour words named in the design's look, in order (<= 16)."""
+    found = [m.upper() for m in re.findall(r"#[0-9a-fA-F]{6}\b", text)]
+    found += [COLOR_HEX[w] for w in re.findall(r"[a-z]+", text.lower()) if w in COLOR_HEX]
+    return list(dict.fromkeys(found))[:16]
+
+
+def request_size(grid: tuple[int, int], sizes: list[tuple[int, int]]) -> tuple[int, int]:
+    """The verified Muse size whose aspect ratio is closest to the grid's."""
+    want = math.log(grid[0] / grid[1])
+    return min((tuple(s) for s in sizes), key=lambda s: (abs(math.log(s[0] / s[1]) - want), s))
+
+
+def scale_note(e: Entity, grid: tuple[int, int], hero_px: int) -> str:
+    hero = f"the hero is {hero_px} px tall"
+    if e.role == "player":
+        return f"this is the hero, {hero_px} px tall"
     if e.role == "tile":
-        shape = (
-            f"One seamless square game tile that fills the whole image edge to edge, {view}, "
-            f"must repeat without visible seams; shown at {w}x{h} pixels."
-        )
-    elif e.role == "background":
-        shape = f"A wide game background scene, {view}, no characters; shown at {w}x{h} pixels."
+        return f"{hero}; one tile is {grid[1]} px"
+    if e.role == "background":
+        return f"{hero}; the scene is {grid[1]} px tall"
+    ratio = grid[1] / hero_px
+    words_ = {0.25: "a quarter", 0.5: "half", 0.75: "three quarters", 1: "the same height as"}
+    near = min(words_, key=lambda r: abs(r - ratio))
+    if abs(near - ratio) < 0.08:
+        compared = f"{words_[near]} the hero" if near != 1 else "the same height as the hero"
+    else:
+        compared = f"{ratio:.1f}× the hero's height"
+    return f"{hero}; this is {grid[1]} px, {compared}"
+
+
+def art_spec(
+    e: Entity,
+    design: GameDesign,
+    grid: tuple[int, int],
+    hero_px: int,
+    sizes: list[tuple[int, int]],
+    reference: Image.Image | None = None,
+) -> ArtSpec:
+    sprite = e.role not in {"tile", "background"}
+    anchor = {
+        "tile": "fills the whole grid edge to edge (full bleed) and repeats without seams",
+        "background": "fills the whole image edge to edge (full bleed)",
+        "pickup": "centred in the grid",
+        "projectile": "centred in the grid",
+    }.get(e.role, "feet (or base) at the bottom centre of the grid")
+    palette = (
+        extract_palette(reference, 16).colors
+        if reference is not None
+        else look_palette(design.look)
+    )
+    return ArtSpec(
+        role=e.role,
+        view=VIEWS[design.camera],
+        grid=grid,
+        scale_note=scale_note(e, grid, hero_px),
+        anchor=anchor,
+        facing="pointing right" if e.role == "projectile" else "facing right" if sprite else "",
+        light=LIGHT[design.camera],
+        outline="a 1 px dark outline around the subject" if sprite else "no outline",
+        palette=palette,
+        request_size=request_size(grid, sizes),
+        look=design.look,
+    )
+
+
+def muse_prompt(spec: ArtSpec, pick: ArtPick, has_ref: bool = False) -> str:
+    w, h = spec.grid
+    # Probe 2026-10-31: Muse draws clean big pixels but picks its own count (a 16x16 knight
+    # came back 21x27 cells); naming the block size as a fraction of the image did not help.
+    cells = (
+        f"Drawn on a {w}×{h} grid of big square pixels, one solid colour per cell, no "
+        "anti-aliasing, no gradients inside a cell"
+    )
+    if spec.role == "tile":
+        shape = f"One seamless square game tile. {cells}; the grid covers the whole image."
+    elif spec.role == "background":
+        shape = f"A game background scene, no characters. {cells}; the grid covers the whole image."
     else:
         shape = (
-            f"One single game sprite, {view}, facing right, centred, whole object visible, "
-            "on a flat pure magenta (#FF00FF) background with nothing else in the image; "
-            f"shown at {w}x{h} pixels, so use bold shapes and a dark outline."
+            f"One single game sprite, whole object visible. {cells}; the sprite fills that "
+            "grid, centred in the image, on a flat pure magenta (#FF00FF) background with "
+            "nothing else in the image."
         )
+    details = [
+        f"View: {spec.view}.",
+        f"Size: {spec.scale_note}.",
+        f"Placement: {spec.anchor}.",
+        f"Facing: {spec.facing}." if spec.facing else "",
+        f"Lighting: {spec.light}.",
+        f"Outline: {spec.outline}.",
+        f"Palette: use only these colours: {', '.join(spec.palette)}." if spec.palette else "",
+    ]
     style = (
-        " Match the reference image's pixel-art style exactly: outline weight, shading, palette "
+        "Match the reference image's pixel-art style exactly: outline weight, shading, palette "
         "and level of detail. The reference is a style example only; do not copy its subject."
         if has_ref
-        else f" Crisp retro pixel art, limited palette, hard pixel edges. Look: {design.look}."
+        else f"Crisp retro pixel art, hard pixel edges. Look: {spec.look}."
     )
     return (
         f"Pixel art for a 2D game. Draw: {pick.prompt.strip().rstrip('.')}. Draw it once, in "
-        f"one state only. {shape}{style} No text, no lettering, no frame, no drop shadow."
+        f"one state only. {shape} {' '.join(d for d in details if d)} {style} No text, no "
+        "lettering, no frame, no drop shadow."
     )
 
 
-def muse_frame(e: Entity, raw: bytes, size) -> Image.Image:
+def muse_frame(spec: ArtSpec, raw: bytes, grid_confidence: float = 0.6):
+    """Raw Muse image -> a frame of `spec.grid` size, and how it was made. Big-pixel art is
+    read back one cell per pixel ("native"); anything else is fitted ("fit")."""
     image = Image.open(io.BytesIO(raw)).convert("RGBA")
-    if e.role == "tile":
-        return fit_tile(image, size)
-    if e.role == "background":
-        return mode_resize(image, size).convert("RGBA")
-    image = prepare_source(image, ProcessingOptions(), ProcessingReport())
-    return fit_sprite(image, size, anchor_for(e))
+    size, sprite = spec.grid, spec.role not in {"tile", "background"}
+    info: dict = {"raw_size": list(image.size), "mode": "fit"}
+    if sprite:
+        image = prepare_source(image, ProcessingOptions(detect_grid=False), ProcessingReport())
+        if not image.getbbox():
+            return Image.new("RGBA", size), {**info, "subject": None}
+    info["subject"] = list(image.size)
+    grid = detect_cells(image)
+    if grid:
+        info.update(cell=round(grid.pitch, 1), confidence=round(grid.confidence, 2))
+    small = sample_cells(image, grid) if grid and grid.confidence >= grid_confidence else None
+    if small is not None and sprite and (bbox := small.getbbox()):
+        small = small.crop(bbox)
+        info["logical"] = list(small.size)
+        native = small.width <= size[0] and small.height <= size[1]
+        # Muse often draws more cells than asked: shrink the clean cells, not the raw image.
+        info["mode"] = "native" if native else "native-resized"
+        return fit_sprite(small, size, anchor_for(spec.role), grow=not native), info
+    elif small is not None and not sprite:
+        info["logical"] = list(small.size)
+        info["mode"] = "native" if small.size == tuple(size) else "native-resized"
+        image = small
+    if spec.role == "tile":
+        return fit_tile(image, size), info
+    if spec.role == "background":
+        return mode_resize(image, size).convert("RGBA"), info
+    return fit_sprite(image, size, anchor_for(spec.role)), info
+
+
+def seams_match(tile: Image.Image) -> bool:
+    """Opposite edges differ no more than neighbouring columns/rows inside the tile do.
+    (`pixel.validate.seam_scores` takes the maximum difference, which flags every texture.)"""
+    rgb = np.asarray(tile.convert("RGB"), dtype=float)
+    for axis in (0, 1):
+        inner = np.abs(np.diff(rgb, axis=axis)).mean()
+        first, last = (rgb[0], rgb[-1]) if axis == 0 else (rgb[:, 0], rgb[:, -1])
+        if np.abs(first - last).mean() > 2 * inner + 8:
+            return False
+    return True
+
+
+def check_frame(spec: ArtSpec, frame: Image.Image, info: dict) -> list[str]:
+    """What is wrong with a processed Muse frame, as sentences for the retry prompt."""
+    w, h = spec.grid
+    if not frame.getchannel("A").getbbox():
+        return ["no subject: nothing usable was drawn on the magenta background"]
+    problems = []
+    if spec.role == "tile" and not seams_match(frame):
+        problems.append(
+            "the tile does not repeat: its left/right or top/bottom edges do not line up"
+        )
+    if spec.role in {"tile", "background"}:
+        return problems
+    sw, sh = info.get("subject") or frame.getchannel("A").getbbox()[2:]
+    ratio = (sw / sh) / (w / h)
+    if not 1 / 1.35 <= ratio <= 1.35:
+        problems.append(
+            f"the subject is {'too wide' if ratio > 1 else 'too tall'} for its {w}×{h} grid "
+            f"(aspect {sw / sh:.2f}, wanted about {w / h:.2f})"
+        )
+    fill = float((np.asarray(frame)[..., 3] > 0).mean())
+    if fill < 0.2:
+        problems.append(f"the subject fills only {fill:.0%} of its {w}×{h} grid; draw it bigger")
+    elif fill > 0.98:
+        problems.append(
+            "the subject fills the whole grid like a solid block; draw just the object on "
+            "the magenta background"
+        )
+    return problems
 
 
 Generate = Callable[[ImageRequest, bool], bytes]
@@ -631,9 +819,11 @@ def make_art(
     generate: Generate | None,
     max_calls: int = 8,
     previous: Callable[[str], dict | None] = lambda eid: None,
+    options: "MuseOptions | None" = None,
 ) -> ArtResult:
     """Resolve the plan and produce every entity's art. `previous(entity)` returns an earlier
     version's Muse record ({"prompt", "reference", "size", "raw", "png", "version"})."""
+    options = options or MuseOptions()
     picks, warnings = resolve_plan(plan, design)
     tilesets = {ts["id"]: ts for ts in load_tilesets(design.camera)}
     used_sets = {
@@ -653,6 +843,7 @@ def make_art(
     used_packs: set[str] = set()
     filled: dict[str, Filled] = {}
     calls = 0
+    hero_px = next(e.height for e in design.entities if e.role == "player") * scale
     order = sorted(entities.values(), key=lambda e: PRIORITY.index(e.role))
     for e in order:
         p = picks[e.id]
@@ -694,9 +885,9 @@ def make_art(
             )
             used_packs.add(ts["pack"])
         else:
-            filled[e.id], calls = muse_art(
-                e, design, p, size, generate, previous, calls, max_calls, warnings
-            )
+            muse = Muse(generate, previous, max_calls, options, warnings, hero_px, calls)
+            filled[e.id] = muse.art(e, design, p, screen if e.role == "background" else size)
+            calls = muse.calls
     credits = [
         f"{packs[pid].title} by {packs[pid].author} - {packs[pid].license}"
         + (f" ({packs[pid].source_url})" if packs[pid].source_url else "")
@@ -708,58 +899,128 @@ def make_art(
     return ArtResult(screen, scale, background, filled, picks, warnings, credits)
 
 
-def muse_art(e, design, p, size, generate, previous, calls, max_calls, warnings):
-    old = previous(e.id)
-    key = {"prompt": p.prompt, "reference": p.reference, "size": list(size)}
-    if old and all(old.get(k) == v for k, v in key.items()):
-        reasons = [p.reason or "Muse art", "unchanged request: reused, no image call"]
-        f = single_frame(
-            e,
-            Image.open(io.BytesIO(old["png"])).convert("RGBA"),
-            f"muse (locked, from v{old['version']})",
-            reasons,
-            {**key, "raw": old["raw"], "reused_from": old["version"]},
-        )
-        return f, calls
-    if generate is None or calls >= max_calls:
-        why = "no image provider" if generate is None else f"image-call cap ({max_calls}) reached"
-        warnings.append(f"{e.id}: {why}; greybox placeholder used")
-        return single_frame(e, placeholder(e, size), "placeholder", [why]), calls
-    ref = reference_image(p.reference) if p.reference else None
-    prompt = muse_prompt(e, design, p, size, ref is not None)
-    refs = [png(ref)] if ref is not None else []
-    edit_of = None
-    if old and old.get("raw"):  # feedback changed this entity: edit the previous image
-        refs = [old["raw"], *refs]
-        prompt = (
-            "Revise the FIRST image (the current sprite) as described; keep its framing and "
-            + ("the second image's style. " if ref is not None else "its style. ")
-            + prompt
-        )
-        edit_of = old["version"]
-    calls += 1
-    try:
-        raw = generate(ImageRequest(prompt=prompt, size=MUSE_SIZE, references=refs), bool(refs))
-        frame = muse_frame(e, raw, size)
-    except Exception as exc:  # noqa: BLE001 -- one failed image must not sink the build
-        detail = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
-        warnings.append(f"{e.id}: Muse Image failed ({type(exc).__name__}: {detail}); "
-                        "greybox placeholder used")  # fmt: skip
-        return single_frame(e, placeholder(e, size), "placeholder", ["Muse failed"]), calls
-    if not frame.getchannel("A").getbbox():
-        warnings.append(f"{e.id}: Muse image had no usable subject; greybox placeholder used")
-        return single_frame(e, placeholder(e, size), "placeholder", ["empty Muse image"]), calls
-    frame = limit_palette(frame)
-    reasons = [
-        p.reason or "Muse art",
-        f"style example: {p.reference}"
-        if ref is not None
-        else "text only (no AI-allowed style example)",
-    ]
-    if edit_of:
-        reasons.append(f"edited from v{edit_of} per feedback")
-    record = {**key, "raw": raw, "muse_prompt": prompt, "edit_of": edit_of}
-    return single_frame(e, frame, "muse", reasons, record), calls
+@dataclass
+class MuseOptions:
+    sizes: list[tuple[int, int]] = field(default_factory=lambda: [SQUARE])  # `image.sizes`
+    retries: int = 1  # `game.art_retry`: redraws of a frame that fails `check_frame`
+    grid_confidence: float = 0.6  # `game.native_grid_confidence`
+
+
+@dataclass
+class Muse:
+    """One entity's Muse Image art under the build's call cap (`calls` counts across)."""
+
+    generate: Generate | None
+    previous: Callable[[str], dict | None]
+    max_calls: int
+    options: MuseOptions
+    warnings: list[str]
+    hero_px: int
+    calls: int = 0
+
+    def art(self, e: Entity, design: GameDesign, p: ArtPick, size) -> Filled:
+        old = self.previous(e.id)
+        key = {"prompt": p.prompt, "reference": p.reference, "size": list(size)}
+        if old and all(old.get(k) == v for k, v in key.items()):
+            reasons = [p.reason or "Muse art", "unchanged request: reused, no image call"]
+            return single_frame(
+                e,
+                Image.open(io.BytesIO(old["png"])).convert("RGBA"),
+                f"muse (locked, from v{old['version']})",
+                reasons,
+                {**key, "raw": old["raw"], "reused_from": old["version"]},
+            )
+        if self.generate is None or self.calls >= self.max_calls:
+            why = (
+                "no image provider"
+                if self.generate is None
+                else f"image-call cap ({self.max_calls}) reached"
+            )
+            return self.greybox(e, size, why)
+        ref = reference_image(p.reference) if p.reference else None
+        spec = art_spec(e, design, tuple(size), self.hero_px, self.options.sizes, ref)
+        prompt = muse_prompt(spec, p, ref is not None)
+        refs = [png(ref)] if ref is not None else []
+        edit_of = None
+        if old and old.get("raw"):  # feedback changed this entity: edit the previous image
+            refs = [old["raw"], *refs]
+            prompt = (
+                "Revise the FIRST image (the current sprite) as described; keep its framing and "
+                + ("the second image's style. " if ref is not None else "its style. ")
+                + prompt
+            )
+            edit_of = old["version"]
+        request = ImageRequest(prompt=prompt, size=spec.request_size, references=refs)
+        best, problems, history, made = None, [], [], 0
+        for attempt in range(1 + self.options.retries):
+            if attempt:
+                if self.calls >= self.max_calls:
+                    self.warnings.append(
+                        f"{e.id}: {'; '.join(problems)}; no retry, image-call cap "
+                        f"({self.max_calls}) reached"
+                    )
+                    break
+                request = request.model_copy(
+                    update={
+                        "prompt": "The last attempt was wrong: " + "; ".join(problems)
+                        + ". Fix that. " + prompt,
+                        "reasoning_strength": "high",
+                    }
+                )  # fmt: skip
+            self.calls += 1
+            made += 1
+            try:
+                raw = self.generate(request, bool(refs))
+                frame, info = muse_frame(spec, raw, self.options.grid_confidence)
+            except Exception as exc:  # noqa: BLE001 -- one failed image must not sink the build
+                detail = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
+                self.warnings.append(f"{e.id}: Muse Image failed ({type(exc).__name__}: "
+                                     f"{detail})")  # fmt: skip
+                break
+            problems = check_frame(spec, frame, info)
+            history.append(problems)
+            if frame.getchannel("A").getbbox():
+                best = (raw, frame, info, request, problems)
+            if not problems:
+                break
+        if best is None:
+            return self.greybox(e, size, "no usable Muse image")
+        raw, frame, info, request, problems = best  # the kept frame's own problems
+        if problems:
+            self.warnings.append(f"{e.id}: accepted with problems: {'; '.join(problems)}")
+        frame = limit_palette(frame)
+        cells = "x".join(map(str, info["logical"])) + " cells, " if "logical" in info else ""
+        readback = f"{info['mode']} ({cells}from {info['raw_size'][0]}x{info['raw_size'][1]})"
+        reasons = [
+            p.reason or "Muse art",
+            f"style example: {p.reference}"
+            if ref is not None
+            else "text only (no AI-allowed style example)",
+            readback,
+        ]
+        if len(history) > 1:
+            reasons.append(f"retried at high reasoning strength: {'; '.join(history[0])}")
+        if edit_of:
+            reasons.append(f"edited from v{edit_of} per feedback")
+        record = {
+            **key,
+            "raw": raw,
+            "muse_prompt": request.prompt,
+            "edit_of": edit_of,
+            "request": {
+                "size": list(request.size),
+                "reasoning_strength": request.reasoning_strength,
+                "calls": made,
+            },
+            "spec": spec.model_dump(mode="json"),
+            "frame": info,
+            "problems": problems,
+        }
+        return single_frame(e, frame, "muse", reasons, record)
+
+    def greybox(self, e: Entity, size, why: str) -> Filled:
+        self.warnings.append(f"{e.id}: {why}; greybox placeholder used")
+        return single_frame(e, placeholder(e, size), "placeholder", [why])
 
 
 def art_sheet(filled: dict[str, Filled], scale: int = 3) -> bytes | None:

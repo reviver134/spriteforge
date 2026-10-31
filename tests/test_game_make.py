@@ -235,6 +235,12 @@ def test_make_game_offline_end_to_end(tmp_path):
     # Empty library (tests): every entity is drawn by (mock) Muse Image, none is greybox.
     assert {a["source"] for a in result.report["art"]} == {"muse"}
     assert result.report["model_calls"]["image"] == 4
+    # Each Muse request is recorded with its size and art spec.
+    art = {e["entity"]: e for e in json.loads((out / "art.json").read_text())["entities"]}
+    assert art["gem"]["request"]["size"] == [1024, 1024]
+    assert art["gem"]["spec"]["grid"] == [8, 8] and "8×8 grid" in art["gem"]["muse_prompt"]
+    assert art["floor"]["spec"]["anchor"].startswith("fills the whole grid")
+    assert art["slime"]["frame"]["mode"] in {"native", "native-resized", "fit"}
 
 
 def test_repair_loop_feeds_failures_back(tmp_path, budget):
