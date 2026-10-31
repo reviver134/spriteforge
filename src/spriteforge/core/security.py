@@ -26,6 +26,9 @@ def redact(value: Any) -> Any:
             k: "[REDACTED]"
             if re.search(r"key|token|authorization|secret", k, re.IGNORECASE)
             and not (k in USAGE_COUNTERS and (v is None or (type(v) is int and v >= 0)))
+            # "key" can also be a game entity id (a door key): a dict/list entry is not a
+            # credential, so it is scrubbed recursively instead of being blanked.
+            and not (k == "key" and isinstance(v, (dict, list, tuple)))
             else redact(v)
             for k, v in value.items()
         }

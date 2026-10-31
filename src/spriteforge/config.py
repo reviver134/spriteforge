@@ -1,7 +1,8 @@
 from pathlib import Path
+from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 
 class Schema(BaseModel):
@@ -41,6 +42,30 @@ class MemoryConfig(Schema):
 class PreviewConfig(Schema):
     max_image_calls: int = Field(default=16, ge=0, le=150)
     mood_board: bool = True
+    # game: after G1 Spark writes a design (G2 gate) and then the game's code (G4 playtest
+    # gate); art comes from the library first, Muse Image for the rest (`game` settings).
+    # muse: the original Muse Image building-block preview.
+    mode: Literal["game", "muse"] = "game"
+
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_kit_settings(cls, data):
+        """Runs saved before kits were removed: mode 'kit' and preview.max_art_calls."""
+        if isinstance(data, dict):
+            data = {k: v for k, v in data.items() if k != "max_art_calls"}
+            if data.get("mode") == "kit":
+                data["mode"] = "game"
+        return data
+
+
+class GameConfig(Schema):
+    """Prompt-driven games: Spark writes the code, the harness checks and playtests it."""
+
+    max_repairs: int = Field(default=3, ge=0, le=6)  # Programmer fix rounds after failed checks
+    max_art_calls: int = Field(default=16, ge=0, le=40)  # Muse Image calls per build
+    max_code_kb: int = Field(default=200, ge=10, le=1000)
+    playtest_fps: int = Field(default=30, ge=10, le=60)
+    record_seconds: int = Field(default=20, ge=5, le=60)
 
 
 class RouterConfig(Schema):
@@ -54,6 +79,7 @@ class Config(Schema):
     workspace: Path
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     preview: PreviewConfig = Field(default_factory=PreviewConfig)
+    game: GameConfig = Field(default_factory=GameConfig)
     router: RouterConfig = Field(default_factory=RouterConfig)
     image: ImageConfig
     llm: LLMConfig

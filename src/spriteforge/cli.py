@@ -10,6 +10,7 @@ from spriteforge.app.server import create_app
 from spriteforge.config import init_workspace, load_config
 from spriteforge.core.credentials import load_credentials
 from spriteforge.core.state import Store
+from spriteforge.game.cli import app as game_app
 from spriteforge.library.cli import app as library_app
 from spriteforge.mcp.cli import app as mcp_app
 from spriteforge.memory.cli import app as memory_app
@@ -20,6 +21,7 @@ app.add_typer(memory_app, name="memory")
 app.add_typer(skills_app, name="skills")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(library_app, name="library")
+app.add_typer(game_app, name="game")
 
 
 def setup(config: Path | None, workspace: Path | None):

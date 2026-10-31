@@ -1,0 +1,66 @@
+{
+  "id": "pixel-crawler-dungeon",
+  "pack": "anokolisa-pixel-crawler",
+  "camera": "top-down",
+  "tile_size": 16,
+  "summary": "16 px stone floors, grey cliff walls and water from Pixel Crawler.",
+  "keywords": [
+    "dungeon",
+    "crypt",
+    "cave",
+    "ruins",
+    "stone",
+    "castle",
+    "tomb",
+    "catacomb"
+  ],
+  "variants": {
+    "normal": {
+      "words": [],
+      "row_offset": 0
+    }
+  },
+  "tiles": {
+    "floor": {
+      "what": "stone floor",
+      "asset": "anokolisa-pixel-crawler/tilesets-floors-tiles",
+      "cell": [
+        7,
+        10
+      ]
+    },
+    "floor_alt": {
+      "what": "darker stone floor variation",
+      "asset": "anokolisa-pixel-crawler/tilesets-floors-tiles",
+      "cell": [
+        8,
+        11
+      ]
+    },
+    "wall": {
+      "what": "wall top (blocks movement)",
+      "asset": "anokolisa-pixel-crawler/tilesets-wall-tiles",
+      "cell": [
+        8,
+        3
+      ]
+    },
+    "wall_face": {
+      "what": "wall front face",
+      "asset": "anokolisa-pixel-crawler/tilesets-wall-tiles",
+      "cell": [
+        8,
+        7
+      ]
+    },
+    "water": {
+      "what": "water",
+      "asset": "anokolisa-pixel-crawler/tilesets-water-tiles",
+      "cell": [
+        6,
+        7
+      ]
+    }
+  },
+  "background": "#1b1a22"
+}

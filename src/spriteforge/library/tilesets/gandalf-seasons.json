@@ -1,0 +1,111 @@
+{
+  "id": "gandalf-seasons",
+  "pack": "gandalfhardcore-platformer",
+  "camera": "side-view",
+  "tile_size": 32,
+  "summary": "Side-view grass / autumn / snow terrain with parallax forest-castle backdrops.",
+  "keywords": [
+    "forest",
+    "grass",
+    "meadow",
+    "castle",
+    "autumn",
+    "fall",
+    "snow",
+    "winter",
+    "ice",
+    "frozen",
+    "outdoor"
+  ],
+  "variants": {
+    "normal": {
+      "words": [],
+      "row_offset": 0,
+      "backdrop": "normal-bg"
+    },
+    "autumn": {
+      "words": [
+        "autumn",
+        "fall",
+        "harvest",
+        "orange"
+      ],
+      "row_offset": 6,
+      "backdrop": "autumn-bg"
+    },
+    "winter": {
+      "words": [
+        "snow",
+        "snowy",
+        "winter",
+        "ice",
+        "icy",
+        "frozen",
+        "frost",
+        "christmas"
+      ],
+      "row_offset": 12,
+      "backdrop": "winter-bg"
+    }
+  },
+  "tiles": {
+    "ground_top": {
+      "what": "grass-topped ground surface",
+      "asset": "gandalfhardcore-platformer/floor-tiles1",
+      "cell": [
+        1,
+        0
+      ],
+      "seasonal": true
+    },
+    "ground": {
+      "what": "solid earth below the surface",
+      "asset": "gandalfhardcore-platformer/floor-tiles1",
+      "cell": [
+        1,
+        1
+      ],
+      "seasonal": true
+    },
+    "platform": {
+      "what": "floating one-way platform",
+      "asset": "gandalfhardcore-platformer/floor-tiles1",
+      "cell": [
+        7,
+        5
+      ],
+      "seasonal": true
+    },
+    "spikes": {
+      "what": "floor spikes hazard",
+      "asset": "gandalfhardcore-platformer/floor-tiles1",
+      "cell": [
+        7,
+        4
+      ],
+      "seasonal": true,
+      "flip_y": true,
+      "note": "stalactite tips turned upright"
+    }
+  },
+  "background": "#82c3cf",
+  "backdrop": {
+    "asset_pattern": "gandalfhardcore-platformer/{variant}-{layer}",
+    "layers": [
+      "gandalfhardcore-background-layers-layer-5",
+      "background-castle",
+      "gandalfhardcore-background-layers-layer-4",
+      "gandalfhardcore-background-layers-layer-3",
+      "gandalfhardcore-background-layers-layer-2",
+      "gandalfhardcore-background-layers-layer-1"
+    ],
+    "factors": [
+      0.0,
+      0.05,
+      0.15,
+      0.3,
+      0.5,
+      0.7
+    ]
+  }
+}

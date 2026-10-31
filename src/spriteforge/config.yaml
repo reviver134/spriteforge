@@ -7,6 +7,13 @@ router:
 preview:
   max_image_calls: 16
   mood_board: true
+  mode: game # game = Spark writes the design and code (G2/G4 gates); muse = Muse blocks
+game:
+  max_repairs: 3 # Programmer fix rounds when syntax, runtime or playtest checks fail
+  max_art_calls: 16 # Muse Image calls per build for entities the library cannot supply
+  max_code_kb: 200
+  playtest_fps: 30
+  record_seconds: 20
 image:
   # Live smoke 2026-10-28: both paths accept size=1024x1024, b64_json,
   # output_format=png and reasoning_strength=low, but return 1600x1600 PNGs.
@@ -19,6 +26,9 @@ llm:
   base_url: https://api.meta.ai
   model: muse-spark-1.3
   chat_path: /v1/chat/completions
+  # Live probe 2026-10-30: strict json_schema {files:[{path,content}]} returned a complete
+  # 375-line Phaser game (8578 completion tokens, finish_reason stop, 43 s); it ran without
+  # errors. One call per game file set is enough; no output-length setting was needed.
 budget:
   max_image_calls: 150
   max_calls_per_model: 200
