@@ -37,7 +37,7 @@ h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:
 </form></section><h2>Artifacts</h2><div id="artifacts"></div><h2>Timeline</h2><ol id="timeline"></ol>
 <script>
 const $=id=>document.getElementById(id);let source, selected;
-let renderedGate=null;
+let renderedGate=null,artifactIds={};
 async function extensionPost(path,body){const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));return data;}
 async function extensionAction(fn){try{$('extension-error').textContent='';await fn();await loadExtensions();await loadConfirmations();}catch(e){$('extension-error').textContent=e.message;}}
 async function loadExtensions(){const data=await(await fetch('/api/extensions')).json();const pick=$('extension-role');if(!pick.options.length)for(const role of data.roles){const option=new Option(role,role);pick.add(option);}
@@ -79,16 +79,39 @@ async function renderArtifact(a,container){
  for(const w of r.warnings||[])li('⚠ '+w);
  if(r.revision)li('Feedback applied: design «'+(r.revision.design_changes||'-')+'» · art '+(r.revision.art_changes.map(c=>c.entity).join(', ')||'-')+' · code «'+(r.revision.code_instructions||'-')+'»');
  li('Model calls: '+r.model_calls.chat+' Spark, '+r.model_calls.image+' Muse Image, about $'+r.model_calls.estimated_cost_usd);
- box.append(ul);const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Full report.json';pre.textContent=JSON.stringify(r,null,2);details.append(summary,pre);box.append(details);fig.append(box);cap.textContent='Build and playtest report · '+a.name;}
+ box.append(ul);if(r.art_review)box.append(artReview(r.art_review,container.id==='gate-artifacts'));const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Full report.json';pre.textContent=JSON.stringify(r,null,2);details.append(summary,pre);box.append(details);fig.append(box);cap.textContent='Build and playtest report · '+a.name;}
  else if(a.mime==='application/json'){const pre=document.createElement('pre');
  pre.textContent=JSON.stringify(await(await fetch('/api/artifacts/'+a.id)).json(),null,2);
  if(a.name.endsWith('/readability.json')){fig.className='preview-checks';const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Asset validation and readability report';details.append(summary,pre);fig.append(details);}else fig.append(pre);}
  fig.append(cap);container.append(fig);
 }
+// Art review on the G4 report: scores, fixed art (before/after), every issue; at the playtest
+// gate each suggestion has Apply, which submits it as feedback (a targeted art rebuild).
+function artReview(rv,canApply){const box=document.createElement('section');box.className='art-review';
+ const h=document.createElement('h4');h.textContent='Art review · '+rv.reviewed_by;box.append(h);
+ const scores=document.createElement('p');scores.textContent=Object.entries(rv.scores).map(([k,v])=>k+' '+v+'/5').join(' · ');box.append(scores);
+ const pic=name=>{const img=document.createElement('img');img.src='/api/artifacts/'+artifactIds[name];img.alt=name;img.style.cssText='width:auto;height:64px;vertical-align:middle';return img;};
+ for(const f of rv.fixes){const p=document.createElement('p');p.textContent=(f.fixed?'✔ Fixed ':'✖ Not fixed ')+f.entity+' ('+f.mode+')'+(f.notes.length?': '+f.notes.join('; '):'');
+  if(f.before&&artifactIds[f.before]&&artifactIds[f.after])p.append(' ',pic(f.before),' → ',pic(f.after));box.append(p);}
+ if(rv.replay)box.append(Object.assign(document.createElement('p'),{textContent:'Replayed with the fixed art: '+(rv.replay.passed?'checks passed':'checks failed')+(rv.replay.reverted?' — fixes reverted':'')}));
+ const ul=document.createElement('ul');
+ for(const i of rv.issues){const li=document.createElement('li');li.textContent='#'+i.n+' ['+i.severity+'] '+i.entity+': '+i.problem+' — fix: '+i.fix_prompt+' · '+i.status+' ('+i.from+')';
+  if(canApply&&i.status!=='fixed'){const b=document.createElement('button');b.type='button';b.textContent='Apply #'+i.n;b.onclick=()=>applySuggestion(i,b);li.append(' ',b);}ul.append(li);}
+ if(!rv.issues.length)ul.append(Object.assign(document.createElement('li'),{textContent:'No issues'}));box.append(ul);
+ const missed=rv.named.filter(n=>!n.ok);if(missed.length)box.append(Object.assign(document.createElement('p'),{textContent:'Naming test misses: '+missed.map(n=>n.entity+' seen as “'+n.seen_as+'”').join('; ')}));
+ const seen=rv.images.filter(n=>/\/(sheet-4x|shot-\d+)\.png$/.test(n)&&artifactIds[n]);
+ if(seen.length){const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='What the reviewer saw';details.append(summary);for(const n of seen){const img=pic(n);img.style.height='180px';details.append(img);}box.append(details);}
+ return box;}
+async function applySuggestion(i,button){const gate=renderedGate;if(!gate)return;button.disabled=true;
+ const body={action:'submit',tags:['art'],text:'Apply art review suggestion #'+i.n+' ('+i.entity+'): '+i.fix_prompt,form:{apply_suggestion:i.n}};
+ try{const response=await fetch('/api/runs/'+selected+'/gates/'+gate,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const result=await response.json();if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:JSON.stringify(result.detail));await refresh();}
+ catch(err){$('gate-error').textContent=err.message;button.disabled=false;}}
 let refreshing=false,refreshAgain=false;
 async function refresh(){if(refreshing){refreshAgain=true;return;}refreshing=true;try{await refreshRun();}catch(error){$('error').textContent='Could not refresh the run. Check the local server connection: '+error.message;}finally{refreshing=false;if(refreshAgain){refreshAgain=false;refresh();}}}
 async function refreshRun(){const current=selected;const d=await (await fetch('/api/runs/'+current)).json();
  if(current!==selected)return;
+ artifactIds=Object.fromEntries(d.artifacts.map(a=>[a.name,a.id]));
  $('status').textContent=d.run.status+' · checkpoint '+d.run.cursor;
  $('error').textContent=d.error||'';
  const u=d.usage, dollars=v=>v==null?'unknown':'$'+v.toFixed(6);

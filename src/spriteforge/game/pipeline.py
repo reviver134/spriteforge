@@ -4,6 +4,9 @@
     art-plan.json       Art Director (Muse Spark): a library pick or a Muse request per entity
     art.json, art.png   what each entity actually got (library / tile set / Muse / placeholder)
     attempts/N/         each Programmer answer (files + notes) and its static/playtest report
+    art-review.json     Art Reviewer (Muse Spark vision): scores, naming test, issues by sheet
+                        number; review/ holds its inputs (sheets, screenshots) and before/after
+                        pictures of fixed art; art-plan-reviewed.json the plan with the fixes
     build/              the playable game (open build/index.html)
     playtest.json       the final report; poster.png (+ demo.mp4 with ffmpeg)
     report.json         summary: who decided, sources, warnings, attempts, model calls and cost
@@ -21,7 +24,7 @@ import shutil
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from spriteforge.agents.roles import load_roles
@@ -34,6 +37,7 @@ from spriteforge.providers.muse_image import MuseImageProvider
 from spriteforge.providers.muse_spark import MuseSparkProvider
 
 from .art import (
+    MUSE_CREDIT,
     ArtPlan,
     ArtResult,
     MuseOptions,
@@ -42,6 +46,21 @@ from .art import (
     keyword_plan,
     library_context,
     make_art,
+)
+from .art_checks import precheck
+from .art_review import (
+    ArtReview,
+    entity_issues,
+    fallback_review,
+    fix_requests,
+    plan_fixes,
+    review_prompt,
+    review_sheets,
+    review_slots,
+    reviewed_plan,
+    run_fixes,
+    screenshot,
+    thumb,
 )
 from .build import build_game
 from .codegen import (
@@ -57,7 +76,7 @@ from .codegen import (
 )
 from .design import GameDesign, design_markdown, design_prompt, fallback_design
 from .image_cache import ImageCache
-from .playtest import failure_summary, playtest
+from .playtest import failure_summary, playtest, review_times
 from .record import record_game
 
 
@@ -87,9 +106,18 @@ class Models:
     def name(self) -> str:
         return "mock (offline stand-ins)" if self.mock and not self.provider else self.cfg.llm.model
 
-    def ask(self, role: str, prompt: str, schema, fallback, task: str | None = None):
-        """`task` (design, art_plan, code, revision) picks the reasoning effort and the
-        prompt cache key; prompts of one task share their stable prefix."""
+    def ask(
+        self,
+        role: str,
+        prompt: str,
+        schema,
+        fallback,
+        task: str | None = None,
+        images: list[bytes] = (),
+    ):
+        """`task` (design, art_plan, code, revision, review) picks the reasoning effort and
+        the prompt cache key; prompts of one task share their stable prefix. `images` go with
+        the prompt (vision)."""
         provider = self.provider or (
             MockLLMProvider(self.budget, [fallback.model_dump()])
             if self.mock
@@ -98,7 +126,7 @@ class Models:
         try:
             messages = [
                 Message(role="system", content=role_prompt(role)),
-                Message(role="user", content=prompt),
+                Message(role="user", content=prompt, images=list(images)),
             ]
             request = ChatRequest(
                 messages=messages,
@@ -178,6 +206,20 @@ def plan_art(models: Models, design: GameDesign) -> ArtPlan:
     return models.ask("Art Director", prompt, ArtPlan, keyword_plan(design), "art_plan")
 
 
+def muse_options(cfg: Config, **changes) -> MuseOptions:
+    return replace(
+        MuseOptions(
+            sizes=cfg.image.sizes,
+            retries=cfg.game.art_retry,
+            grid_confidence=cfg.game.native_grid_confidence,
+            sheet_frames=cfg.game.sheet_frames,
+            adapt_size=cfg.game.adapt_size,
+            workers=cfg.game.image_workers,
+        ),
+        **changes,
+    )
+
+
 def produce_art(
     models: Models,
     design: GameDesign,
@@ -187,14 +229,7 @@ def produce_art(
 ) -> ArtResult:
     generate, close = models.image_generator()
     try:
-        options = MuseOptions(
-            sizes=cfg.image.sizes,
-            retries=cfg.game.art_retry,
-            grid_confidence=cfg.game.native_grid_confidence,
-            sheet_frames=cfg.game.sheet_frames,
-            adapt_size=cfg.game.adapt_size,
-            workers=cfg.game.image_workers,
-        )
+        options = muse_options(cfg)
         return make_art(
             design,
             plan,
@@ -274,6 +309,8 @@ class BuildOutcome:
     report: dict
     build: Path | None
     attempts: list[dict]
+    # The last playtest's screenshots for the art review: [{"t", "png"}]
+    screenshots: list[dict] = field(default_factory=list)
 
 
 def build_and_test(
@@ -288,7 +325,8 @@ def build_and_test(
     """Static checks, build, playtest; failures go back to the Programmer (bounded)."""
     manifest = art.manifest()
     asset_ids = set(manifest["sprites"]) | set(manifest["images"])
-    attempts, report, build_dir = [], {}, None
+    attempts, report, build_dir, shots = [], {}, None, []
+    capture = review_times(design.session_seconds) if cfg.game.review else []
     for n in range(cfg.game.max_repairs + 1):
         folder = out / "attempts" / str(n + 1)
         (folder / "files").mkdir(parents=True, exist_ok=True)
@@ -310,8 +348,13 @@ def build_and_test(
                 credits=art.credits,
             )
             result = playtest(
-                build_dir, design.checks, design.session_seconds, fps=cfg.game.playtest_fps
+                build_dir,
+                design.checks,
+                design.session_seconds,
+                fps=cfg.game.playtest_fps,
+                capture_at=capture,
             )
+            shots = result.pop("screenshots", [])
             report = {"stage": "playtest", **result}
             failures = failure_summary(report)
         save_json(folder / "report.json", report)
@@ -339,8 +382,152 @@ def build_and_test(
         attempts[-1]["repair"] = how
         code = fixed
     if report["stage"] == "static":
-        build_dir = None  # the last answer never passed static checks; no build was made
-    return BuildOutcome(code, report, build_dir, attempts)
+        build_dir, shots = None, []  # the last answer never passed static checks: no build
+    return BuildOutcome(code, report, build_dir, attempts, shots)
+
+
+def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out: Path):
+    """Build the same code with other art and play the session again: (build, report)."""
+    build_dir = build_game(
+        out / "build",
+        title=design.title,
+        controls=design.controls,
+        files=code.as_dict(),
+        assets=art.manifest(),
+        images=art.files(),
+        credits=art.credits,
+    )
+    result = playtest(build_dir, design.checks, design.session_seconds, fps=cfg.game.playtest_fps)
+    return build_dir, {"stage": "playtest", **result}
+
+
+@dataclass
+class Reviewed:
+    art: ArtResult  # with the kept fixes
+    outcome: BuildOutcome  # replayed when art was fixed
+    plan: ArtPlan  # the plan with the kept fixes as Muse picks (a later version locks them)
+    answer: ArtReview  # what the reviewer answered (by sheet number)
+    report: dict  # report.json "art_review"
+    images: dict[str, bytes]  # review/<name>: sheets, screenshots, before/after pictures
+
+
+def review_art(
+    models: Models,
+    design: GameDesign,
+    plan: ArtPlan,
+    art: ArtResult,
+    outcome: BuildOutcome,
+    cfg: Config,
+    out: Path,
+    log: Callable[[str], None] = print,
+    version: int = 1,
+) -> Reviewed:
+    """The Art Reviewer looks at all the art together and in the running game, blocking
+    issues are fixed once (capped), and the same code is played again with the fixed art. If
+    a game that passed fails with it, the fixes are reverted. No second review."""
+    slots = review_slots(art)
+    findings = precheck(design, art)
+    sheet, zoomed = review_sheets(art, slots)
+    shots = [screenshot(s["png"]) for s in outcome.screenshots]
+    images = {"sheet.png": sheet, "sheet-4x.png": zoomed}
+    images |= {f"shot-{i + 1}.png": data for i, data in enumerate(shots)}
+    offline = fallback_review(slots, findings, design)
+    failed = None
+    try:
+        answer = models.ask(
+            "Art Reviewer",
+            review_prompt(design, art, slots, findings, len(shots)),
+            ArtReview,
+            offline,
+            "review",
+            images=[sheet, zoomed, *shots],
+        )
+    except Exception as exc:  # noqa: BLE001 -- the review is advice; the build stands without it
+        failed = f"{type(exc).__name__}: {str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ''}"
+        log(f"  the vision review failed ({failed}); using the pre-checks alone")
+        answer = offline
+    issues, named, notes = entity_issues(answer, slots, design, art)
+    fixes = fix_requests(
+        plan_fixes(issues, design, art, cfg.game.review_max_fixes), issues, design, art
+    )
+    if fixes:
+        log(f"  fixing {len(fixes)} blocking issue(s): {', '.join(f.entity for f in fixes)}")
+        generate, close = models.image_generator()
+        try:
+            options = muse_options(cfg, retries=0, reasoning=cfg.game.review_image_reasoning)
+            notes += run_fixes(fixes, design, plan, art, generate=generate, options=options,
+                               cache=models.image_cache(), version=version)  # fmt: skip
+        finally:
+            close()
+    kept = [fx for fx in fixes if fx.after is not None]
+    fixed_art, replayed = art, None
+    if kept:
+        filled = {eid: f for eid, f in art.filled.items()}
+        filled |= {fx.entity: fx.after for fx in kept}
+        credits = art.credits + ([MUSE_CREDIT] if MUSE_CREDIT not in art.credits else [])
+        fixed_art = replace(art, filled=filled, credits=credits,
+                            picks=art.picks | {fx.entity: fx.pick for fx in kept})  # fmt: skip
+        log("  playing the game again with the fixed art")
+        build_dir, report = replay(design, fixed_art, outcome.code, cfg, out)
+        replayed = {"passed": report["passed"], "reverted": False}
+        if outcome.report["passed"] and not report["passed"]:
+            replay(design, art, outcome.code, cfg, out)  # back to the art that passed
+            replayed["reverted"] = True
+            why = "reverted: the game failed its playtest with the new art"
+            notes.append(f"{why} ({failure_summary(report).splitlines()[0]})")
+            for fx in kept:
+                fx.notes.append(why)
+                fx.after = None
+            kept, fixed_art = [], art
+        else:
+            outcome = replace(outcome, report=report, build=build_dir)
+    for fx in fixes:
+        for i in issues:
+            if i.n in fx.issues:
+                i.status = "fixed" if fx.after else "not fixed: " + ("; ".join(fx.notes) or "?")
+        if fx.after:
+            images[f"{fx.entity}-before.png"] = thumb(fx.before)
+            images[f"{fx.entity}-after.png"] = thumb(fx.after)
+    effort = cfg.llm.reasoning.get("review")
+    if failed:
+        reviewed_by = f"pre-checks only (the vision review failed: {failed})"
+    elif models.mock and not models.provider:
+        reviewed_by = "pre-checks only (offline stand-in)"
+    else:
+        reviewed_by = f"{models.name} (vision" + (f", reasoning {effort})" if effort else ")")
+    report = {
+        "reviewed_by": reviewed_by,
+        "scores": answer.scores.model_dump(),
+        "named": named,
+        "findings": [f.model_dump() for f in findings],
+        "issues": [i.dump() for i in issues],
+        "fixes": [
+            {
+                "entity": fx.entity,
+                "issues": fx.issues,
+                "mode": fx.mode,
+                "fixed": fx.after is not None,
+                "notes": fx.notes,
+                "before": f"{fx.entity}-before.png" if fx.after else None,
+                "after": f"{fx.entity}-after.png" if fx.after else None,
+            }
+            for fx in fixes
+        ],
+        "replay": replayed,
+        "notes": notes,
+        "images": sorted(images),
+    }
+    return Reviewed(fixed_art, outcome, reviewed_plan(plan, kept), answer, report, images)
+
+
+def save_art(out: Path, art: ArtResult) -> None:
+    save_json(out / "art.json", art_summary(art))
+    if sheet := art_sheet(art.filled):
+        (out / "art.png").write_bytes(sheet)
+    for eid, f in art.filled.items():
+        if f.record.get("raw"):  # what Muse returned, before keying and fitting
+            (out / "art-raw").mkdir(exist_ok=True)
+            (out / "art-raw" / f"{eid}.png").write_bytes(f.record["raw"])
 
 
 def call_summary(store: Store, run_id: str) -> dict:
@@ -393,18 +580,28 @@ def make_game(
     art = produce_art(models, design, plan, cfg)
     art_seconds = round(time.perf_counter() - start, 1)
     log(f"  art took {art_seconds} s")
-    save_json(out / "art.json", art_summary(art))
-    if sheet := art_sheet(art.filled):
-        (out / "art.png").write_bytes(sheet)
+    save_art(out, art)
     for eid, f in art.filled.items():
         log(f"  {eid}: {f.source}")
-        if f.record.get("raw"):  # what Muse returned, before keying and fitting
-            (out / "art-raw").mkdir(exist_ok=True)
-            (out / "art-raw" / f"{eid}.png").write_bytes(f.record["raw"])
 
     log("code: Programmer is writing the game")
     code = write_code(models, design, art.manifest())
     outcome = build_and_test(models, design, art, code, cfg, out, log)
+    review = None
+    if cfg.game.review and outcome.build:
+        log("review: Art Reviewer is looking at the art in the running game")
+        review = review_art(models, design, plan, art, outcome, cfg, out, log)
+        art, outcome = review.art, review.outcome
+        save_json(out / "art-review.json", review.answer.model_dump())
+        for name, data in review.images.items():
+            (out / "review").mkdir(exist_ok=True)
+            (out / "review" / name).write_bytes(data)
+        if review.plan != plan:
+            save_json(out / "art-plan-reviewed.json", review.plan.model_dump())
+        save_art(out, art)
+        scores = review.report["scores"]
+        log(f"  scores {scores}; {len(review.report['issues'])} issue(s), "
+            f"{sum(f['fixed'] for f in review.report['fixes'])} fixed")  # fmt: skip
     save_json(out / "playtest.json", outcome.report)
 
     recording = None
@@ -423,6 +620,7 @@ def make_game(
         "art_seconds": art_seconds,
         "warnings": art.warnings,
         "attempts": outcome.attempts,
+        "art_review": review.report if review else None,
         "recording": recording.summary if recording else None,
         "model_calls": call_summary(store, run.id),
     }

@@ -110,7 +110,9 @@ def test_patch_applies_and_falls_back(tmp_path, budget):
         return chat(request)
 
     scripted.chat = spy
-    result = make_game("arena", tmp_path / "g", load_config(), mock=True, provider=scripted,
+    cfg = load_config()
+    cfg.game.review = False  # the script answers the Programmer only
+    result = make_game("arena", tmp_path / "g", cfg, mock=True, provider=scripted,
                        record=False, log=lambda m: None)  # fmt: skip
     assert [title for title, _ in seen] == ["GameDesign", "ArtPlan", "GameCode", "CodePatch",
                                             "GameCode"]  # fmt: skip

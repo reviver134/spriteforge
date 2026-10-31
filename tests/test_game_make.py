@@ -257,6 +257,13 @@ def test_make_game_offline_end_to_end(tmp_path):
     assert art["gem"]["spec"]["grid"] == [8, 8] and "8×8 grid" in art["gem"]["muse_prompt"]
     assert art["floor"]["spec"]["anchor"].startswith("fills the whole grid")
     assert art["slime"]["frame"]["mode"] in {"native", "native-resized", "fit"}
+    # The Art Reviewer looked at the art in the running game (offline: from the pre-checks).
+    review = result.report["art_review"]
+    assert review["reviewed_by"].startswith("pre-checks only") and set(review["scores"]) == {
+        "consistency", "readability", "perspective", "scale", "palette"}  # fmt: skip
+    assert {"sheet.png", "sheet-4x.png", "shot-1.png", "shot-2.png", "shot-3.png"} <= {
+        p.name for p in (out / "review").iterdir()}  # fmt: skip
+    assert result.report["model_calls"]["chat"] == 4  # design, art plan, code, review
 
 
 def test_repair_loop_feeds_failures_back(tmp_path, budget):
@@ -284,10 +291,12 @@ def test_repair_loop_feeds_failures_back(tmp_path, budget):
         return chat(request)
 
     scripted.chat = spy
+    cfg = load_config()
+    cfg.game.review = False  # scripted answers cover the Programmer only (review: test_art_review)
     result = make_game(
         "arena",
         tmp_path / "g",
-        load_config(),
+        cfg,
         mock=True,
         provider=scripted,
         record=False,
@@ -318,7 +327,7 @@ def test_playtest_reports_missing_events(tmp_path, budget):
         ],
     )
     cfg = load_config()
-    cfg.game.max_repairs = 1
+    cfg.game.max_repairs, cfg.game.review = 1, False
     result = make_game(
         "arena", tmp_path / "g", cfg, mock=True, provider=scripted, record=False, log=lambda m: None
     )

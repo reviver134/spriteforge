@@ -1,8 +1,8 @@
 /* SpriteForge game SDK: generic helpers that generated Phaser 3 games are written against.
    It is not a game: it boots Phaser, loads the build's art, reads input (keyboard or the game's
    own autoplay bot), and exposes the hooks the harness uses to test and record a build:
-   window.sf.{ready, errors, events, counts, state}, window.sfCapture(frames, fps) and
-   window.sfRun(seconds, fps). The model-facing reference is API.md. */
+   window.sf.{ready, errors, events, counts, state}, window.sfCapture(frames, fps),
+   window.sfRun(seconds, fps) and window.sfShot(fps). The model-facing reference is API.md. */
 (function () {
   'use strict';
   const params = new URLSearchParams(location.search);
@@ -245,10 +245,11 @@
   /* ---------- harness hooks: fixed steps, no wall clock ------------------------------------- */
   const manual = {t: 0};
   // A throw inside the game's update must become a reported error, not abort the harness call.
-  function step(dt) {
+  // `draw` renders this step even in a logic-only playtest (same game logic either way).
+  function step(dt, draw) {
     manual.t += dt;
     try {
-      if (flags.headless) sf.game.headlessStep(manual.t, dt); else sf.game.step(manual.t, dt);
+      if (flags.headless && !draw) sf.game.headlessStep(manual.t, dt); else sf.game.step(manual.t, dt);
     } catch (e) {
       sf.errors.push(String((e && e.stack) || e).split('\n').slice(0, 3).join(' | '));
     }
@@ -258,6 +259,12 @@
     const dt = 1000 / fps, out = [];
     for (let i = 0; i < frames; i++) { step(dt); out.push(sf.game.canvas.toDataURL('image/png')); }
     return out;
+  };
+  // Playtest screenshot: one drawn step (it advances the game like any other step), as a PNG
+  // data URL of the canvas at game size.
+  window.sfShot = function (fps) {
+    step(1000 / fps, true);
+    return sf.game.canvas.toDataURL('image/png');
   };
   // Playtest: advance `seconds` of game time; stops early on win, lose or an error flood.
   window.sfRun = function (seconds, fps) {

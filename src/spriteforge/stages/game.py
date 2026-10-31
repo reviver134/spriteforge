@@ -8,9 +8,15 @@ After the G1 questions:
   game/vN/art.png            contact sheet
   game/vN/code.json          the Programmer's files after static checks, playtest and repairs
   game/vN/playtest.json      the full-session playtest with the game's own bot
+  game/vN/art-review.json    Art Reviewer (vision): scores, naming test, issues by sheet number;
+                             review/ holds its inputs and before/after pictures of fixed art;
+                             art-plan-reviewed.json the plan with the fixes (the next version
+                             starts from it, so fixed art stays locked)
   game/vN/poster.png         (+ demo.mp4 with ffmpeg)
   game/vN/report.json        what was built and by whom, art sources, warnings, attempts, play link
   gate "playtest"            text -> Director splits it into design/art/code changes -> v(N+1);
+                             Apply on an art-review suggestion (form apply_suggestion=n) -> that
+                             entity is redrawn as the suggestion says (no Director call);
                              empty -> approval.json, run complete
 The playable build is runs/<id>/game/vN/build, served at /api/runs/<id>/play/vN/index.html.
 """
@@ -31,11 +37,12 @@ from spriteforge.game.pipeline import (
     call_summary,
     plan_art,
     produce_art,
+    review_art,
     write_code,
     write_design,
 )
 from spriteforge.game.record import record_game
-from spriteforge.game.revision import Revision, fallback_revision
+from spriteforge.game.revision import ArtChange, Revision, fallback_revision
 from spriteforge.game.revision import revision_prompt as director_prompt
 
 from .asset_store import ProductionStore
@@ -150,6 +157,12 @@ def build_version(
         else:
             code = base  # feedback touched only the art: same code, new assets
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log)
+        review = None
+        if ctx.cfg.game.review and outcome.build:
+            log(f"build v{version}: the Art Reviewer is looking at the art in the running game")
+            review = review_art(ctx.models, design, plan, art, outcome, ctx.cfg,
+                                ctx.root / prefix, log, version)  # fmt: skip
+            art, outcome = review.art, review.outcome
         recording = None
         if outcome.build:
             log(f"build v{version}: recording the autoplay")
@@ -174,6 +187,13 @@ def build_version(
                     f"{prefix}/art/{eid}-raw.png", f.record["raw"], "Pixel Artist", "image/png"
                 )
             ctx.save(f"{prefix}/art/{eid}.json", record, "Pixel Artist")
+        if review:
+            for name, data in review.images.items():
+                ctx.save(f"{prefix}/review/{name}", data, "Art Reviewer", "image/png")
+            ctx.save(f"{prefix}/art-review.json", review.answer.model_dump(), "Art Reviewer")
+            if review.plan != plan:
+                ctx.save(f"{prefix}/art-plan-reviewed.json", review.plan.model_dump(),
+                         "Art Reviewer")  # fmt: skip
         if sheet := art_sheet(art.filled):
             ctx.save(f"{prefix}/art.png", sheet, "Art Director", "image/png")
         ctx.save(f"{prefix}/art.json", art_summary(art), "Art Director")
@@ -200,6 +220,7 @@ def build_version(
             "warnings": art.warnings,
             "attempts": outcome.attempts,
             "revision": revision.model_dump() if revision else None,
+            "art_review": review_report(review.report, prefix) if review else None,
             "model_calls": call_summary(ctx.store, ctx.run_id),
         }
         ctx.save(f"{prefix}/report.json", report, "Director")
@@ -218,6 +239,39 @@ def build_version(
     names = [n for n in (f"{prefix}/demo.mp4", f"{prefix}/poster.png") if n in ctx.artifacts][:1]
     names += [n for n in (f"{prefix}/art.png",) if n in ctx.artifacts]
     return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
+
+
+def review_report(report: dict, prefix: str) -> dict:
+    """The review for report.json, with its pictures named as artifacts (for G4)."""
+    named = lambda n: f"{prefix}/review/{n}" if n else None
+    return {
+        **report,
+        "images": [named(n) for n in report["images"]],
+        "fixes": [
+            {**f, "before": named(f["before"]), "after": named(f["after"])} for f in report["fixes"]
+        ],
+    }
+
+
+def suggestion_revision(report: dict, design: GameDesign, n) -> Revision | None:
+    """Apply on a G4 art-review suggestion: redraw that entity as the suggestion says. None
+    when there is no such suggestion (the feedback text then goes to the Director)."""
+    issues = (report.get("art_review") or {}).get("issues", [])
+    issue = next((i for i in issues if str(i["n"]) == str(n) and i["status"] != "fixed"), None)
+    looks = {e.id: e.look for e in design.entities}
+    if issue is None or issue["entity"] not in looks:
+        return None
+    change = ArtChange(
+        entity=issue["entity"], prompt=f"{looks[issue['entity']]}; {issue['fix_prompt']}"
+    )
+    return Revision(design_changes="", art_changes=[change], code_instructions="")
+
+
+def last_plan(ctx: GameContext, version: int) -> ArtPlan:
+    """A build's final art plan: with the art review's fixes when it made any."""
+    reviewed = f"game/v{version}/art-plan-reviewed.json"
+    name = reviewed if reviewed in ctx.artifacts else f"game/v{version}/art-plan.json"
+    return ArtPlan.model_validate(ctx.read(name))
 
 
 def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None:
@@ -332,19 +386,23 @@ def game_step(store, run_id) -> bool:
         design_version = previous["design_version"]
         design = load_design(ctx, design_version)
         feedback = feedback or "Try a different take."
+        applied = suggestion_revision(previous, design, last.response.form.get("apply_suggestion"))
         revision = ctx.once(
             f"game/v{version}/revision.json",
             Revision,
-            lambda: ctx.models.ask(
-                "Director",
-                director_prompt(
-                    design, {a["entity"]: a["source"] for a in previous["art"]}, feedback
-                ),
-                Revision,
-                fallback_revision(design, feedback),
-                "revision",
+            lambda: (
+                applied
+                or ctx.models.ask(
+                    "Director",
+                    director_prompt(
+                        design, {a["entity"]: a["source"] for a in previous["art"]}, feedback
+                    ),
+                    Revision,
+                    fallback_revision(design, feedback),
+                    "revision",
+                )
             ),
-            "Director",
+            "Art Reviewer" if applied else "Director",
         )
         changed = bool(revision.design_changes.strip())
         if changed:
@@ -371,7 +429,7 @@ def game_step(store, run_id) -> bool:
                 "Art Director",
             )
             if changed
-            else ArtPlan.model_validate(ctx.read(f"game/v{version - 1}/art-plan.json"))
+            else last_plan(ctx, version - 1)
         )
         plan = apply_art_changes(base_plan, design, revision)
         if f"game/v{version}/art-plan.json" not in ctx.artifacts:

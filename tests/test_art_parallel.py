@@ -162,6 +162,19 @@ def test_cache_key_includes_references_and_reasoning(tmp_path):
     assert cache.get(base, True) == b"png" and cache.get(stronger, True) is None
 
 
+def test_cache_write_failure_never_fails_the_call(budget, tmp_path):
+    """A cache that cannot be written (here: its folder is a file) costs only the cache entry."""
+    blocked = tmp_path / "not-a-folder"
+    blocked.write_text("x")
+    cache = ImageCache(blocked / "muse-image", IDENTITY)
+    d = fallback_design("arena")
+    images = SlowImages(budget, delay=0)
+    art = make_art(d, keyword_plan(d), generate=images, options=MuseOptions(**SIMPLE), cache=cache)
+    assert {f.source for f in art.filled.values()} == {"muse"} and len(images.prompts) == 4
+    assert not any("failed" in w for w in art.warnings)
+    assert cache.put(ImageRequest(prompt="x"), False, b"png") is False
+
+
 def tiny_png(shade: int) -> bytes:
     buf = io.BytesIO()
     Image.new("RGBA", (4, 4), (shade, 0, 0, 255)).save(buf, format="PNG")

@@ -58,6 +58,11 @@ PRIORITY = ["player", "enemy", "pickup", "tile", "prop", "projectile", "backgrou
 Source = Literal["actor", "object", "tile", "backdrop", "muse"]
 # A hero chosen only because it exists (no name match): Muse may draw the described one instead.
 GENERIC_HERO = "library hero for this camera"
+# Pick reasons that mark an explicit redraw (G4 feedback, an art-review fix): such a Muse pick
+# stays Muse even when the library has the creature by name.
+REVIEW_REASON = "art review:"
+MUSE_CREDIT = "Other art generated with Muse Image for this game."
+EXPLICIT_REDRAW = ("redrawn per feedback", REVIEW_REASON)
 
 
 class ArtPick(Contract):
@@ -430,10 +435,11 @@ def resolve_plan(plan: ArtPlan, design: GameDesign) -> tuple[dict[str, ArtPick],
         if e.id not in out:
             out[e.id] = keyword_pick(e, design, {p.asset for p in out.values()})
             warnings.append(f"{e.id}: not in the art plan; {out[e.id].reason}")
-    # Library first: a Muse request for something the library has by name uses the library.
+    # Library first: a Muse request for something the library has by name uses the library,
+    # unless it is an explicit redraw (feedback or an art-review fix of that entity).
     for e in design.entities:
         p = out[e.id]
-        if p.source != "muse":
+        if p.source != "muse" or p.reason.startswith(EXPLICIT_REDRAW):
             continue
         taken = {q.asset for q in out.values() if q.source == "actor"}
         lib = keyword_pick(e, design, taken)
@@ -1138,7 +1144,7 @@ def make_art(
         if pid in packs
     ]
     if any(f.source.startswith("muse") for f in filled.values()):
-        credits.append("Other art generated with Muse Image for this game.")
+        credits.append(MUSE_CREDIT)
     return ArtResult(screen, scale, background, filled, picks, warnings, credits)
 
 
@@ -1170,6 +1176,7 @@ class MuseOptions:
     # `game.adapt_size`: a sprite's frame takes the drawn art's shape (about the design's area)
     adapt_size: bool = True
     workers: int = 4  # `game.image_workers`: Muse calls in flight at once
+    reasoning: Literal["low", "high"] = "low"  # first attempt's strength (review fixes: high)
 
 
 class CallSlots:
@@ -1275,7 +1282,8 @@ class Muse:
                 + prompt
             )
             edit_of = old["version"]
-        request = ImageRequest(prompt=prompt, size=spec.request_size, references=refs)
+        request = ImageRequest(prompt=prompt, size=spec.request_size, references=refs,
+                               reasoning_strength=self.options.reasoning)  # fmt: skip
         return MuseJob(e, p, tuple(size), spec, rows, prompt, request,
                        self.request_key(e, p, size), ref is not None, edit_of)  # fmt: skip
 

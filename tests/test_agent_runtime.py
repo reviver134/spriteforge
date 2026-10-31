@@ -10,7 +10,7 @@ from spriteforge.agents.assets import AssetResult, Assets, GenerateAsset
 from spriteforge.agents.models import RoleOutput, StagePlan
 from spriteforge.agents.roles import load_roles
 from spriteforge.agents.runtime import AgentRuntime, AgentTask, Tool
-from spriteforge.agents.workflow import advance_until_gate, start_run, workflow_step
+from spriteforge.agents.workflow import advance_until_gate, mock_plan, start_run, workflow_step
 from spriteforge.config import BudgetConfig
 from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Feedback, Gates
@@ -190,9 +190,12 @@ def test_scripted_gates_restart_targeted_changes(agent_context, scripted_human):
         )
         == 3
     )
-    assert {e.agent for e in restored.events(run.id) if e.type == "agent.completed"} == set(
-        load_roles()
+    # Every role this workflow has a stage for (the game pipeline's Art Reviewer has none).
+    stage_roles = {"Director"} | {s.role for s in mock_plan().stages if s.role}
+    assert {e.agent for e in restored.events(run.id) if e.type == "agent.completed"} == (
+        stage_roles
     )
+    assert stage_roles <= set(load_roles())
     count = len(restored.events(run.id))
     assert not workflow_step(restored, run.id)
     assert len(restored.events(run.id)) == count

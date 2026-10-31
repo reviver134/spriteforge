@@ -26,6 +26,12 @@ game:
   # A Muse sprite's frame takes the shape Muse drew (about the design's area) instead of
   # squeezing it into the design box; the Programmer sees the real size in assets.json.
   adapt_size: true
+  # Art Reviewer: after the playtest, Spark (vision) looks at all the art together and at 3
+  # screenshots of the running game; blocking issues are fixed once before G4 with Muse Image
+  # edits at its highest setting (the API has low and high), the rest are G4 suggestions.
+  review: true
+  review_max_fixes: 4
+  review_image_reasoning: high
   max_code_kb: 200
   playtest_fps: 30
   record_seconds: 20
@@ -64,6 +70,7 @@ llm:
     revision: low # Director splitting G4 feedback
     design: high # Game Designer's design doc and its revisions
     code: high # Programmer: new game, repairs, changes
+    review: max # Art Reviewer (vision): the strongest setting Spark accepts
 budget:
   max_image_calls: 150
   max_calls_per_model: 200

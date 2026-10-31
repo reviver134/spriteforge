@@ -88,6 +88,45 @@ def test_design_gate_then_playtest_gate_with_targeted_revisions(tmp_path):
     assert store.get_run(ident).status == "completed"
 
 
+def test_g4_apply_suggestion_makes_targeted_rebuild(tmp_path, monkeypatch):
+    """Each build gets an art review; Apply on a suggestion at G4 redraws only that entity."""
+    from spriteforge.game import pipeline
+    from spriteforge.game.art_review import ArtReview, ReviewIssue, Scores
+
+    def review(slots, findings, design):
+        issue = ReviewIssue(slot=slots.index("slime") + 1, problem="too plain next to the hero",
+                            severity="minor", fix_prompt="add a glossy highlight")  # fmt: skip
+        scores = Scores(consistency=4, readability=4, perspective=5, scale=5, palette=4)
+        return ArtReview(scores=scores, named=[], issues=[issue])
+
+    monkeypatch.setattr(pipeline, "fallback_review", review)
+    store, ident = to_design_gate(tmp_path)
+    submit(store, ident)  # approve the design: build v1
+    report = read(store, ident, "game/v1/report.json")
+    rv = report["art_review"]
+    assert rv["reviewed_by"].startswith("pre-checks only") and rv["scores"]["consistency"] == 4
+    assert [(i["n"], i["entity"], i["status"]) for i in rv["issues"]] == [
+        (1, "slime", "suggestion")
+    ]
+    names = {a.name for a in store.artifacts(ident)}
+    assert {"game/v1/review/sheet-4x.png", "game/v1/review/shot-1.png"} <= names
+    assert set(rv["images"]) <= names and "game/v1/art-review.json" in names
+
+    # Apply #1: the feedback text names nothing, the form carries the suggestion.
+    human = ScriptedHuman(
+        [Feedback(action="submit", text="apply it", form={"apply_suggestion": 1})]
+    )
+    human.answer(Gates(store), ident)
+    workflow_step(store, ident)
+    revision = read(store, ident, "game/v2/revision.json")
+    assert [c["entity"] for c in revision["art_changes"]] == ["slime"]
+    assert "add a glossy highlight" in revision["art_changes"][0]["prompt"]
+    assert revision["code_instructions"] == "" and revision["design_changes"] == ""
+    sources = {a["entity"]: a["source"] for a in read(store, ident, "game/v2/report.json")["art"]}
+    assert sources.pop("slime") == "muse"
+    assert set(sources.values()) == {"muse (locked, from v1)"}
+
+
 def test_identical_requests_come_from_the_cache_and_still_lock(tmp_path):
     """A second run in the same workspace makes the same Muse requests: every image comes
     from <workspace>/cache/muse-image with no call, and a rebuild locks it like any art."""

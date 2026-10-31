@@ -756,3 +756,9 @@ Plan: `new_plan.md`; details and live results: `docs/milestone-10-art-and-qa.md`
   come back as edits, every Programmer prompt starts with the same cacheable reference part,
   the Art Director sees only library art related to the design, and Spark's reasoning effort
   is set per task (`llm.reasoning`).
+* M10.3: after the playtest an Art Reviewer (Spark vision) looks at all the art together and
+  at screenshots of the running game: scores, a blind naming test and issues. Up to 4 blocking
+  issues are fixed once with Muse Image edits before G4 (never sending `ai_allowed: false`
+  art), the game is played again with the fixed art, and every other issue is a suggestion
+  on the G4 report with an **Apply** button (a targeted rebuild). `game.review: false` turns
+  it off.

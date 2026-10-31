@@ -351,3 +351,132 @@ Also: `test_game_stage` (a second run in the same workspace gets every image fro
 with 0 image calls, and its rebuild locks that art), `test_game_make` (repairs scripted as
 edits, `repair: edits` in attempts), `test_providers` (effort and cache key in the request
 body).
+
+**Found in M10.3:** a cache write could fail the image call that produced the image. Under a
+long folder path the temp file name (64-character key plus a 32-character suffix) passed
+Windows' 260-character limit, the write raised, and the call was counted as failed (its image
+thrown away). Cache writes are now best effort with a short temp name
+(`test_cache_write_failure_never_fails_the_call`).
+
+## M10.3: Art Reviewer (all the art together, in the running game)
+
+### What it sees (`game/art_review.py`, `game/playtest.py`, `sdk/sf.js`)
+
+* **Sheets.** Every entity's first frame side by side at game size on a neutral grey
+  (`review_sheets`), and the same sheet at 4x with each sprite numbered. Sprites and tiles go
+  8 to a row with cells sized by their row; backgrounds are shrunk to 80 px wide and get their
+  own row (in the live run below, one shared cell size made the 4x sheet about 2000x1700 with
+  tiny sprites; with the rows it is 704x428).
+* **Screenshots.** The playtest steps logic only (`headlessStep`), so nothing is drawn.
+  `sfShot(fps)` draws one frame (the same game logic as any step) and returns the canvas.
+  `playtest(capture_at=...)` stops at early, middle and late times (15%, 50% and 85% of the
+  session, `review_times`) and takes a shot; a session that ends earlier gets one last shot at
+  the end. A test checks that the event counts match a run without shots. Shots at 320x180
+  are doubled for the reviewer.
+* **Pre-checks** (`game/art_checks.py`, free):
+  * contrast: the larger of the body's and the outline ring's luminance difference against
+    the floor tile (a tile named floor, ground, grass, ...; else the first tile), flagged
+    under 0.12. The plan's mean luminance alone flagged outlined library heroes that read
+    fine in play (0.39 on a 0.43 floor);
+  * hue: an enemy and a pickup whose dominant hues (the main peak of their saturated pixels)
+    are within 20 degrees;
+  * size: the drawn long side outside 0.5-1.6x of the design's, or a size relative to the
+    hero off by 2x either way;
+  * placeholders;
+  * silhouette: under 20% of its bounding box filled, or a subject under half its frame.
+
+  On the art of the 5 live builds so far: the grey golem on a grey floor, a dark-green hero on
+  grass (borderline), and red hearts next to red-brown enemies (3 builds), plus the one
+  placeholder. Nothing else.
+* **The design's entities** and the pre-check findings, in the prompt.
+
+### The review: one Spark vision call, blind naming test
+
+`Art Reviewer` (`agents/roles/art-reviewer.md`, grantable like the other roles; the role text
+names the read-only `library.*` tools) answers `ArtReview {scores {consistency, readability,
+perspective, scale, palette} 1-5, named [{slot, seen_as}], issues [{slot, problem, severity,
+fix_prompt}]}` at `reasoning_effort: max` (`llm.reasoning.review`), with the 2 sheets and 3
+screenshots as images.
+
+The plan's answer is keyed by entity. Here it is keyed by sheet number so the naming test
+stays blind in one call: the sheet has numbers only, and the prompt lists the entities in
+alphabetical order without numbers (the pre-check findings are given by number). Code maps
+numbers back to entities and then:
+
+* adds a **major** issue when a name misses: no meaningful word of `seen_as` (colours, sizes
+  and "blob", "thing", "creature" ... do not count) is in the entity's id, look or library
+  source, with simple plurals and the library's synonyms (`mage` = `wizzard`);
+* adds a **blocking** issue for a placeholder the reviewer did not report;
+* ignores issues on unknown numbers (noted in the report).
+
+If the review call fails, the build keeps going with the pre-check review and says so.
+Offline (`--mock`), `fallback_review` builds the answer from the pre-checks alone: one issue
+per finding with its severity (placeholder and empty frame blocking, the rest major or minor),
+scores lowered per finding, no naming test.
+
+### Fixes before G4
+
+* Blocking issues are grouped per entity, ordered player, enemies, pickups, ... and at most
+  `game.review_max_fixes` (4) entities are fixed, once each (no retry: `art_retry` does not
+  apply), as one Muse Image call at `game.review_image_reasoning` (`high`) with the M10.1 spec,
+  through the same `Muse` jobs as the art step (parallel, cache, own call slots, so the cap is
+  `max_art_calls + review_max_fixes`).
+* What is sent: Muse art is an edit of its raw Muse image; AI-allowed library art is an edit
+  of its first frame (scaled up); art from an `ai_allowed: false` pack is drawn fresh from text
+  (the report says so); a placeholder is drawn fresh. Parallax backdrops are not fixed
+  automatically (the code uses their layer ids); their issues stay suggestions.
+* The fix becomes the entity's pick (`reason: "art review: ..."`), and the build's
+  `art-plan-reviewed.json` carries it. The next version starts from that plan, so the fixed
+  art locks like any Muse art. `resolve_plan`'s "library first" rule no longer replaces such
+  explicit redraws (a review fix of a library skeleton, or G4 feedback on one) with the library
+  sprite. Before, that rule silently ignored G4 feedback on library entities.
+* The same code is built with the new art and the session played again; no second review. If
+  a game that passed fails with the new art, the fixes are reverted and the report says why.
+  A failed fix call keeps the current art.
+
+### G4
+
+`report.json` gains `art_review`: who reviewed, scores, the naming results, the pre-check
+findings, every issue with its number, origin (review, naming test, pre-check) and status
+(fixed / not fixed: why / suggestion), the fixes with before/after pictures
+(`game/vN/review/<entity>-before.png`, `-after.png`), the replay result and the review's
+inputs (`review/sheet.png`, `sheet-4x.png`, `shot-N.png`). The G4 page shows them, with
+**Apply #n** on every issue that is not fixed. Apply submits the gate with
+`form: {"apply_suggestion": n}`; the stage turns it into a `Revision` with one art change
+(`<look>; <fix_prompt>`) for that entity without asking the Director, so it is an ordinary
+targeted rebuild. Checked in a browser on a mock run: clicking Apply #2 built v2 with only that
+entity redrawn and the review-fixed sprite locked from v1.
+
+Config: `game.review: true`, `game.review_max_fixes: 4`, `game.review_image_reasoning: high`,
+`llm.reasoning.review: max`.
+
+### Live (survival prompt through the gates, 2026-11-01, `workspace/m10-3-stage`)
+
+The survival prompt went G1 -> G2 -> build v1 -> G4 with every gate before G4 approved as is.
+"Corner Swarm: 10 Minute Survival" passed its playtest on the first attempt. The library gave
+the hero (rogue), the floor and the wall tiles; 7 entities went to Muse (one HTTP 500, sent
+again). 7 Spark + 11 image calls, about $0.28 for the whole run.
+
+* **Review**: `muse-spark-1.3 (vision, reasoning max)`: consistency 2, readability 2,
+  perspective 2, scale 4, palette 2; 8 issues, 3 blocking and 5 major. The review call cost
+  **$0.045** (3692 input tokens with the 5 images, 9540 output of which 8730 reasoning, 114 s).
+* **Fixes**: 3 Muse edits at high strength ($0.03), all kept, and the replay passed. **Review
+  plus fixes: $0.075** (the cap is $0.08).
+  * `void_background`: Muse had drawn an isometric arcade room with cabinets. It had copied the
+    subject of its style example, although the prompt says not to, and the room peeked out
+    behind the arena. The reviewer called it a placeholder from another game and the wrong
+    camera; the fix is the dark void the design asks for (its faint grid lines are lost at
+    320x180).
+  * `floor_tile` (library, AI-allowed pack): a tan stone floor in a neon-on-dark game; edited
+    into dark purple stone. The edit came back with edges that do not repeat (a warning; no
+    retry for fixes).
+  * `bullet`: given a dark outline.
+* **Suggestions at G4** (major, each with Apply): the hero confusable with the cyan gem, the
+  crawler and the bat brown or orange instead of the red and purple of the design and lost on
+  the floor, the gem too close to the hero's teal, and a flat wall tile with no 3/4 cue.
+* **Naming test**: 6 of 10 named in words of their entity; the 4 misses (hero "tiny teal
+  humanoid figure", wall "flat dark grey-green square", bullet "tiny yellow-white blob",
+  background "isometric arcade room interior") were all issues already.
+* The G4 page was opened in a browser on this run: scores, the 3 fixes with before/after
+  pictures, the replay, 8 issues with Apply on the 5 suggestions, and no page errors.
+* Not re-run live after the sheet-row change above.

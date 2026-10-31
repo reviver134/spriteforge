@@ -45,10 +45,17 @@ class ImageCache:
         except OSError:
             return None
 
-    def put(self, request: ImageRequest, edit: bool, data: bytes) -> None:
-        """Atomic write (temp file + replace), so parallel workers never see half a PNG."""
+    def put(self, request: ImageRequest, edit: bool, data: bytes) -> bool:
+        """Atomic write (temp file + replace), so parallel workers never see half a PNG.
+        Best effort: a write that fails (disk full, a path over Windows' 260 characters) only
+        means no cache entry; it never fails the image call that produced `data`."""
         path = self.path(request, edit)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(f".{uuid4().hex}.tmp")
-        tmp.write_bytes(data)
-        os.replace(tmp, path)
+        tmp = path.parent / f".{uuid4().hex[:12]}.tmp"
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_bytes(data)
+            os.replace(tmp, path)
+            return True
+        except OSError:
+            tmp.unlink(missing_ok=True)
+            return False

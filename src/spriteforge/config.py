@@ -78,6 +78,11 @@ class GameConfig(Schema):
     # Muse sprites as sheets: frames per animation row (1 = one image per sprite)
     sheet_frames: int = Field(default=4, ge=1, le=6)
     adapt_size: bool = True  # a Muse sprite's frame takes the drawn art's shape
+    # Art Reviewer (M10.3): one vision call after the playtest; blocking issues are fixed once
+    # (at most review_max_fixes Muse Image edits at review_image_reasoning) before G4.
+    review: bool = True
+    review_max_fixes: int = Field(default=4, ge=0, le=8)
+    review_image_reasoning: Literal["low", "high"] = "high"
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)
