@@ -15,6 +15,8 @@ After the G1 questions:
 The playable build is runs/<id>/game/vN/build, served at /api/runs/<id>/play/vN/index.html.
 """
 
+from pathlib import Path
+
 from spriteforge.config import BudgetConfig, Config
 from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Gates, new_gate
@@ -48,7 +50,9 @@ class GameContext(ProductionStore):
         self.run = store.get_run(run_id)
         self.cfg = Config.model_validate(self.run.config["settings"])
         budget = Budget(store, run_id, BudgetConfig.model_validate(self.run.config["budget"]))
-        self.models = Models(self.cfg, budget, self.run.config["mock"])
+        # Identical Muse requests are answered from <workspace>/cache/muse-image.
+        cache = Path(store.path).parent / "cache" / "muse-image"
+        self.models = Models(self.cfg, budget, self.run.config["mock"], cache_dir=cache)
         self.brief = GameBrief.model_validate(self.read("brief.json"))
 
     def once(self, name: str, schema, make, role: str):
@@ -142,7 +146,7 @@ def build_version(
         art = produce_art(ctx.models, design, plan, ctx.cfg, previous_art(ctx, version))
         if base is None or instruction.strip():
             log(f"build v{version}: the Programmer is writing the game")
-            code = write_code(ctx.models, design, art.manifest(), base, instruction)
+            code = write_code(ctx.models, design, art.manifest(), base, instruction, log)
         else:
             code = base  # feedback touched only the art: same code, new assets
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log)
@@ -305,6 +309,7 @@ def game_step(store, run_id) -> bool:
                 revision_prompt(previous, feedback or "Try a different take."),
                 GameDesign,
                 previous,
+                "design",
             ),
             "Game Designer",
         )
@@ -337,6 +342,7 @@ def game_step(store, run_id) -> bool:
                 ),
                 Revision,
                 fallback_revision(design, feedback),
+                "revision",
             ),
             "Director",
         )
@@ -348,7 +354,11 @@ def game_step(store, run_id) -> bool:
                 f"game/design/v{design_version}.json",
                 GameDesign,
                 lambda: ctx.models.ask(
-                    "Game Designer", revision_prompt(old, revision.design_changes), GameDesign, old
+                    "Game Designer",
+                    revision_prompt(old, revision.design_changes),
+                    GameDesign,
+                    old,
+                    "design",
                 ),
                 "Game Designer",
             )

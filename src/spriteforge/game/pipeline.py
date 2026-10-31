@@ -11,10 +11,15 @@
 
 Used by `spriteforge game make` (no gates). Every model call goes through `Budget`; `--mock`
 answers with deterministic stand-ins (fallback design, keyword art plan, fixture game).
+Spark calls carry a per-task `reasoning_effort` (`llm.reasoning`) and `prompt_cache_key`.
+Muse Image calls run in parallel (`game.image_workers`, one provider per thread) and live
+requests are cached in `<workspace>/cache/muse-image` (`game.image_cache`).
 """
 
 import json
 import shutil
+import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,7 +45,10 @@ from .art import (
 )
 from .build import build_game
 from .codegen import (
+    CodePatch,
     GameCode,
+    PatchError,
+    apply_patch,
     change_prompt,
     mock_code,
     programmer_prompt,
@@ -48,6 +56,7 @@ from .codegen import (
     static_check,
 )
 from .design import GameDesign, design_markdown, design_prompt, fallback_design
+from .image_cache import ImageCache
 from .playtest import failure_summary, playtest
 from .record import record_game
 
@@ -59,17 +68,28 @@ def role_prompt(role: str) -> str:
 
 class Models:
     """Model access for one build: live Muse Spark / Muse Image, or offline stand-ins.
-    `provider` (tests) replaces the chat model for every role."""
+    `provider` (tests) replaces the chat model for every role, `images` the image model.
+    `cache_dir`: where identical Muse requests are cached (None: no cache)."""
 
-    def __init__(self, cfg: Config, budget: Budget, mock: bool, provider=None, images=None):
+    def __init__(
+        self,
+        cfg: Config,
+        budget: Budget,
+        mock: bool,
+        provider=None,
+        images=None,
+        cache_dir: Path | None = None,
+    ):
         self.cfg, self.budget, self.mock = cfg, budget, mock
-        self.provider, self.images = provider, images
+        self.provider, self.images, self.cache_dir = provider, images, cache_dir
 
     @property
     def name(self) -> str:
         return "mock (offline stand-ins)" if self.mock and not self.provider else self.cfg.llm.model
 
-    def ask(self, role: str, prompt: str, schema, fallback):
+    def ask(self, role: str, prompt: str, schema, fallback, task: str | None = None):
+        """`task` (design, art_plan, code, revision) picks the reasoning effort and the
+        prompt cache key; prompts of one task share their stable prefix."""
         provider = self.provider or (
             MockLLMProvider(self.budget, [fallback.model_dump()])
             if self.mock
@@ -80,22 +100,58 @@ class Models:
                 Message(role="system", content=role_prompt(role)),
                 Message(role="user", content=prompt),
             ]
-            return chat_json(provider, ChatRequest(messages=messages), schema)
+            request = ChatRequest(
+                messages=messages,
+                reasoning_effort=self.cfg.llm.reasoning.get(task) if task else None,
+                cache_key=f"spriteforge-{task}" if task else None,
+            )
+            return chat_json(provider, request, schema)
         finally:
             if provider is not self.provider and hasattr(provider, "close"):
                 provider.close()
 
     def image_generator(self) -> tuple[Callable, Callable]:
-        provider = self.images or (
-            MockImageProvider(self.budget)
-            if self.mock
-            else MuseImageProvider(self.cfg.image, self.budget)
-        )
+        """`generate(request, edit) -> png bytes`, safe across threads: each worker thread
+        gets its own provider (its own httpx client); `close()` closes them all."""
+        local, made, lock = threading.local(), [], threading.Lock()
+
+        def provider():
+            if self.images is not None:
+                return self.images
+            if not hasattr(local, "provider"):
+                local.provider = (
+                    MockImageProvider(self.budget)
+                    if self.mock
+                    else MuseImageProvider(self.cfg.image, self.budget)
+                )
+                with lock:
+                    made.append(local.provider)
+            return local.provider
 
         def generate(request, edit: bool) -> bytes:
-            return (provider.edit(request) if edit else provider.generate(request)).data
+            p = provider()
+            return (p.edit(request) if edit else p.generate(request)).data
 
-        return generate, getattr(provider, "close", lambda: None)
+        def close():
+            for p in made:
+                getattr(p, "close", lambda: None)()
+
+        return generate, close
+
+    def image_cache(self) -> ImageCache | None:
+        """The Muse request cache, keyed by this build's image provider (an injected test
+        provider is never cached: its identity is unknown)."""
+        if self.cache_dir is None or not self.cfg.game.image_cache or self.images is not None:
+            return None
+        img = self.cfg.image
+        identity = (
+            {"model": "mock/synthetic-image", "base_url": "mock", "generate": "generate",
+             "edit": "edit"}
+            if self.mock
+            else {"model": img.model, "base_url": str(img.base_url),
+                  "generate": img.generate_path, "edit": img.edit_path}
+        )  # fmt: skip
+        return ImageCache(self.cache_dir, identity)
 
 
 @dataclass
@@ -112,12 +168,14 @@ def save_json(path: Path, data) -> None:
 
 
 def write_design(models: Models, request: str) -> GameDesign:
-    return models.ask("Game Designer", design_prompt(request), GameDesign, fallback_design(request))
+    return models.ask(
+        "Game Designer", design_prompt(request), GameDesign, fallback_design(request), "design"
+    )
 
 
 def plan_art(models: Models, design: GameDesign) -> ArtPlan:
-    prompt = art_prompt(design, library_context(design.camera))
-    return models.ask("Art Director", prompt, ArtPlan, keyword_plan(design))
+    prompt = art_prompt(design, library_context(design.camera, design))
+    return models.ask("Art Director", prompt, ArtPlan, keyword_plan(design), "art_plan")
 
 
 def produce_art(
@@ -135,6 +193,7 @@ def produce_art(
             grid_confidence=cfg.game.native_grid_confidence,
             sheet_frames=cfg.game.sheet_frames,
             adapt_size=cfg.game.adapt_size,
+            workers=cfg.game.image_workers,
         )
         return make_art(
             design,
@@ -143,6 +202,7 @@ def produce_art(
             max_calls=cfg.game.max_art_calls,
             previous=previous,
             options=options,
+            cache=models.image_cache(),
         )
     finally:
         close()
@@ -179,12 +239,33 @@ def write_code(
     manifest: dict,
     base: GameCode | None = None,
     instruction: str = "",
+    log: Callable[[str], None] = lambda message: None,
 ) -> GameCode:
     """New code for a design, or `base` changed as `instruction` says (feedback rounds)."""
     if base is None:
-        return models.ask("Programmer", programmer_prompt(design, manifest), GameCode, mock_code())
-    prompt = change_prompt(design, base, instruction, manifest)
-    return models.ask("Programmer", prompt, GameCode, base)
+        prompt = programmer_prompt(design, manifest)
+        return models.ask("Programmer", prompt, GameCode, mock_code(), "code")
+    return edit_code(
+        models, base, lambda error: change_prompt(design, base, instruction, manifest, error), log
+    )[0]
+
+
+def edit_code(
+    models: Models,
+    code: GameCode,
+    prompt_for: Callable[[str | None], str],
+    log: Callable[[str], None],
+) -> tuple[GameCode, str]:
+    """Ask for edits (`CodePatch`) and apply them; when they do not apply cleanly, ask again
+    for complete files. `prompt_for(patch_error)` builds the prompt. Returns (code, "edits" |
+    "full files"). The offline stand-in answers with no edits: the code stays as it was."""
+    patch = models.ask("Programmer", prompt_for(None), CodePatch, CodePatch(edits=[], notes=""),
+                       "code")  # fmt: skip
+    try:
+        return apply_patch(code, patch), "edits"
+    except PatchError as exc:
+        log(f"  the edits did not apply ({exc}); asking for complete files")
+        return models.ask("Programmer", prompt_for(str(exc)), GameCode, code, "code"), "full files"
 
 
 @dataclass
@@ -247,10 +328,15 @@ def build_and_test(
         if report["passed"] or n == cfg.game.max_repairs:
             break
         log("  Programmer is repairing the game")
-        prompt = repair_prompt(design, code, failures, manifest)
-        fixed = models.ask("Programmer", prompt, GameCode, code)
+        fixed, how = edit_code(
+            models,
+            code,
+            lambda error, c=code, f=failures: repair_prompt(design, c, f, manifest, error),
+            log,
+        )
         if fixed == code:  # the mock (or a stuck model) returned the same files: stop early
             break
+        attempts[-1]["repair"] = how
         code = fixed
     if report["stage"] == "static":
         build_dir = None  # the last answer never passed static checks; no build was made
@@ -288,7 +374,8 @@ def make_game(
     run = store.create_run(
         {"workflow": "game-make", "budget": cfg.budget.model_dump(), "mock": mock}
     )
-    models = Models(cfg, Budget(store, run.id, cfg.budget), mock, provider, images)
+    cache = None if mock else Path(cfg.workspace).expanduser() / "cache" / "muse-image"
+    models = Models(cfg, Budget(store, run.id, cfg.budget), mock, provider, images, cache)
 
     log("design: Game Designer is writing the design doc")
     design = write_design(models, request)
@@ -302,7 +389,10 @@ def make_game(
     log("art: Art Director is choosing library art (Muse Image for anything missing)")
     plan = plan_art(models, design)
     save_json(out / "art-plan.json", plan.model_dump())
+    start = time.perf_counter()
     art = produce_art(models, design, plan, cfg)
+    art_seconds = round(time.perf_counter() - start, 1)
+    log(f"  art took {art_seconds} s")
     save_json(out / "art.json", art_summary(art))
     if sheet := art_sheet(art.filled):
         (out / "art.png").write_bytes(sheet)
@@ -330,6 +420,7 @@ def make_game(
         "passed": bool(outcome.report["passed"]),
         "play": str(outcome.build / "index.html") if outcome.build else None,
         "art": art_sources(art),
+        "art_seconds": art_seconds,
         "warnings": art.warnings,
         "attempts": outcome.attempts,
         "recording": recording.summary if recording else None,

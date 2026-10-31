@@ -11,6 +11,12 @@ preview:
 game:
   max_repairs: 3 # Programmer fix rounds when syntax, runtime or playtest checks fail
   max_art_calls: 16 # Muse Image calls per build for entities the library cannot supply
+  # Muse jobs run in parallel (Meta allows 150 image requests/min). Call slots are handed out
+  # in priority order before dispatch, so the cap and the greybox choice stay deterministic.
+  image_workers: 4
+  # Identical requests (model, endpoint, prompt, size, reasoning strength, n, reference
+  # hashes) reuse workspace/cache/muse-image/<sha256>.png: no call, no cost.
+  image_cache: true
   art_retry: 1 # one redraw (reasoning_strength high) when a frame fails check_frame
   native_grid_confidence: 0.6 # below this, Muse art is fitted instead of read cell by cell
   # Muse sprites are drawn as sheets (a row of frames per animation, up to 4 rows): each
@@ -45,6 +51,19 @@ llm:
   # Live probe 2026-10-30: strict json_schema {files:[{path,content}]} returned a complete
   # 375-line Phaser game (8578 completion tokens, finish_reason stop, 43 s); it ran without
   # errors. One call per game file set is enough; no output-length setting was needed.
+  # tools/probe_spark_reasoning.py 2026-10-31: top-level reasoning_effort is accepted and
+  # works (same question: low 113-119 reasoning tokens, max 366-455). Docs list minimal,
+  # low, medium, high, xhigh, max ("none" -> HTTP 400). Prefix caching is automatic: a
+  # repeated 1558-token prompt reported cached_tokens 1521 on a second run, also across
+  # different efforts (0 on back-to-back calls of the very first run: the cache fills
+  # shortly after a request). Prompts start with their stable part and send a
+  # prompt_cache_key per task.
+  reasoning:
+    intake: low # G1 genre pick, brief draft, follow-up questions, style options
+    art_plan: low # Art Director's library picks
+    revision: low # Director splitting G4 feedback
+    design: high # Game Designer's design doc and its revisions
+    code: high # Programmer: new game, repairs, changes
 budget:
   max_image_calls: 150
   max_calls_per_model: 200

@@ -4,10 +4,12 @@ Muse Spark writes the whole game (`GameCode`: one or more plain-script files, `g
 Static checks reject what the build must never contain (network access, eval, modules, URLs,
 its own `new Phaser.Game`), unknown asset ids, oversized output and syntax errors (`node
 --check`, which parses without executing). Failures go back to the Programmer with the
-playtest report in `repair_prompt`.
+playtest report in `repair_prompt`. Repairs and change requests come back as `CodePatch`
+edits applied by code (`apply_patch`); a patch that does not apply cleanly makes that round
+ask for complete files instead. Every prompt starts with `code_context`, so the long
+reference part is a cacheable prefix.
 """
 
-import json
 import re
 import shutil
 import subprocess
@@ -122,6 +124,56 @@ def static_check(code: GameCode, asset_ids: set[str], max_kb: int = 200) -> list
     return problems
 
 
+class CodeEdit(Contract):
+    path: str = Field(description="file name like game.js")
+    old: str = Field(
+        description="exact text copied from the current file, occurring there exactly once "
+        "(include enough lines to make it unique); '' = `new` is the whole file (new or "
+        "rewritten)"
+    )
+    new: str = Field(description="the replacement text")
+
+
+class CodePatch(Contract):
+    """Repairs and changes as edits, not whole files: far fewer output tokens."""
+
+    edits: list[CodeEdit]
+    notes: str = Field(description="What changed and why ('' keeps the previous notes)")
+
+
+class PatchError(ValueError):
+    def __init__(self, problems: list[str]):
+        super().__init__("; ".join(problems))
+        self.problems = problems
+
+
+def apply_patch(code: GameCode, patch: CodePatch) -> GameCode:
+    """Apply edits in order. Every `old` must occur exactly once in its file at that point;
+    otherwise nothing is applied and PatchError lists every edit that failed."""
+    files = code.as_dict()
+    problems = []
+    for i, edit in enumerate(patch.edits, 1):
+        if not edit.old:
+            files[edit.path] = edit.new
+            continue
+        if edit.path not in files:
+            problems.append(f"edit {i}: there is no file {edit.path}")
+            continue
+        count = files[edit.path].count(edit.old)
+        if count != 1:
+            problems.append(
+                f"edit {i} ({edit.path}): the old text occurs {count} times, not exactly once"
+            )
+            continue
+        files[edit.path] = files[edit.path].replace(edit.old, edit.new, 1)
+    if problems:
+        raise PatchError(problems)
+    return GameCode(
+        files=[CodeFile(path=p, content=c) for p, c in files.items()],
+        notes=patch.notes.strip() or code.notes,
+    )
+
+
 def assets_summary(manifest: dict) -> str:
     screen = manifest["screen"]
     lines = [
@@ -136,17 +188,35 @@ def assets_summary(manifest: dict) -> str:
     return "\n".join(lines)
 
 
-def programmer_prompt(design: GameDesign, manifest: dict) -> str:
+def code_context(design: GameDesign, manifest: dict) -> str:
+    """The stable start of every Programmer prompt: API reference, design, assets. New-game,
+    repair and change prompts for one design share it word for word, so Spark's automatic
+    prefix cache serves it (cached input costs about an eighth); the parts that change
+    (code, failures, the instruction) come after it."""
+    return f"""Reference for writing a SpriteForge game: plain browser scripts for Phaser 3.90
+using the SpriteForge SDK.
+
+Phaser notes:
+{SKILL.read_text(encoding="utf-8").split("---", 2)[-1].strip()}
+
+SDK reference:
+{SDK_API}
+
+Design (JSON):
+{design.model_dump_json(indent=1)}
+
+Assets:
+{assets_summary(manifest)}
+"""
+
+
+def requirements(design: GameDesign) -> str:
     checks = "\n".join(
         f"* sf.event('{c.event}') - {c.description} (at least {c.min_count}"
         + (f", by {c.by_second:g} s)" if c.by_second else ")")
         for c in design.checks
     )
-    return f"""Write the complete game below as plain browser scripts for Phaser 3.90 using the
-SpriteForge SDK (reference at the end). Implement every rule, the progression and the difficulty
-curve of the design exactly; do not add unrelated features.
-
-Hard requirements (the harness checks them automatically):
+    return f"""Hard requirements (the harness checks them automatically):
 * game.js is loaded last and calls sf.start({{scenes, autoplay}}). Extra helper files are
   allowed (loaded before game.js in the order you list them).
 * Controls only through sf.input(scene). Time only through sf.clock.now or scene timers.
@@ -155,64 +225,89 @@ Hard requirements (the harness checks them automatically):
 * The playtest runs the full {design.session_seconds} s session with your autoplay policy in god
   mode (sf.flags.god: the player can be hurt but HP never drops below 1). The policy must play
   well enough that every event above happens in time.
-* Use only the asset ids listed below; characters, enemies, pickups and tiles must use them.
-* No network, no modules, no eval, no URLs, no Date.now/performance.now.
-
-Design (JSON):
-{design.model_dump_json(indent=1)}
-
-Assets:
-{assets_summary(manifest)}
-
-Phaser notes:
-{SKILL.read_text(encoding="utf-8").split("---", 2)[-1].strip()}
-
-SDK reference:
-{SDK_API}"""
+* Use only the asset ids listed above; characters, enemies, pickups and tiles must use them.
+* No network, no modules, no eval, no URLs, no Date.now/performance.now."""
 
 
-def repair_prompt(design: GameDesign, code: GameCode, failures: str, manifest: dict) -> str:
-    files = "\n\n".join(f"=== {f.path} ===\n{f.content}" for f in code.files)
-    return f"""The game below was built and playtested by the harness and failed. Fix every
-problem listed, keep everything that works, and return ALL files complete (not a diff).
+EDITS = """Answer with edits, not whole files: each edit names a file, `old` is an exact
+snippet copied from the current file that occurs there exactly once (include enough
+surrounding lines to make it unique) and `new` replaces it. Edits apply in order. To add a
+file, or to rewrite one completely, use old = "" with the whole file in `new`."""
+
+
+def current_files(code: GameCode) -> str:
+    return "\n\n".join(f"=== {f.path} ===\n{f.content}" for f in code.files)
+
+
+def programmer_prompt(design: GameDesign, manifest: dict) -> str:
+    return f"""{code_context(design, manifest)}
+# Task
+Write the complete game described above. Implement every rule, the progression and the
+difficulty curve of the design exactly; do not add unrelated features.
+
+{requirements(design)}"""
+
+
+def repair_prompt(
+    design: GameDesign,
+    code: GameCode,
+    failures: str,
+    manifest: dict,
+    patch_error: str | None = None,
+) -> str:
+    """Repair as edits (`CodePatch`); with `patch_error` (the edits did not apply), as
+    complete files (`GameCode`)."""
+    answer = (
+        f"Your edits could not be applied ({patch_error}). Return ALL files complete this time."
+        if patch_error is not None
+        else EDITS
+    )
+    return f"""{code_context(design, manifest)}
+# Current files
+{current_files(code)}
+
+# Task
+The game above was built and playtested by the harness and failed. Fix every problem
+listed, keep everything that works.
+
+{requirements(design)}
 
 Problems:
 {failures}
 
-Design checks (each must happen in the {design.session_seconds} s autoplay session):
-{json.dumps([c.model_dump() for c in design.checks], indent=1)}
-
-Assets:
-{assets_summary(manifest)}
-
-Current files:
-{files}
-
-SDK reference:
-{SDK_API}"""
+{answer}"""
 
 
-def change_prompt(design: GameDesign, code: GameCode, instruction: str, manifest: dict) -> str:
-    """A reviewer asked for a change: edit the working game, keep everything else."""
-    files = "\n\n".join(f"=== {f.path} ===\n{f.content}" for f in code.files)
-    return f"""The game below works and passed its playtest. The human reviewer asked for this
-change; make it, keep every other behaviour and every sf.event that still applies, keep the
-autoplay policy able to trigger all design checks, and return ALL files complete.
+def change_prompt(
+    design: GameDesign,
+    code: GameCode,
+    instruction: str,
+    manifest: dict,
+    patch_error: str | None = None,
+) -> str:
+    """A reviewer asked for a change: edit the working game, keep everything else. The design
+    above is already updated if the change affected it."""
+    answer = (
+        f"Your edits could not be applied ({patch_error}). Return ALL files complete this time."
+        if patch_error is not None
+        else EDITS
+    )
+    return f"""{code_context(design, manifest)}
+# Current files
+{current_files(code)}
+
+# Task
+The game above works and passed its playtest. The human reviewer asked for a change; make
+it, keep every other behaviour and every sf.event that still applies, and keep the autoplay
+policy able to trigger all design checks (the design above is already updated if the
+change affected it).
+
+{requirements(design)}
 
 Change requested:
 {instruction.strip()}
 
-Design (JSON, already updated if the change affected it):
-{design.model_dump_json(indent=1)}
-
-Assets:
-{assets_summary(manifest)}
-
-Current files:
-{files}
-
-SDK reference:
-{SDK_API}"""
+{answer}"""
 
 
 def mock_code() -> GameCode:

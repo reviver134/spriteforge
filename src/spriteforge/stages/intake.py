@@ -95,7 +95,8 @@ def propose(provider, role, prompt, schema):
                     + "\nHuman notes are part of the brief and override untouched template defaults. Ask about genuine conflicts instead of discarding the notes.",
                 ),
                 Message(role="user", content=prompt),
-            ]
+            ],
+            cache_key="spriteforge-intake",
         ),
         schema,
     )

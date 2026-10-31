@@ -11,9 +11,16 @@ from .muse_image import data_url
 
 
 class MuseSparkProvider(MetaHTTP):
-    def __init__(self, config: LLMConfig, budget: Budget, client: httpx.Client | None = None):
+    def __init__(
+        self,
+        config: LLMConfig,
+        budget: Budget,
+        client: httpx.Client | None = None,
+        reasoning: str | None = None,
+    ):
+        """`reasoning`: the effort sent when a request names none (`llm.reasoning.<task>`)."""
         super().__init__(str(config.base_url), client)
-        self.config, self.budget = config, budget
+        self.config, self.budget, self.reasoning = config, budget, reasoning
 
     def chat(self, request: ChatRequest) -> ChatResult:
         with self.budget.attempt("meta", self.config.model) as attempt:
@@ -31,6 +38,10 @@ class MuseSparkProvider(MetaHTTP):
                     ]
                 messages.append(value)
             body = {"model": self.config.model, "messages": messages}
+            if effort := request.reasoning_effort or self.reasoning:
+                body["reasoning_effort"] = effort
+            if request.cache_key:
+                body["prompt_cache_key"] = request.cache_key
             if request.tools:
                 body["tools"] = request.tools
             if request.json_schema:

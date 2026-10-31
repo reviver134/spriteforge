@@ -139,6 +139,31 @@ def test_meta_request_contracts(context, monkeypatch):
         "data:image/png;base64,"
     )
     assert seen[2][1]["response_format"]["type"] == "json_schema"
+    assert "reasoning_effort" not in seen[2][1] and "prompt_cache_key" not in seen[2][1]
+
+
+def test_spark_reasoning_effort_and_cache_key(context, monkeypatch):
+    """M10.2: a task's effort and cache key reach the body; a provider default fills in."""
+    config, _, _, budget = context
+    monkeypatch.setenv("META_API_KEY", "fake-test-key")
+    bodies = []
+
+    def handler(request):
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        messages = [Message(role="user", content="hi")]
+        MuseSparkProvider(config.llm, budget, client).chat(
+            ChatRequest(messages=messages, reasoning_effort="high", cache_key="spriteforge-code")
+        )
+        MuseSparkProvider(config.llm, budget, client, reasoning="low").chat(
+            ChatRequest(messages=messages)
+        )
+    assert bodies[0]["reasoning_effort"] == "high"
+    assert bodies[0]["prompt_cache_key"] == "spriteforge-code"
+    assert bodies[1]["reasoning_effort"] == "low" and "prompt_cache_key" not in bodies[1]
+    assert config.llm.reasoning["code"] == "high" and config.llm.reasoning["intake"] == "low"
 
 
 def test_raw_error_redacted(context, monkeypatch, caplog):

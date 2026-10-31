@@ -26,8 +26,10 @@ Nothing here talks to a model directly: callers pass `generate(request, edit) ->
 import io
 import math
 import re
+import threading
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field, replace
 from typing import Literal
 
 import numpy as np
@@ -44,6 +46,7 @@ from spriteforge.providers.base import ImageRequest
 
 from .actors import COLORS, Actor, adapt, canon, face_right, load_actors, recolor, words
 from .design import Entity, GameDesign
+from .image_cache import ImageCache
 from .tilesets import backdrop_layers, load_tilesets, pick_variant, tile_ids, tile_image
 
 MAX_OBJECT_PX = 128
@@ -79,7 +82,8 @@ class ArtPlan(Contract):
 class Filled:
     png: bytes
     source: (
-        str  # "library <id>" | "tileset <id>" | "muse" | "muse (locked, from vN)" | "placeholder"
+        str  # "library <id>" | "tileset <id>" | "muse" | "muse (cached)" | "placeholder"
+        # | "muse (locked, from vN)"
     )
     reasons: list[str]
     meta: dict  # assets.json entry (minus file)
@@ -154,11 +158,46 @@ def name_words(e: Entity) -> set[str]:
     return set(found) | canon(found)
 
 
-def library_context(camera: str) -> str:
-    """What the Art Director may pick from, for the game's camera."""
+CAMERA_WORDS = {"top", "down", "side", "view"}
+MAX_HERO_OPTIONS = 3
+
+
+def hero_candidates(actors: list[Actor]) -> list[Actor]:
+    """Library characters that can be the hero: they stand and move (not modular bodies)."""
+    return [
+        a
+        for a in actors
+        if a.category == "character"
+        and {"idle", "walk", "run"} & a.anims.keys()
+        and "body" not in a.tokens
+    ]
+
+
+def library_context(camera: str, design: GameDesign | None = None) -> str:
+    """What the Art Director may pick from, for the game's camera.
+
+    With a design, the list is filtered to keep the prompt small: actors named like the
+    design's player or enemies, up to 3 hero options, every tile set for the camera, and
+    objects named like what a pickup, prop or projectile is (`name_words`, as the keyword pick
+    matches). The
+    rest of the library stays reachable through the `library_search` MCP tool, and a plan
+    may still pick it: `resolve_plan` checks picks against the whole library."""
     view = "side" if camera == "side-view" else "topdown"
     tags = CAMERA_TAGS[camera]
     actors = [a for a in load_actors() if a.side() == view]
+    object_words: set[str] | None = None
+    if design is not None:
+        cast = [e for e in design.entities if e.role in {"player", "enemy"}]
+        want = set().union(*(entity_words(e) for e in cast)) - CAMERA_WORDS
+        player = set().union(*(entity_words(e) for e in cast if e.role == "player"))
+        heroes = sorted(
+            hero_candidates(actors),
+            key=lambda a: (len(a.tokens & player), len(a.anims), a.key),
+            reverse=True,
+        )[:MAX_HERO_OPTIONS]
+        actors = [a for a in actors if a in heroes or a.tokens & want]
+        things = [e for e in design.entities if e.role in {"pickup", "prop", "projectile"}]
+        object_words = set().union(*(name_words(e) for e in things))
     lines = ["# Actors (animated; use source=actor, asset=key)"]
     lines += [
         f"* `{a.key}` {'hero' if a.category == 'character' else 'enemy'}: "
@@ -187,6 +226,7 @@ def library_context(camera: str) -> str:
         o
         for o in whole_objects().values()
         if not (set().union(*CAMERA_TAGS.values()) - tags) & set(o["tags"])
+        and (object_words is None or object_words & set(re.findall(r"[a-z]+", o["name"])))
     ]
     lines += [
         f"* `{o['id']}` {o['category']}: {o['name']} ({o['cell'][0]}x{o['cell'][1]}"
@@ -194,11 +234,17 @@ def library_context(camera: str) -> str:
         + ("" if o.get("ai_allowed", True) else ", no AI")
         + ")"
         for o in sorted(objects, key=lambda o: o["id"])
-    ] or ["(none)"]
+    ] or ["(none named like this game's entities)" if object_words is not None else "(none)"]
     refs = sorted({a["pack"] for a in reference_assets().values()})
     lines.append(
-        "\n# Muse style references\nAny asset id from these packs: "
-        + (", ".join(f"`{r}`" for r in refs) or "none (Muse draws from text only)")
+        "\n# Muse style references (field `reference`)\n"
+        + (
+            "An actor key or object id listed above from one of these packs: "
+            + ", ".join(f"`{r}`" for r in refs)
+            + ". Tile ids are not references; '' lets the harness pick one."
+            if refs
+            else "None (Muse draws from text only); use ''."
+        )
     )
     return "\n".join(lines)
 
@@ -239,7 +285,7 @@ def actor_sheet(actor: Actor) -> str:
 
 def keyword_pick(e: Entity, design: GameDesign, used: set[str]) -> ArtPick:
     view = "side" if design.camera == "side-view" else "topdown"
-    want = entity_words(e) - {"top", "down", "side", "view"}
+    want = entity_words(e) - CAMERA_WORDS
 
     def pick(source, asset, reason):
         return ArtPick(
@@ -265,17 +311,9 @@ def keyword_pick(e: Entity, design: GameDesign, used: set[str]) -> ArtPick:
                 ),
             )
             return pick("actor", best.key, f"library actor named like {sorted(best.tokens & want)}")
-        if e.role == "player":
-            heroes = [
-                a
-                for a in actors
-                if a.category == "character"
-                and {"idle", "walk", "run"} & a.anims.keys()
-                and "body" not in a.tokens
-            ]
-            if heroes:
-                best = max(heroes, key=lambda a: (len(a.anims), a.key))
-                return pick("actor", best.key, GENERIC_HERO)
+        if e.role == "player" and (heroes := hero_candidates(actors)):
+            best = max(heroes, key=lambda a: (len(a.anims), a.key))
+            return pick("actor", best.key, GENERIC_HERO)
     if e.role == "tile":
         named = name_words(e)
         for ident, (ts, name) in tile_ids(load_tilesets(design.camera)).items():
@@ -1001,9 +1039,16 @@ def make_art(
     max_calls: int = 8,
     previous: Callable[[str], dict | None] = lambda eid: None,
     options: "MuseOptions | None" = None,
+    cache: ImageCache | None = None,
 ) -> ArtResult:
     """Resolve the plan and produce every entity's art. `previous(entity)` returns an earlier
-    version's Muse record ({"prompt", "reference", "size", "raw", "png", "version"})."""
+    version's Muse record ({"prompt", "reference", "size", "raw", "png", "version"}).
+
+    Library picks and locked art resolve first. The remaining Muse jobs get their first call
+    slot in PRIORITY order *before* any is sent (so the cap is never exceeded and the same
+    entities become greybox under a cap), then run `options.workers` at a time. `generate`
+    must be safe to call from several threads. Results and warnings are assembled in entity
+    order, so the outcome does not depend on which call finishes first."""
     options = options or MuseOptions()
     picks, warnings = resolve_plan(plan, design)
     tilesets = {ts["id"]: ts for ts in load_tilesets(design.camera)}
@@ -1023,9 +1068,11 @@ def make_art(
     packs = {p.id: p for p in load_packs()}
     used_packs: set[str] = set()
     filled: dict[str, Filled] = {}
-    calls = 0
     hero_px = next(e.height for e in design.entities if e.role == "player") * scale
     order = sorted(entities.values(), key=lambda e: PRIORITY.index(e.role))
+    slots = CallSlots(max_calls)
+    muses: dict[str, Muse] = {}
+    jobs: list[tuple[Muse, MuseJob]] = []
     for e in order:
         p = picks[e.id]
         size = (e.width * scale, e.height * scale)
@@ -1066,9 +1113,24 @@ def make_art(
             )
             used_packs.add(ts["pack"])
         else:
-            muse = Muse(generate, previous, max_calls, options, warnings, hero_px, calls)
-            filled[e.id] = muse.art(e, design, p, screen if e.role == "background" else size)
-            calls = muse.calls
+            muse = muses[e.id] = Muse(generate, previous, slots, options, hero_px, cache)
+            box = screen if e.role == "background" else size
+            if (locked := muse.locked(e, p, box)) is not None:
+                filled[e.id] = locked
+            elif generate is None:
+                filled[e.id] = muse.greybox(e, box, "no image provider")
+            else:
+                job = muse.job(e, design, p, box)
+                if muse.is_cached(job.request):
+                    jobs.append((muse, job))  # the cache answers it: no call slot needed
+                elif slots.take():
+                    jobs.append((muse, replace(job, slot=True)))
+                else:
+                    filled[e.id] = muse.greybox(e, box, f"image-call cap ({max_calls}) reached")
+    filled.update(run_jobs(jobs, options.workers))
+    filled = {e.id: filled[e.id] for e in order}
+    for e in order:
+        warnings += muses[e.id].warnings if e.id in muses else []
     credits = [
         f"{packs[pid].title} by {packs[pid].author} - {packs[pid].license}"
         + (f" ({packs[pid].source_url})" if packs[pid].source_url else "")
@@ -1078,6 +1140,23 @@ def make_art(
     if any(f.source.startswith("muse") for f in filled.values()):
         credits.append("Other art generated with Muse Image for this game.")
     return ArtResult(screen, scale, background, filled, picks, warnings, credits)
+
+
+def run_jobs(jobs: list[tuple["Muse", "MuseJob"]], workers: int) -> dict[str, Filled]:
+    """Draw every job, `workers` at a time. A job that raises becomes a reported greybox and
+    never cancels the others."""
+
+    def one(muse: Muse, job: MuseJob) -> Filled:
+        try:
+            return muse.draw(job)
+        except Exception as exc:  # noqa: BLE001 -- one failed job must not sink the build
+            return muse.greybox(job.e, job.size, f"Muse job failed ({type(exc).__name__})")
+
+    if workers <= 1 or len(jobs) <= 1:
+        return {job.e.id: one(muse, job) for muse, job in jobs}
+    with ThreadPoolExecutor(max_workers=min(workers, len(jobs))) as pool:
+        futures = {job.e.id: pool.submit(one, muse, job) for muse, job in jobs}
+    return {eid: f.result() for eid, f in futures.items()}
 
 
 @dataclass
@@ -1090,48 +1169,91 @@ class MuseOptions:
     sheet_frames: int = 4
     # `game.adapt_size`: a sprite's frame takes the drawn art's shape (about the design's area)
     adapt_size: bool = True
+    workers: int = 4  # `game.image_workers`: Muse calls in flight at once
+
+
+class CallSlots:
+    """The build's image-call cap, shared by parallel Muse jobs. Each job's first call is
+    reserved in PRIORITY order before dispatch; retries take what is left."""
+
+    def __init__(self, cap: int):
+        self.cap, self.used, self._lock = cap, 0, threading.Lock()
+
+    def take(self) -> bool:
+        with self._lock:
+            if self.used >= self.cap:
+                return False
+            self.used += 1
+            return True
+
+    def give_back(self) -> None:
+        with self._lock:
+            self.used -= 1
+
+
+@dataclass
+class MuseJob:
+    """One entity's Muse request, prepared in the main thread before dispatch."""
+
+    e: Entity
+    p: ArtPick
+    size: tuple[int, int]
+    spec: ArtSpec
+    rows: list[tuple[str, list[str]]]
+    prompt: str  # the spec prompt; a retry puts the problems in front of it
+    request: ImageRequest
+    key: dict  # what decides whether a later version may reuse (lock) this art
+    has_ref: bool
+    edit_of: int | None
+    slot: bool = False  # a call slot was reserved for the first attempt
 
 
 @dataclass
 class Muse:
-    """One entity's Muse Image art under the build's call cap (`calls` counts across)."""
+    """One entity's Muse Image art under the build's shared call cap (`slots`). Warnings are
+    the entity's own; `make_art` merges them in entity order."""
 
     generate: Generate | None
     previous: Callable[[str], dict | None]
-    max_calls: int
+    slots: CallSlots
     options: MuseOptions
-    warnings: list[str]
     hero_px: int
-    calls: int = 0
+    cache: ImageCache | None = None
+    warnings: list[str] = field(default_factory=list)
 
-    def art(self, e: Entity, design: GameDesign, p: ArtPick, size) -> Filled:
-        old = self.previous(e.id)
+    def rows(self, e: Entity) -> list[tuple[str, list[str]]]:
         n = self.options.sheet_frames
-        rows = sheet_rows(e, n) if n > 1 and e.role not in {"tile", "background"} else []
-        key = {
+        return sheet_rows(e, n) if n > 1 and e.role not in {"tile", "background"} else []
+
+    def request_key(self, e: Entity, p: ArtPick, size) -> dict:
+        rows = self.rows(e)
+        return {
             "prompt": p.prompt,
             "reference": p.reference,
             "size": list(size),
-            "sheet": [n, len(rows)] if rows else None,
+            "sheet": [self.options.sheet_frames, len(rows)] if rows else None,
         }
-        if old and all(old.get(k) == v for k, v in key.items()):
-            reasons = [p.reason or "Muse art", "unchanged request: reused, no image call"]
-            record = {**key, "raw": old["raw"], "reused_from": old["version"],
-                      "frame_size": old.get("frame_size")}  # fmt: skip
-            source = f"muse (locked, from v{old['version']})"
-            if old.get("anims"):
-                meta = sprite_meta(e, tuple(old.get("frame_size") or size), old["anims"])
-                return Filled(old["png"], source, reasons, meta, "sprite",
-                              {**record, "anims": old["anims"]})  # fmt: skip
-            image = Image.open(io.BytesIO(old["png"])).convert("RGBA")
-            return single_frame(e, image, source, reasons, record)
-        if self.generate is None or self.calls >= self.max_calls:
-            why = (
-                "no image provider"
-                if self.generate is None
-                else f"image-call cap ({self.max_calls}) reached"
-            )
-            return self.greybox(e, size, why)
+
+    def locked(self, e: Entity, p: ArtPick, size) -> Filled | None:
+        """An unchanged request reuses the previous version's art (no call)."""
+        old = self.previous(e.id)
+        key = self.request_key(e, p, size)
+        if not (old and all(old.get(k) == v for k, v in key.items())):
+            return None
+        reasons = [p.reason or "Muse art", "unchanged request: reused, no image call"]
+        record = {**key, "raw": old["raw"], "reused_from": old["version"],
+                  "frame_size": old.get("frame_size")}  # fmt: skip
+        source = f"muse (locked, from v{old['version']})"
+        if old.get("anims"):
+            meta = sprite_meta(e, tuple(old.get("frame_size") or size), old["anims"])
+            return Filled(old["png"], source, reasons, meta, "sprite",
+                          {**record, "anims": old["anims"]})  # fmt: skip
+        image = Image.open(io.BytesIO(old["png"])).convert("RGBA")
+        return single_frame(e, image, source, reasons, record)
+
+    def job(self, e: Entity, design: GameDesign, p: ArtPick, size) -> MuseJob:
+        old = self.previous(e.id)
+        n, rows = self.options.sheet_frames, self.rows(e)
         ref = reference_image(p.reference) if p.reference else None
         spec = art_spec(e, design, tuple(size), self.hero_px, self.options.sizes, ref)
         if rows:
@@ -1154,27 +1276,50 @@ class Muse:
             )
             edit_of = old["version"]
         request = ImageRequest(prompt=prompt, size=spec.request_size, references=refs)
+        return MuseJob(e, p, tuple(size), spec, rows, prompt, request,
+                       self.request_key(e, p, size), ref is not None, edit_of)  # fmt: skip
+
+    def is_cached(self, request: ImageRequest) -> bool:
+        return self.cache is not None and self.cache.path(request, False).is_file()
+
+    def fetch(self, job: MuseJob, request: ImageRequest, first: bool) -> tuple[bytes | None, bool]:
+        """(raw, from the cache), or (None, False) when the cap leaves no call for it. Raises
+        when the call fails."""
+        edit = bool(request.references)
+        if self.cache and (hit := self.cache.get(request, edit)) is not None:
+            if first and job.slot:
+                self.slots.give_back()  # reserved, but the cache answered
+            return hit, True
+        if not (first and job.slot) and not self.slots.take():
+            return None, False
+        raw = self.generate(request, edit)
+        if self.cache:
+            self.cache.put(request, edit, raw)
+        return raw, False
+
+    def draw(self, job: MuseJob) -> Filled:
+        e, p, size, spec, rows = job.e, job.p, job.size, job.spec, job.rows
+        n = self.options.sheet_frames
+        request = job.request
         best, problems, history, made, failed = None, [], [], 0, False
         for attempt in range(1 + self.options.retries):
-            if attempt:
-                if self.calls >= self.max_calls:
+            if attempt and not failed:  # a failed call (e.g. HTTP 500) is sent again as it was
+                request = request.model_copy(
+                    update={
+                        "prompt": "The last attempt was wrong: " + "; ".join(problems)
+                        + ". Fix that. " + job.prompt,
+                        "reasoning_strength": "high",
+                    }
+                )  # fmt: skip
+            try:
+                raw, cached = self.fetch(job, request, attempt == 0)
+                if raw is None:
                     self.warnings.append(
                         f"{e.id}: {'; '.join(problems)}; no retry, image-call cap "
-                        f"({self.max_calls}) reached"
+                        f"({self.slots.cap}) reached"
                     )
                     break
-                if not failed:  # a failed call (e.g. HTTP 500) is sent again as it was
-                    request = request.model_copy(
-                        update={
-                            "prompt": "The last attempt was wrong: " + "; ".join(problems)
-                            + ". Fix that. " + prompt,
-                            "reasoning_strength": "high",
-                        }
-                    )  # fmt: skip
-            self.calls += 1
-            made += 1
-            try:
-                raw = self.generate(request, bool(refs))
+                made += 0 if cached else 1
                 conf, adapt = self.options.grid_confidence, self.options.adapt_size
                 if rows:
                     frames, infos = muse_sheet(spec, raw, n, len(rows), conf, adapt, main_row(rows))
@@ -1182,6 +1327,7 @@ class Muse:
                     frame, info = muse_frame(spec, raw, conf, adapt)
                     frames, infos = [frame], [info]
             except Exception as exc:  # noqa: BLE001 -- one failed image must not sink the build
+                made += 1
                 detail = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
                 self.warnings.append(f"{e.id}: Muse Image failed ({type(exc).__name__}: "
                                      f"{detail})")  # fmt: skip
@@ -1197,12 +1343,12 @@ class Muse:
                 )
             history.append(problems)
             if frames[0].getchannel("A").getbbox():
-                best = (raw, frames, infos, request, problems)
+                best = (raw, frames, infos, request, problems, cached)
             if not problems:
                 break
         if best is None:
             return self.greybox(e, size, "no usable Muse image")
-        raw, frames, infos, request, problems = best  # the kept frames' own problems
+        raw, frames, infos, request, problems, cached = best  # the kept frames' own problems
         if problems:
             self.warnings.append(f"{e.id}: accepted with problems: {'; '.join(problems)}")
         info = infos[0]
@@ -1218,34 +1364,38 @@ class Muse:
         reasons = [
             p.reason or "Muse art",
             f"style example: {p.reference}"
-            if ref is not None
+            if job.has_ref
             else "text only (no AI-allowed style example)",
             readback,
         ]
+        if cached:
+            reasons.append("identical earlier request: image from the cache, no call")
         if len(history) > 1:
             reasons.append(f"retried at high reasoning strength: {'; '.join(history[0])}")
-        if edit_of:
-            reasons.append(f"edited from v{edit_of} per feedback")
+        if job.edit_of:
+            reasons.append(f"edited from v{job.edit_of} per feedback")
         record = {
-            **key,
+            **job.key,
             "raw": raw,
             "muse_prompt": request.prompt,
-            "edit_of": edit_of,
+            "edit_of": job.edit_of,
             "request": {
                 "size": list(request.size),
                 "reasoning_strength": request.reasoning_strength,
                 "calls": made,
+                "cached": cached,
             },
             "spec": spec.model_dump(mode="json"),
             "frame": info,
             "problems": problems,
         }
+        source = "muse (cached)" if cached else "muse"
         fw, fh = frames[0].size  # the design's box, or the art's shape (`adapt_size`)
         record["frame_size"] = [fw, fh]
         if (fw, fh) != tuple(size):
             reasons.append(f"frame {fw}x{fh} follows the art (design box {size[0]}x{size[1]})")
         if not rows:
-            return single_frame(e, limit_palette(frames[0]), "muse", reasons, record)
+            return single_frame(e, limit_palette(frames[0]), source, reasons, record)
         # One palette for the whole strip, so frames keep identical colours.
         strip = Image.new("RGBA", (fw * len(frames), fh))
         for i, f in enumerate(frames):
@@ -1255,7 +1405,7 @@ class Muse:
         for name in e.animations:  # beyond four rows: show the idle row
             anims.setdefault(name, [0, n])
         record.update(anims=anims, frames_read=[i["mode"] for i in infos])
-        return Filled(png(strip), "muse", reasons, sprite_meta(e, (fw, fh), anims),
+        return Filled(png(strip), source, reasons, sprite_meta(e, (fw, fh), anims),
                       "sprite", record)  # fmt: skip
 
     def greybox(self, e: Entity, size, why: str) -> Filled:

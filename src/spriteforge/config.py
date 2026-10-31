@@ -18,10 +18,16 @@ class ImageConfig(Schema):
     sizes: list[tuple[int, int]] = Field(default_factory=lambda: [(1024, 1024)], min_length=1)
 
 
+Effort = Literal["minimal", "low", "medium", "high", "xhigh", "max"]
+
+
 class LLMConfig(Schema):
     base_url: HttpUrl
     model: str
     chat_path: str
+    # Spark `reasoning_effort` per task (intake, art_plan, revision, design, code); a task
+    # not listed sends none and the model picks its own effort.
+    reasoning: dict[str, Effort] = Field(default_factory=dict)
 
 
 class BudgetConfig(Schema):
@@ -65,6 +71,8 @@ class GameConfig(Schema):
 
     max_repairs: int = Field(default=3, ge=0, le=6)  # Programmer fix rounds after failed checks
     max_art_calls: int = Field(default=16, ge=0, le=40)  # Muse Image calls per build
+    image_workers: int = Field(default=4, ge=1, le=8)  # Muse Image calls in flight at once
+    image_cache: bool = True  # identical Muse requests reuse workspace/cache/muse-image
     art_retry: int = Field(default=1, ge=0, le=2)  # redraws of a Muse frame that fails checks
     native_grid_confidence: float = Field(default=0.6, ge=0, le=1)  # big-pixel grid read-back
     # Muse sprites as sheets: frames per animation row (1 = one image per sprite)

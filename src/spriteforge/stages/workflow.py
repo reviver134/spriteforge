@@ -150,7 +150,7 @@ def _step(store, run_id):
             llm = (
                 MockLLMProvider(budget, [fallback.model_dump()])
                 if run.config["mock"]
-                else MuseSparkProvider(cfg.llm, budget)
+                else MuseSparkProvider(cfg.llm, budget, reasoning=cfg.llm.reasoning.get("intake"))
             )
             try:
                 result = propose(llm, role, prompt, schema)

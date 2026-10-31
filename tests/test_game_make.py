@@ -10,7 +10,14 @@ from spriteforge.config import load_config
 from spriteforge.core.cost import Budget
 from spriteforge.core.state import Store
 from spriteforge.game.art import ArtPick, ArtPlan, keyword_plan, make_art, resolve_plan
-from spriteforge.game.codegen import CodeFile, GameCode, mock_code, static_check
+from spriteforge.game.codegen import (
+    CodeEdit,
+    CodeFile,
+    CodePatch,
+    GameCode,
+    mock_code,
+    static_check,
+)
 from spriteforge.game.design import Check, Entity, GameDesign, fallback_design
 from spriteforge.game.pipeline import make_game
 from spriteforge.library import add_pack
@@ -21,6 +28,11 @@ ASSETS = {"hero", "slime", "gem", "floor"}
 
 def code(js: str) -> GameCode:
     return GameCode(files=[CodeFile(path="game.js", content=js)], notes="")
+
+
+def rewrite(js: str) -> CodePatch:
+    """A repair answer that replaces game.js whole (old = '')."""
+    return CodePatch(edits=[CodeEdit(path="game.js", old="", new=js)], notes="")
 
 
 # --- static checks ----------------------------------------------------------------------------
@@ -260,8 +272,8 @@ def test_repair_loop_feeds_failures_back(tmp_path, budget):
             design.model_dump(),
             keyword_plan(design).model_dump(),
             unsafe.model_dump(),
-            crashing.model_dump(),
-            mock_code().model_dump(),
+            rewrite(crashing.files[0].content).model_dump(),  # repairs come back as edits
+            rewrite(mock_code().files[0].content).model_dump(),
         ],
     )
     seen = []
@@ -284,6 +296,7 @@ def test_repair_loop_feeds_failures_back(tmp_path, budget):
     attempts = result.report["attempts"]
     assert [a["stage"] for a in attempts] == ["static", "playtest", "playtest"]
     assert [a["passed"] for a in attempts] == [False, False, True]
+    assert [a.get("repair") for a in attempts] == ["edits", "edits", None]
     assert "uses fetch()" in seen[3]  # the static failure went back to the Programmer
     assert "Runtime error" in seen[4] and "null" in seen[4]
 
@@ -301,7 +314,7 @@ def test_playtest_reports_missing_events(tmp_path, budget):
             design.model_dump(),
             keyword_plan(design).model_dump(),
             mock_code().model_dump(),
-            mock_code().model_dump(),
+            CodePatch(edits=[], notes="").model_dump(),  # the repair changes nothing
         ],
     )
     cfg = load_config()

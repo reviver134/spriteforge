@@ -88,6 +88,27 @@ def test_design_gate_then_playtest_gate_with_targeted_revisions(tmp_path):
     assert store.get_run(ident).status == "completed"
 
 
+def test_identical_requests_come_from_the_cache_and_still_lock(tmp_path):
+    """A second run in the same workspace makes the same Muse requests: every image comes
+    from <workspace>/cache/muse-image with no call, and a rebuild locks it like any art."""
+    store, first = to_design_gate(tmp_path)
+    submit(store, first)
+    assert {a["source"] for a in read(store, first, "game/v1/report.json")["art"]} == {"muse"}
+    cached = list((tmp_path / "cache" / "muse-image").glob("*.png"))
+    assert len(cached) == 4
+
+    _, second = to_design_gate(tmp_path)
+    submit(store, second)
+    report = read(store, second, "game/v1/report.json")
+    assert {a["source"] for a in report["art"]} == {"muse (cached)"}
+    assert report["model_calls"]["image"] == 0
+    assert read(store, second, "game/v1/art/hero.json")["request"]["cached"]
+
+    submit(store, second, "make the slime bright red")
+    sources = {a["entity"]: a["source"] for a in read(store, second, "game/v2/report.json")["art"]}
+    assert sources["slime"] == "muse" and sources["hero"] == "muse (locked, from v1)"
+
+
 def test_play_route_serves_only_the_build(tmp_path):
     store, ident = to_design_gate(tmp_path)
     with TestClient(create_app(store)) as client:

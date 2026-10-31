@@ -744,3 +744,15 @@ python -m spriteforge start --agents --goal "<prompt>"   # G1 -> G2 design -> bu
 In the harness, G2 shows the design (text revises it, empty approves) and G4 shows the build
 report, art sheet and play link; feedback only redoes what it is about. Details:
 `docs/milestone-9-generated-games.md`.
+
+# Milestone 10: art requests, faster images, art review, QA tests
+
+Plan: `new_plan.md`; details and live results: `docs/milestone-10-art-and-qa.md`.
+
+* M10.1: every Muse Image request states view, pixel grid, scale, anchor, light and palette;
+  sprites are drawn as sheets and read back cell by cell.
+* M10.2: Muse calls run in parallel (`game.image_workers`, 4) under the same call cap;
+  identical requests come from `<workspace>/cache/muse-image`. Programmer repairs and changes
+  come back as edits, every Programmer prompt starts with the same cacheable reference part,
+  the Art Director sees only library art related to the design, and Spark's reasoning effort
+  is set per task (`llm.reasoning`).

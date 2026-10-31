@@ -211,3 +211,143 @@ colour by a value or two, so bit-exact colours are not possible), fit fallback o
 retry at high reasoning strength, no retry at the cap, and an empty retry keeping the first
 frame. Sheets: prompt layout and poses, one scale per row, an animated strip, and a retry
 when sheet cells are empty. `test_game_make` checks that `art.json` records request size and spec.
+
+## M10.2: parallel image calls, request cache, token savings
+
+### Parallel Muse calls (`game/art.py`)
+
+`make_art` resolves library picks and locked art first, as before. Each remaining Muse
+entity becomes a `MuseJob` (spec, prompt and request built in the main thread), and its
+first call slot is taken from `CallSlots` in `PRIORITY` order *before* anything is sent: the
+cap can never be exceeded, and under a cap the same entities get greybox as before. Jobs then
+run in a `ThreadPoolExecutor(game.image_workers)` (default 4); retries take the slots that
+are left. Each job keeps its own warnings; results and warnings are put back in entity order,
+so the output does not depend on which call finishes first. A job that raises becomes a
+reported greybox and never cancels the others. Each worker thread gets its own
+`MuseImageProvider` (its own httpx client); budget reservations already use `BEGIN
+IMMEDIATE`, now covered by a 12-thread test.
+
+One behaviour change: before, a job's retry took a slot before the next job's first call;
+now every job's first call is reserved first, so a cap starves retries before it starves
+entities.
+
+### Request cache (`game/image_cache.py`)
+
+`<workspace>/cache/muse-image/<sha256>.png`. The key covers model, base URL, endpoint
+(generate or edit), prompt, size, reasoning strength, `n` and the SHA-256 of every reference
+image. A hit makes no call, needs no call slot, costs nothing, and the source is
+`muse (cached)`; its record keeps the raw image, so a later version locks it like any Muse
+art. References are part of the key, so the cache cannot answer a request with other pixels
+(the AI-allowed rule is decided before a request exists). Writes are atomic. `game make` uses
+the cache for live runs only (`--mock` stays deterministic); the G2/G4 stage uses the
+workspace next to its state database, mock runs included (their key names the mock model).
+`game.image_cache: false` turns it off.
+
+### Spark token savings
+
+* **Repairs and changes as edits** (`codegen.py`). The Programmer answers repair and G4
+  change rounds with `CodePatch {edits: [{path, old, new}], notes}`. `apply_patch` applies
+  the edits in order; every `old` must occur exactly once at that point, and `old: ""` makes
+  `new` the whole file. If any edit fails, nothing is applied and that round asks again for
+  complete files (`GameCode`), with the reasons. `report.json` attempts record
+  `repair: edits | full files`.
+* **Stable prefix.** Every Programmer prompt starts with `code_context`: Phaser notes, SDK
+  reference, design JSON, assets. New-game, repair and change prompts for one design share it
+  word for word; the parts that change (current files, failures, the instruction, the answer
+  format) come after it. The system prompt is the same role prompt for all three.
+* **Filtered library list.** `library_context(camera, design)` lists actors named like the
+  design's player or enemies (`entity_words`), up to 3 hero options (`hero_candidates`, ranked
+  by name match, then animation count), every tile set for the camera, and objects named like
+  a pickup, prop or projectile (`name_words`, the keyword pick's rule; matching on the look
+  text pulled in "red bar", "small tent" and "stone furnace"). A plan may still pick anything:
+  `resolve_plan` checks against the whole library, and the `library_search` MCP tool serves
+  the rest. Installed library, top-down: 1802 tokens unfiltered, 226-319 for the M10.1
+  survival designs. The reference line now says what a reference may be: in the live build
+  below, the Art Director named tile ids as references for 4 entities (harmless: the harness
+  picked another style example).
+* **Reasoning effort per task.** `llm.reasoning` maps tasks to Spark's `reasoning_effort`:
+  `intake`, `art_plan` and `revision` low; `design` and `code` high. Each Spark request also
+  sends `prompt_cache_key: spriteforge-<task>`. G1 sets the effort on its provider, so the
+  role-based `propose` keeps its signature.
+
+### Probes
+
+`tools/probe_spark_reasoning.py` (2026-10-31, 3 runs of 3-4 calls, about $0.03 in all).
+Meta documents a top-level `reasoning_effort` (minimal, low, medium, high, xhigh, max; "none"
+returns HTTP 400). Live:
+
+* it is accepted and works: on the same question, `low` used 113-128 reasoning tokens and
+  `max` 65-455 (mostly 260-455). `max` is the strongest setting Spark accepts (for M10.3's
+  review);
+* prefix caching is automatic and works, also across efforts: 1521 of 1558-1583 prompt
+  tokens were cached. A shared prefix with a different question, 60 s later, hit too. The
+  cache fills a few seconds after a request: a call sent right after the first one missed
+  every time.
+
+`tools/probe_atlas.py` (1 image call): 6 different 16x16 subjects in 3x2 slots on magenta, at
+1792x1024 (returned 2016x1152). Keying and slicing by connected components found exactly 6
+slices and no specks, each the right subject, in reading order. All 6 read back on a grid
+(confidence 0.82-0.97), but at 13x12 to 41x18 cells, with cell sizes from 19 to 40 px: one
+image does not make Muse draw its sprites at one pixel size. Measurement only; not wired in.
+
+### Live build (survival prompt, 2026-10-31, `workspace/m10-2-survival`)
+
+"Corners of Doom: 10-Minute Survival", 12 entities, 7 checks, 600 s. The library supplied the
+hero (wizzard), the skeleton enemy and both tiles; 8 entities went to Muse. 9 image calls +
+4 Spark calls, about $0.27. The first game failed its playtest (no `enemy_kill`,
+`gem_collect` or `level_up` events); the repair came back as edits, applied cleanly, and the
+second attempt passed.
+
+* **Image phase: 76.7 s** for 8 jobs, against about 105 s for 7 calls one at a time in M10.1.
+  Four calls started together; each took 16-26 s (M10.1: about 15 s one at a time), so 8 jobs
+  needed two rounds (about 47 s), and the bolt's HTTP 500 and its retry added a third.
+* **8 workers do not help.** The same art phase again with `image_workers: 8` and no cache
+  (`workspace/probes/art-timing`, 9 calls): with 8 in flight every call took 38-48 s, 53.2 s in
+  all. Meta's throughput per key looks about fixed, so the default stays 4. **The under-40 s
+  target is not met**: parallel calls bring 8 images to about 45-50 s.
+* The bolt request (a 4x1 sheet at 2048x512) got HTTP 500 on 3 of 4 tries across both runs,
+  while the other 2048x512 sheets succeeded, so it looks request-specific. In the second run
+  it ended as greybox.
+
+Spark tokens (input / output / of which reasoning):
+
+| call | M10.1 builds | this build |
+| --- | --- | --- |
+| design (high) | 1112 / 4236-8025 / 2016-6024 | 1112 / 4912 / 2761 |
+| art plan (low) | 3259-3346 / 3304-5371 / 2355-4266 | **1426** / 2484 / 1615 |
+| game code (high) | 4620-4990 / 17316-21748 / 9037-14989 | 4884 / 18344 / 9315 |
+| repair as edits (high) | (none) | 13248 / 11954 / 9820 |
+
+* The repair's visible output was 2134 tokens against 9029 for the full game: **76% less**.
+  Total output (with reasoning) was 35% less, because the high-effort reasoning (about 9.8k
+  tokens) is spent either way. The acceptance asks for 50% fewer output tokens than a
+  full-file repair; no full-file repair is in any ledger, so this compares with the first
+  full write. Met for the visible code, not for the total.
+* `cached_tokens` was 0 on the repair, although its first ~4.5k tokens match the first call's
+  and the probe showed that shared prefixes hit. One difference the probe does not have is the
+  response schema (`CodePatch` vs `GameCode`), which may be placed before the messages; this
+  is not verified. Consecutive repair rounds share the `CodePatch` schema.
+
+### Tests
+
+`tests/test_art_parallel.py`: peak concurrency 4; wall time with 0.5 s calls under the local
+work plus 3 calls (6 calls one at a time); the same `filled` order, images and warnings as one
+worker; cap 3 with 6 jobs gives 3 calls, greybox for the 3 lowest-priority entities and 3
+image attempts in the ledger; one failing job becomes a placeholder with a warning while 5
+succeed; a cache hit makes no call (even at cap 0), and the key changes with reference bytes,
+reasoning strength, size, endpoint and model; the previous image (an edit's reference) is in
+the key; 12 threads reserving against a cap of 5 get exactly 5. The plan's "under 2x one call
+for 6 jobs" is not possible with 4 workers (two rounds of calls), so the bound is 3 calls.
+
+`tests/test_codegen_patch.py`: edits apply in order and add files; ambiguous, missing or
+misplaced `old` text lists every failed edit; through `make_game`, an ambiguous repair makes
+the round ask for complete files; programmer, repair and change prompts share the whole
+`code_context` (at least 90% of the SDK reference + design); the filtered library list on a
+synthetic library keeps the skeleton, the knight and a heart object and drops the orc, the
+tavern citizen, the body with its fishing animation and a frying pan, under 600 tokens (a
+second test runs on the installed library when it is present).
+
+Also: `test_game_stage` (a second run in the same workspace gets every image from the cache
+with 0 image calls, and its rebuild locks that art), `test_game_make` (repairs scripted as
+edits, `repair: edits` in attempts), `test_providers` (effort and cache key in the request
+body).

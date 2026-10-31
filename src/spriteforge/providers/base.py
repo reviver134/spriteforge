@@ -28,6 +28,10 @@ class ChatRequest(BaseModel):
     messages: list[Message]
     tools: list[dict] = Field(default_factory=list)
     json_schema: dict | None = None
+    # Spark `reasoning_effort` (None: the model chooses) and `prompt_cache_key`, which routes
+    # requests sharing a prefix to the same cache.
+    reasoning_effort: str | None = None
+    cache_key: str | None = None
 
 
 class ChatResult(BaseModel):
