@@ -7,6 +7,7 @@ Layout (one folder per pack, files renamed to stable slugs):
       <pack>/pack.json                # source, license, per-asset metadata
       <pack>/preview.png              # contact sheet for humans and for the Art Director
       <pack>/<category>/<slug>.png
+      descriptions/<pack>.json        # what each image shows (`spriteforge library describe`)
 """
 
 import hashlib
@@ -285,8 +286,32 @@ def load_packs(root: Path | None = None) -> list[Pack]:
     return packs
 
 
+def load_descriptions(root: Path | None = None) -> dict[str, dict]:
+    """{pack: {"assets": {id: entry}, "tiles": {tile id: entry}}} from descriptions/."""
+    folder = library_root(root) / "descriptions"
+    if not folder.is_dir():
+        return {}
+    return {
+        p.stem: json.loads(p.read_text(encoding="utf-8")) for p in sorted(folder.glob("*.json"))
+    }
+
+
+def described(entry: dict | None, sha256: str | None = None) -> dict:
+    """The index fields of a description entry; {} when there is none or the image changed."""
+    if not entry or (sha256 is not None and entry.get("sha256") != sha256):
+        return {}
+    return {
+        "what": entry["what"],
+        "description": entry["text"],
+        "view": entry["view"],
+        "look": entry["look"]["text"],
+        "described_by": entry["by"],
+    }
+
+
 def rebuild_index(root: Path | None = None) -> dict:
     root = library_root(root)
+    notes = load_descriptions(root)
     index = {
         "packs": {
             p.id: {
@@ -305,10 +330,17 @@ def rebuild_index(root: Path | None = None) -> dict:
                 "pack": p.id,
                 "usage": p.usage,
                 "ai_allowed": p.ai_allowed,
+                **described(notes.get(p.id, {}).get("assets", {}).get(a.id), a.sha256),
             }
             for p in load_packs(root)
             for a in p.assets
         ],
+        # Named tiles of the tile sets (`<tileset>/<tile>`), described like assets.
+        "tiles": {
+            tile: described(entry)
+            for pack in notes.values()
+            for tile, entry in sorted(pack.get("tiles", {}).items())
+        },
     }
     root.mkdir(parents=True, exist_ok=True)
     (root / "index.json").write_text(json.dumps(index, indent=1) + "\n", encoding="utf-8")
@@ -365,6 +397,14 @@ def search(
             continue
         out.append(asset)
     return out
+
+
+def tile_descriptions(root: Path | None = None) -> dict[str, dict]:
+    """Descriptions of tile-set tiles by tile id (`pixel-crawler-dungeon/floor`)."""
+    index_path = library_root(root) / "index.json"
+    if not index_path.exists():
+        return {}
+    return json.loads(index_path.read_text(encoding="utf-8")).get("tiles", {})
 
 
 def asset_path(asset_id: str, root: Path | None = None) -> Path:

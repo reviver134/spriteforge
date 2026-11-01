@@ -528,3 +528,95 @@ entities went to Muse. 8 Spark + 9 image calls, $0.275 in all, no failed calls.
   library art, which the palette change does not touch.
 * The 4x sheet with rows is 704x388: sprites at a readable size, the background on its own
   row.
+
+### Library art by its looks (2026-11-01)
+
+The follow-up's two leftovers were both library art chosen by name: the Art Director saw only
+"stone floor" for a tile that is tan (brightness 0.49) and called it dark grey; the "wall top"
+tile is one flat grey-teal colour; recolouring turned only the hue, so the dark olive rogue
+stayed dark as a "teal" hero. And backgrounds came back as blocks or rooms.
+
+* **Descriptions of every library image** (`spriteforge library describe`;
+  `library/looks.py`, `library/describe.py`). Every image and every named tile of a tile set
+  gets a measured look: main colours by name, brightness (mean luma, 0-1) and detail (luma
+  spread: under 0.03 is flat). Packs that allow AI use also get a Muse Spark (vision)
+  description: numbered contact sheets of 16 images, one call each at
+  `llm.reasoning.describe: low`, answering what it is (1-4 words), one sentence, and the
+  camera. The 4 packs whose license forbids AI use are never sent; their entry is the file
+  name plus the measured look. Written to `assets/library/descriptions/<pack>.json` with the
+  image's sha256 (a changed image is described again; `status: reviewed` text is kept) and
+  merged into `index.json`. Live: 394 entries (385 images + 9 tiles), 226 described by Spark
+  in 15 calls ($0.163, no failures, every image on every sheet answered), 168 measured only.
+  Spot check: right on tiles, heroes, enemies and props (the floor: "light tan flat pixel
+  tile with slightly darker brown geometric stone pattern"); a few views are off (a back view
+  labelled front).
+* **Found by the descriptions:** the rogue hero read as "helmeted green orc". `actor_sheet`
+  took any sheet whose name contained the actor's words, so the rogue got the orc rogue's
+  idle sheet, also as a Muse style example. It now takes the actor's own sheets, grouped
+  as `load_actors` groups them (`creature_name`).
+* **Where they are used.** The Art Director's library list gives each actor, tile and object
+  `what; colours; brightness` (and detail for tiles), measured from the pixels: 556 tokens for
+  the survival test design (the full sentences took about 830, over M10.2's 600 cap, so they
+  stay in the MCP tools and `catalog/`). The prompt and role say to pick by looks: when only the
+  colour differs, keep the library art and set `recolor`; when shape or detail differs, use
+  Muse. `library_search` (MCP) also matches description words ("slime", "tan"); actors, tiles
+  and objects carry their description; the `catalog/` pages show them.
+* **Code checks library picks** (`resolve_plan`), after the library-first rule:
+  * a flat tile (detail under 0.03) is not used for a look that asks for detail ("brick",
+    "moss", "rusty", "stripes", ... `DETAIL_WORDS`): Muse draws it;
+  * a tile whose mean colour is far (CIE delta E over 25) from every colour the main part of
+    the look names is recoloured to the first one (`recolor`). Only the main part counts,
+    before "with" or a comma: "dark stone wall block with red moss edge" names no wall colour;
+  * an actor or object whose main hue is over 45 degrees from the first hue the main part
+    names is hue-shifted;
+  * library first never swaps a Muse request back to a flat tile.
+* **Recolouring** (`recolor` now applies to actors, objects and tiles): a tile keeps its
+  light-and-dark pattern at the new colour's brightness (each pixel keeps its difference from
+  the mean, so cracks stay); a sprite's hue turns and its brightness is lifted to the named
+  colour's, never lowered. Live, a "dark red" orc went darker than its dark floor (0.16 on
+  0.23) before the lift-only rule.
+* **Backgrounds**: the view line is "seen straight down from above, flat: no walls, blocks,
+  platforms, buildings or perspective" (side view: "a distant backdrop behind the level"), and
+  the shape line asks for "only the empty ground, sky or void itself, with no characters,
+  creatures, items, projectiles or effects". A background takes a style example only from a
+  real backdrop (category background, not a mockup); the library has none that may be sent,
+  so backgrounds are drawn from text.
+
+Live 1 (`workspace/m10-3-library`, before the last three fixes): "Corner Swarm: 10 Minute
+Survival" passed; 7 Spark + 9 image calls, $0.265.
+
+* The Art Director used the looks: the darker floor tile with `recolor: dark grey` (its own
+  choice; reviewer: "dark cracked stone tile"), the textured wall face instead of the flat wall
+  top, the rogue recoloured teal.
+* Three faults, fixed since: the wall face recoloured bright red from "red moss edge" (the
+  main-part rule); the orc darkened by "dark red" (lift only); the text-only background drew
+  lightning, explosions and green blobs (the background wording). Two probe calls with the
+  new wording: one near-black smoky void with a red vignette, as asked; one came back empty
+  (a greybox, a Muse result: the read-back handles every image kind tried).
+* Review: consistency 3, palette 2, perspective 3, readability 2, scale 2; 6 issues, 2 blocking (the hero's contrast on the darker floor, 0.11
+  against the 0.12 bar; the red wall), both fixed; review $0.057 + fixes $0.02.
+
+Live 2 (`workspace/m10-3-library2`): "Corner Swarm: 10 Minute Survival" passed on the first
+attempt; 7 Spark + 7 image calls, $0.225.
+
+* Review: consistency 3, palette 3, perspective 4, readability 3, scale 3 (the best of the
+  four live reviews), 7 issues, none blocking, so no fixes; review $0.045. The background came
+  back as asked ("black red gradient").
+* The Art Director chose Muse for a "rusty brown metal wall block with hazard stripes" because
+  the library walls are flat; the library-first rule swapped it back to the flat wall top and
+  the colour check made it brown ("plain brown square", major). Fixed since: library first no
+  longer swaps in a flat tile, and the detail words include rusty and stripes.
+* Still open: the recoloured rogue on a dark floor stays a little under the contrast bar
+  (0.11), a suggestion at G4; its face is black in the library art, which a recolour does not
+  change.
+
+The three live art plans replayed through the final code: library 2's wall stays Muse; library
+1's wall keeps its dark stone and the orc is not darkened; the follow-up's tan floor is
+recoloured dark grey and its flat wall goes to Muse.
+
+Tests: `tests/test_library_describe.py` (colour names, brightness and detail; only
+AI-allowed images on the contact sheet, closed packs measured; reviewed text kept and changed
+images described again; failed sheets and the budget leave measured entries; offline is
+measured only; the far tile recoloured with its cracks kept; flat tiles not used for detailed
+looks or by library first; accent colours ignored; lift-only recolour; background view and
+style example; the Art Director's list).

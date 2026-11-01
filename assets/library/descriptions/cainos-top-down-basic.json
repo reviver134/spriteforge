@@ -1,0 +1,323 @@
+{
+ "pack": "cainos-top-down-basic",
+ "assets": {
+  "cainos-top-down-basic/grass": {
+   "sha256": "9f73ebde398426fec9dd6565bed45b9f06b0f622574112084631f4330757dacc",
+   "what": "grass ground tile",
+   "text": "Solid medium-dark olive green square tile, flat uniform color for seamless grassy ground coverage.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#72751B",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.431,
+    "detail": 0.0,
+    "fill": 1.0,
+    "mean": "#72751B",
+    "text": "olive; mid (0.43); flat, no detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/plant": {
+   "sha256": "9c0ae5dd5b7f2b127e09bae16a5cab296dd2781082470b8ca0d61d3c76b4cc30",
+   "what": "green grassy mound",
+   "text": "Light olive-green stepped mound silhouette with darker edge for small terrain prop.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#797323",
+      "share": 0.707
+     },
+     {
+      "name": "yellow",
+      "hex": "#8F8A37",
+      "share": 0.155
+     },
+     {
+      "name": "brown",
+      "hex": "#644C19",
+      "share": 0.138
+     }
+    ],
+    "brightness": 0.43,
+    "detail": 0.211,
+    "fill": 0.057,
+    "mean": "#7A7225",
+    "text": "olive, yellow and brown; mid (0.43); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/plant-with-shadow-extra": {
+   "sha256": "49ca020df96c5ea9bf15e21bfb9e9db232af223129620ebde02c28d8e64b420d",
+   "what": "green grassy mound",
+   "text": "Pixelated light olive-green stepped hill silhouette with darker shading for terrain decoration.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#797323",
+      "share": 0.707
+     },
+     {
+      "name": "yellow",
+      "hex": "#8F8A37",
+      "share": 0.155
+     },
+     {
+      "name": "brown",
+      "hex": "#644C19",
+      "share": 0.138
+     }
+    ],
+    "brightness": 0.43,
+    "detail": 0.211,
+    "fill": 0.057,
+    "mean": "#7A7225",
+    "text": "olive, yellow and brown; mid (0.43); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/player": {
+   "sha256": "e7baf8f2287efaadac7be25d6dc1d35cd24c0ece5fc1907436f70d231e5b7a9d",
+   "what": "beige bordered panel",
+   "text": "Light beige square panel with brown border and small brown motifs for decor.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#9D9181",
+      "share": 0.401
+     },
+     {
+      "name": "grey",
+      "hex": "#ACA497",
+      "share": 0.344
+     },
+     {
+      "name": "brown",
+      "hex": "#694C38",
+      "share": 0.148
+     },
+     {
+      "name": "light grey",
+      "hex": "#B0A89B",
+      "share": 0.108
+     }
+    ],
+    "brightness": 0.571,
+    "detail": 0.333,
+    "fill": 0.363,
+    "mean": "#9D9081",
+    "text": "tan, grey, brown and light grey; mid (0.57); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/props": {
+   "sha256": "5be088f487227e585c599dbc5466e64bfaece50f51103754c6f1ff45296ec371",
+   "what": "beige sign plaque",
+   "text": "Small light beige rectangle with brown border split light and shadow for signage.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#B5B0A1",
+      "share": 0.354
+     },
+     {
+      "name": "grey",
+      "hex": "#A49F90",
+      "share": 0.271
+     },
+     {
+      "name": "cream",
+      "hex": "#A9A392",
+      "share": 0.249
+     },
+     {
+      "name": "brown",
+      "hex": "#6B4E39",
+      "share": 0.126
+     }
+    ],
+    "brightness": 0.614,
+    "detail": 0.359,
+    "fill": 0.436,
+    "mean": "#A49C8C",
+    "text": "light grey, grey, cream and brown; light (0.61); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/props-with-shadow-extra": {
+   "sha256": "f3a84ac9c53a7c50344d69fb0954693064c5fce5a77bfa2195eea96a13e2e612",
+   "what": "beige sign plaque",
+   "text": "Light beige rectangular plaque with brown border and two-tone shading for signage.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#B5B0A1",
+      "share": 0.354
+     },
+     {
+      "name": "grey",
+      "hex": "#A49F90",
+      "share": 0.271
+     },
+     {
+      "name": "cream",
+      "hex": "#A9A392",
+      "share": 0.249
+     },
+     {
+      "name": "brown",
+      "hex": "#6B4E39",
+      "share": 0.126
+     }
+    ],
+    "brightness": 0.614,
+    "detail": 0.359,
+    "fill": 0.436,
+    "mean": "#A49C8C",
+    "text": "light grey, grey, cream and brown; light (0.61); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/shadow": {
+   "sha256": "33a28d3805fe0f0c76350f366a903bcc17e8a3ba79f40c3dcc9b83896e7a43a2",
+   "what": "dark shadow strip",
+   "text": "Thin dark brown horizontal bar on grey, dark and minimal, useful as subtle shadow or divider line.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "dark red",
+      "hex": "#311512",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.105,
+    "detail": 0.0,
+    "fill": 0.048,
+    "mean": "#311512",
+    "text": "dark red; very dark (0.10); flat, no detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/shadow-plant": {
+   "sha256": "10023d5fa97497151a9f10030e977bb69e89eca02051faf1fb8afebe7398eeb1",
+   "what": "dark brown shadow",
+   "text": "Dark brown blocky irregular shadow shape with stepped edge for plant shading.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#311A12",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.119,
+    "detail": 0.0,
+    "fill": 0.146,
+    "mean": "#311A12",
+    "text": "brown; very dark (0.12); flat, no detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/stone-ground": {
+   "sha256": "1aef20946a99036f614ffb48a9d2a69ddb4a498c90e8f3f8604256c1e212b772",
+   "what": "stone ground tile",
+   "text": "Light grey square tile with thin brown edge, muted dark outline for stone floor borders.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "grey",
+      "hex": "#878579",
+      "share": 0.941
+     }
+    ],
+    "brightness": 0.506,
+    "detail": 0.099,
+    "fill": 0.994,
+    "mean": "#858175",
+    "text": "grey; mid (0.51); low-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/struct": {
+   "sha256": "ecf5be784ab49490f31adf5621f87ccf2023c3aaa3bfa673d92aff1eddbc7728",
+   "what": "grey wall tile",
+   "text": "Light grey rectangular tile with dark brown top and side trim, clean flat pixel edges for modular walls.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "grey",
+      "hex": "#86857A",
+      "share": 0.718
+     },
+     {
+      "name": "brown",
+      "hex": "#583723",
+      "share": 0.282
+     }
+    ],
+    "brightness": 0.441,
+    "detail": 0.273,
+    "fill": 0.038,
+    "mean": "#796F61",
+    "text": "grey and brown; mid (0.44); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "cainos-top-down-basic/wall": {
+   "sha256": "fe30675541cac9d82ff426f7b51cfbbf66bd3b3aee22651fcd51ae45b947ef66",
+   "what": "corner wall trim",
+   "text": "Pale light grey L-shaped wall corner with brown trim, crisp pixel lines for connecting room walls.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "grey",
+      "hex": "#89887D",
+      "share": 0.606
+     },
+     {
+      "name": "brown",
+      "hex": "#5C4230",
+      "share": 0.394
+     }
+    ],
+    "brightness": 0.43,
+    "detail": 0.346,
+    "fill": 0.434,
+    "mean": "#776C5F",
+    "text": "grey and brown; mid (0.43); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  }
+ },
+ "tiles": {}
+}

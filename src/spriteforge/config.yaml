@@ -75,6 +75,7 @@ llm:
     design: high # Game Designer's design doc and its revisions
     code: high # Programmer: new game, repairs, changes
     review: max # Art Reviewer (vision): the strongest setting Spark accepts
+    describe: low # Librarian describing library images (spriteforge library describe)
 budget:
   max_image_calls: 150
   max_calls_per_model: 200

@@ -1,0 +1,5812 @@
+{
+ "pack": "anokolisa-pixel-crawler",
+ "assets": {
+  "anokolisa-pixel-crawler/body-a-carry-idle-down": {
+   "sha256": "f805c1b0a8e635844bcfeea42593b2392273df3ddcf5739658d397700d68af1c",
+   "what": "carrying figure front",
+   "text": "Medium-light tan bald figure facing front with green eyes, standing idle with arms down for carry.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CC925E",
+      "share": 0.623
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.344
+     }
+    ],
+    "brightness": 0.399,
+    "detail": 0.659,
+    "fill": 0.075,
+    "mean": "#85613F",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-idle-side": {
+   "sha256": "1fbf914ee6e77e988dadfcc087b52f566e4bdc94d48178bd04fadda232c476cb",
+   "what": "carrying figure side",
+   "text": "Medium-light tan bald figure in side profile with arm raised, standing idle for carry animation.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CD935F",
+      "share": 0.609
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.342
+     }
+    ],
+    "brightness": 0.394,
+    "detail": 0.659,
+    "fill": 0.079,
+    "mean": "#845F3D",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-idle-up": {
+   "sha256": "5def47a592676108a775f2f0a317282bd57caa1fff1a6ae1f3df867b0efc3040",
+   "what": "carrying figure back",
+   "text": "Medium-light tan bald figure seen from behind with arms raised overhead for carry idle.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C28857",
+      "share": 0.682
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.314
+     }
+    ],
+    "brightness": 0.389,
+    "detail": 0.659,
+    "fill": 0.078,
+    "mean": "#855D3C",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-run-down": {
+   "sha256": "5899dffb4764acb477e79374eaaf499dc269c01d3f0e9b031c550a70f760ebcb",
+   "what": "carrying figure front",
+   "text": "Medium-light tan bald figure facing front with arms raised overhead, running pose for carry.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CD935E",
+      "share": 0.612
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.349
+     }
+    ],
+    "brightness": 0.397,
+    "detail": 0.659,
+    "fill": 0.071,
+    "mean": "#84603E",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-run-side": {
+   "sha256": "c845db2975fdd30e4e7bd3e1bef7204d06ea5bcb8887d49b2a5c6d5d559609c1",
+   "what": "carrying figure side",
+   "text": "Medium-light tan bald figure in side profile running with raised arm for carry animation.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#D19861",
+      "share": 0.596
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.355
+     }
+    ],
+    "brightness": 0.396,
+    "detail": 0.659,
+    "fill": 0.075,
+    "mean": "#84603E",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-run-up": {
+   "sha256": "8b45656b929a3184921d198e4208563b866046d14860ca82fdc06f6fc9a7c483",
+   "what": "carrying figure back",
+   "text": "Medium-light tan bald figure seen from behind with arms raised, running pose for carry.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C28757",
+      "share": 0.687
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.313
+     }
+    ],
+    "brightness": 0.388,
+    "detail": 0.659,
+    "fill": 0.073,
+    "mean": "#855D3C",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-walk-down": {
+   "sha256": "e2ec8f473b6976b94852af960f2d4a1c3f65803359632b47b35f005fe17b7fef",
+   "what": "carrying figure front",
+   "text": "Medium-light tan bald figure facing front with arms raised overhead, walking pose for carry.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CD935E",
+      "share": 0.635
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.331
+     }
+    ],
+    "brightness": 0.41,
+    "detail": 0.659,
+    "fill": 0.072,
+    "mean": "#886340",
+    "text": "orange and black; mid (0.41); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-walk-side": {
+   "sha256": "66bea5acfa90078c145252a4a2900542657b35c1fc4e71b501538caae9dcaf84",
+   "what": "carrying figure side",
+   "text": "Medium-light tan bald figure in side profile walking with raised arm for carry animation.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CF9660",
+      "share": 0.604
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.338
+     }
+    ],
+    "brightness": 0.398,
+    "detail": 0.659,
+    "fill": 0.075,
+    "mean": "#85603E",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-carry-walk-up": {
+   "sha256": "5c99b8dd5b575f07ca19bdf5a13aceb6408b312458a92fcbaf58c4862adad35a",
+   "what": "carrying figure back",
+   "text": "Medium-light tan bald figure seen from behind with arms raised overhead, walking pose for carry.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C38858",
+      "share": 0.693
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.307
+     }
+    ],
+    "brightness": 0.395,
+    "detail": 0.659,
+    "fill": 0.075,
+    "mean": "#875E3D",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-collect-down": {
+   "sha256": "5891c48782fa312161022c06a59aab07892c7ca9ee22a15c14559cef9d89bbd3",
+   "what": "bald character front",
+   "text": "Bald nude figure in light tan brown with dark outline standing facing forward with no tool visible.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CC925E",
+      "share": 0.618
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.352
+     }
+    ],
+    "brightness": 0.395,
+    "detail": 0.659,
+    "fill": 0.081,
+    "mean": "#83603E",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-collect-side": {
+   "sha256": "a775775076c192242d360149aa73785ad8355ca1f200d0d1e1de3bf8d83c2c0f",
+   "what": "bald character side",
+   "text": "Bald nude figure in light tan brown with dark outline standing in left profile with green eye visible.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CB915D",
+      "share": 0.618
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.348
+     }
+    ],
+    "brightness": 0.388,
+    "detail": 0.659,
+    "fill": 0.081,
+    "mean": "#825E3D",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-collect-up": {
+   "sha256": "aa58d95fb451bf5e4a9dc47011230b34f1ee82a980cc1fc20fa8c2732e25d4d8",
+   "what": "bald character back",
+   "text": "Bald nude figure in light tan brown with dark outline standing facing away showing no face.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C38858",
+      "share": 0.664
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.33
+     }
+    ],
+    "brightness": 0.381,
+    "detail": 0.659,
+    "fill": 0.078,
+    "mean": "#825B3B",
+    "text": "orange and black; mid (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-crush-down": {
+   "sha256": "f264e8f0dfba78bb5fd96848313a09834a4bd774439c148eb5824b23ab60d4d4",
+   "what": "miner swinging pickaxe",
+   "text": "Small tan figure in light brown holding a gray pickaxe overhead facing right in profile.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CB915D",
+      "share": 0.46
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.425
+     }
+    ],
+    "brightness": 0.352,
+    "detail": 0.659,
+    "fill": 0.1,
+    "mean": "#71563C",
+    "text": "orange and black; dark (0.35); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-crush-side": {
+   "sha256": "804022e05a90f9fcda2f8474eb6192da8b8a1683895daecb25fe506cb284c2be",
+   "what": "miner swinging pickaxe",
+   "text": "Small tan figure in light brown swinging a gray pickaxe left in side profile with both hands.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.441
+     },
+     {
+      "name": "orange",
+      "hex": "#C98F5C",
+      "share": 0.407
+     }
+    ],
+    "brightness": 0.327,
+    "detail": 0.659,
+    "fill": 0.085,
+    "mean": "#6A4F39",
+    "text": "black and orange; dark (0.33); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-crush-up": {
+   "sha256": "f9219ce338eb510967e91ea4183d0b41b7708e84b6838654df1fa68fc2ad4452",
+   "what": "miner holding pickaxe",
+   "text": "Tan figure in light brown seen from behind holding a gray pickaxe low at waist level.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BF8456",
+      "share": 0.484
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.41
+     }
+    ],
+    "brightness": 0.34,
+    "detail": 0.659,
+    "fill": 0.085,
+    "mean": "#6F523B",
+    "text": "orange and black; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-death-down": {
+   "sha256": "b7498a131088f58c814a1e4b57f651edf462adee27b1a547d3f336acbbcd18ae",
+   "what": "bald character front",
+   "text": "Bald nude figure in light tan brown with dark outline standing facing forward with green eyes.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CC925E",
+      "share": 0.619
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.351
+     }
+    ],
+    "brightness": 0.395,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#835F3E",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-death-side": {
+   "sha256": "fa6d34162a8c2db4ca4f34196909d4920b39852e627e972daae8beb263c5d0f1",
+   "what": "bald character side",
+   "text": "Bald nude figure in light tan brown with dark outline standing in left profile with eye visible.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C98F5C",
+      "share": 0.627
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.352
+     }
+    ],
+    "brightness": 0.387,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#825D3C",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-death-up": {
+   "sha256": "d67b6cf8cd09ddcb0e9687aef1b3d6195dadb69944f075626f8d7eb456f81e41",
+   "what": "bald character back",
+   "text": "Bald nude figure in light tan brown with dark outline standing facing away showing no face.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C28858",
+      "share": 0.667
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.33
+     }
+    ],
+    "brightness": 0.381,
+    "detail": 0.659,
+    "fill": 0.078,
+    "mean": "#825B3B",
+    "text": "orange and black; mid (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-fishing-down": {
+   "sha256": "dacb60ee28d16e910716154c5f68de1c02574453a0aeb3ca602c35f9e5ddb8ec",
+   "what": "fisher holding rod",
+   "text": "Small tan figure in light brown standing facing forward holding a thin gray fishing rod upright.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CB915D",
+      "share": 0.476
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.435
+     }
+    ],
+    "brightness": 0.349,
+    "detail": 0.659,
+    "fill": 0.095,
+    "mean": "#71553B",
+    "text": "orange and black; dark (0.35); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-fishing-side": {
+   "sha256": "91c8b48de7bc9a8fc693f493d54af433b602df1ebe3515db4a1dc909a52b611f",
+   "what": "fisher holding rod",
+   "text": "Small tan figure in light brown in side profile holding a long gray fishing rod extended horizontally.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.461
+     },
+     {
+      "name": "orange",
+      "hex": "#CA905C",
+      "share": 0.404
+     }
+    ],
+    "brightness": 0.321,
+    "detail": 0.659,
+    "fill": 0.082,
+    "mean": "#684E37",
+    "text": "black and orange; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-fishing-up": {
+   "sha256": "cd72a8a9bae9e3d428f995474136f797bfa18d5256817cd8367a0e3576da416b",
+   "what": "fisher holding rod",
+   "text": "Tan figure in light brown seen from behind holding a long gray fishing rod vertically at side.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C08556",
+      "share": 0.507
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.411
+     }
+    ],
+    "brightness": 0.341,
+    "detail": 0.659,
+    "fill": 0.092,
+    "mean": "#715239",
+    "text": "orange and black; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-hit-down": {
+   "sha256": "d97fda168c2585c0bcb0fbac8e625cd92b07fcf3332ea84fe1d975a7d5d34e9e",
+   "what": "bald character front",
+   "text": "Bald nude figure in light tan brown with dark outline standing facing forward with green eyes.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CC925E",
+      "share": 0.619
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.345
+     }
+    ],
+    "brightness": 0.397,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#84603E",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-hit-side": {
+   "sha256": "731ea0c1f1e88c625a1b54393208476cc383077017840c42b76200eb8f64f0f1",
+   "what": "bald character side",
+   "text": "Bald nude figure in light tan brown with dark outline standing in left profile with eye visible.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CA905D",
+      "share": 0.621
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.352
+     }
+    ],
+    "brightness": 0.388,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#825D3C",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-hit-up": {
+   "sha256": "9eba5db240f85079afa6bee1e58b7e58ffe08fc1d37e783decc224f129634c4a",
+   "what": "bald character back",
+   "text": "Bald nude figure in light tan brown with dark outline standing facing away showing no face.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C38858",
+      "share": 0.672
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.325
+     }
+    ],
+    "brightness": 0.385,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#845C3C",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-idle-down": {
+   "sha256": "83e62303703e7e544f807c05ec3302341956712e90274712a6e37d94ce8d24ca",
+   "what": "bald character front",
+   "text": "Bald nude figure in light tan brown with dark outline standing facing forward with green eyes.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CC925E",
+      "share": 0.62
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.35
+     }
+    ],
+    "brightness": 0.396,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#84603E",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-idle-side": {
+   "sha256": "6ef6bc838e28aea01709d1c43a09cd6c8add5fe2a9efcdf69ef4dbf701bff070",
+   "what": "idle figure side",
+   "text": "Bare bald humanoid in light tan with green eyes in side stance, dark outline, no clothing or weapon visible for base idle.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CA905D",
+      "share": 0.623
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.35
+     }
+    ],
+    "brightness": 0.389,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#825E3D",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-idle-up": {
+   "sha256": "56dc82bb28ffa25f81b7ee5866857c5ce2c9e2e884192ee8f92cbe380d400aeb",
+   "what": "idle figure back",
+   "text": "Bare bald humanoid in light tan seen from behind, dark outline, no face or weapon visible for base idle.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C28858",
+      "share": 0.668
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.329
+     }
+    ],
+    "brightness": 0.382,
+    "detail": 0.659,
+    "fill": 0.079,
+    "mean": "#835B3B",
+    "text": "orange and black; mid (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-pierce-down": {
+   "sha256": "1543b58f04d101d033a0f8bc1d25978606328c5d30164db2af0fcab312ee3c11",
+   "what": "thrusting sword front",
+   "text": "Front-facing bald figure in light tan holding long light gray sword point-down, dark outline, thrust pose for combat.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CC935E",
+      "share": 0.444
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.416
+     }
+    ],
+    "brightness": 0.369,
+    "detail": 0.659,
+    "fill": 0.089,
+    "mean": "#745A41",
+    "text": "orange and black; dark (0.37); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-pierce-side": {
+   "sha256": "0d4c54733efa495c7053c45023ad346e3a35fc7931d4d5bd0b9ce722a479330e",
+   "what": "thrusting sword side",
+   "text": "Side-facing bald figure in light tan holding short light gray sword forward, dark outline, thrust pose for combat.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CF9560",
+      "share": 0.495
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.392
+     }
+    ],
+    "brightness": 0.391,
+    "detail": 0.659,
+    "fill": 0.092,
+    "mean": "#7C6044",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-pierce-top": {
+   "sha256": "e01a399ab67faaa143772b3250701bfed74b8f81c03a8be3a2a8471ab5e33878",
+   "what": "thrusting sword side",
+   "text": "Side-facing bald figure in light tan holding tall light gray sword upright, dark outline, thrust pose for combat.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C08556",
+      "share": 0.529
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.357
+     }
+    ],
+    "brightness": 0.379,
+    "detail": 0.659,
+    "fill": 0.079,
+    "mean": "#7B5C42",
+    "text": "orange and black; dark (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-run-down": {
+   "sha256": "19bee94f037b76a147f0304c637651f4335c3d6c607f2360c8e39ec9cf6ebf0e",
+   "what": "running figure front",
+   "text": "Front-facing bald figure in light tan mid-run with dark brown gloves and shoes, dark outline, dynamic leg pose for movement.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CB925D",
+      "share": 0.59
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.379
+     }
+    ],
+    "brightness": 0.378,
+    "detail": 0.659,
+    "fill": 0.071,
+    "mean": "#7E5C3B",
+    "text": "orange and black; dark (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-run-side": {
+   "sha256": "f9c272b1923b6a4d742dda64e1a40ffa82239de217f7bd126206cd25748e6c00",
+   "what": "running figure side",
+   "text": "Side-facing bald figure in light tan mid-run with dark brown gloves and shoes, dark outline, dynamic leg pose for movement.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CE955F",
+      "share": 0.585
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.36
+     }
+    ],
+    "brightness": 0.383,
+    "detail": 0.659,
+    "fill": 0.08,
+    "mean": "#815C3C",
+    "text": "orange and black; mid (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-run-up": {
+   "sha256": "82f038d8f3aed0fea34cd1a3f396f0768357566a8be1b70b96818a2829434432",
+   "what": "running figure back",
+   "text": "Bald figure in light tan seen from behind mid-run with dark brown shoes, dark outline, dynamic leg pose for movement.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BE8355",
+      "share": 0.668
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.332
+     }
+    ],
+    "brightness": 0.366,
+    "detail": 0.659,
+    "fill": 0.068,
+    "mean": "#7F5738",
+    "text": "orange and black; dark (0.37); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-slice-down": {
+   "sha256": "20b3c89ea20a52de17d8589de9fef9037e699f5dcd63301f5e93cf806d1b38a3",
+   "what": "axe raise front",
+   "text": "Small front-facing bald figure in light tan raising light gray axe overhead, dark outline, tiny frame for downward chop.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#D09660",
+      "share": 0.42
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.412
+     }
+    ],
+    "brightness": 0.356,
+    "detail": 0.659,
+    "fill": 0.091,
+    "mean": "#70573F",
+    "text": "orange and black; dark (0.36); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-slice-side": {
+   "sha256": "21978847f4049fa74d73ec8601dfc9650a5e0231e5cd5c042f5740707d44cad6",
+   "what": "axe swing side",
+   "text": "Side-facing bald figure in light tan swinging large gray axe sideways, dark outline, wide stance for slash attack.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C88E5B",
+      "share": 0.471
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.399
+     }
+    ],
+    "brightness": 0.352,
+    "detail": 0.659,
+    "fill": 0.118,
+    "mean": "#72563C",
+    "text": "orange and black; dark (0.35); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-slice-up": {
+   "sha256": "d7c12fee4e0d30e375b8c5d2542692f0b0bf3d043cfd8d473ec478ac574d8527",
+   "what": "tool swing back",
+   "text": "Bald figure in light tan seen from behind holding dark-handled long tool downward, dark outline, rear view for upward swing.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BF8455",
+      "share": 0.449
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.393
+     }
+    ],
+    "brightness": 0.335,
+    "detail": 0.659,
+    "fill": 0.083,
+    "mean": "#6C513B",
+    "text": "orange and black; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-walk-down": {
+   "sha256": "80376e98a582bf70a239452cb4b6676a698b05e7e26f44df278c0cf858aeafb5",
+   "what": "standing figure front",
+   "text": "Front-facing bald figure in light tan standing still with green eyes, dark outline, bare body with no weapon for walking base.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CA905C",
+      "share": 0.635
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.331
+     }
+    ],
+    "brightness": 0.402,
+    "detail": 0.659,
+    "fill": 0.073,
+    "mean": "#86613F",
+    "text": "orange and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-walk-side": {
+   "sha256": "f337b363ae100d2086b5519b0791219f3a5d0deaed2d12405728784d05ab4091",
+   "what": "standing figure side",
+   "text": "Side-facing bald figure in light tan standing with dark brown glove, dark outline, bare body for walking base.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CD935E",
+      "share": 0.603
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.341
+     }
+    ],
+    "brightness": 0.391,
+    "detail": 0.659,
+    "fill": 0.074,
+    "mean": "#835E3D",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-walk-up": {
+   "sha256": "7340bddd48133663dc01ecc6805926013d3eb89311229830a5d8be1d5053dc7e",
+   "what": "standing figure back",
+   "text": "Bare bald figure in light tan seen from behind with dark shoes, dark outline, no face visible for walking base.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BF8556",
+      "share": 0.685
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.311
+     }
+    ],
+    "brightness": 0.382,
+    "detail": 0.659,
+    "fill": 0.074,
+    "mean": "#845B3B",
+    "text": "orange and black; mid (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-watering-down": {
+   "sha256": "1e700d7e536ac4b19d3328b6fb60b0ce9ff38b2a85bbb8e41cc0877a0f984a92",
+   "what": "watering can front",
+   "text": "Front-facing bald figure in light tan holding light gray watering can, dark outline, green eyes for farming action.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CA905D",
+      "share": 0.473
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.386
+     }
+    ],
+    "brightness": 0.365,
+    "detail": 0.659,
+    "fill": 0.095,
+    "mean": "#75593F",
+    "text": "orange and black; dark (0.36); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-watering-side": {
+   "sha256": "a9d0db4122abc1c8caef4ecb687dd45e9f15cc467620d949e5d6194d11f0cd97",
+   "what": "watering can side",
+   "text": "Side-facing bald figure in light tan holding light gray watering can, dark outline, bare body for farming action.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CA905D",
+      "share": 0.495
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.352
+     }
+    ],
+    "brightness": 0.392,
+    "detail": 0.659,
+    "fill": 0.089,
+    "mean": "#7D6045",
+    "text": "orange and black; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/body-a-watering-up": {
+   "sha256": "500ffea7fdd69341f8b45c34b845d6571112e9dcfdb355ce2e9af36384ea5141",
+   "what": "bald bucket carrier",
+   "text": "Light bald peach-skinned humanoid holding a grey and black watering can, simple villager body.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C38858",
+      "share": 0.523
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.358
+     }
+    ],
+    "brightness": 0.373,
+    "detail": 0.659,
+    "fill": 0.101,
+    "mean": "#795A41",
+    "text": "orange and black; dark (0.37); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-peasant-a-idle": {
+   "sha256": "37ba317d8b77dad183f54847b0d378da1be6548c0652cf4ece7817792305eb42",
+   "what": "peasant woman",
+   "text": "Front-facing peasant woman with dark green hair, white top and brown pants, light skin.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#040605",
+      "share": 0.362
+     },
+     {
+      "name": "brown",
+      "hex": "#4C3929",
+      "share": 0.152
+     },
+     {
+      "name": "orange",
+      "hex": "#CD8D59",
+      "share": 0.118
+     },
+     {
+      "name": "dark green",
+      "hex": "#39564B",
+      "share": 0.093
+     }
+    ],
+    "brightness": 0.29,
+    "detail": 0.779,
+    "fill": 0.087,
+    "mean": "#51493B",
+    "text": "black, brown, orange and dark green; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-peasant-a-walk": {
+   "sha256": "34bbbf1811b80ce84bc369418841824e9bbadb2a3ab0329a6c8f299e602bb52d",
+   "what": "peasant woman",
+   "text": "Side-view peasant woman with dark green hair, white top and brown pants walking right.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#040605",
+      "share": 0.384
+     },
+     {
+      "name": "brown",
+      "hex": "#4F3D2C",
+      "share": 0.137
+     },
+     {
+      "name": "orange",
+      "hex": "#CE8F5A",
+      "share": 0.116
+     },
+     {
+      "name": "dark green",
+      "hex": "#39564B",
+      "share": 0.096
+     }
+    ],
+    "brightness": 0.281,
+    "detail": 0.746,
+    "fill": 0.084,
+    "mean": "#4E473A",
+    "text": "black, brown, orange and dark green; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-a-idle-hold-side": {
+   "sha256": "5c08966555db6dd03cb2f7b5a9c32e3af3bfedb0e3242ec6f0711ca789adc375",
+   "what": "woman with tray",
+   "text": "Side-view tavern woman with brown hair holding large silver tray, dark purple and olive clothes.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.308
+     },
+     {
+      "name": "brown",
+      "hex": "#413728",
+      "share": 0.139
+     },
+     {
+      "name": "olive",
+      "hex": "#676232",
+      "share": 0.136
+     }
+    ],
+    "brightness": 0.307,
+    "detail": 0.659,
+    "fill": 0.095,
+    "mean": "#564D42",
+    "text": "black, brown and olive; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-a-idle-side": {
+   "sha256": "9222519f71bd1d87daf62e0bdd42b79001a6084e1a197f6e99db0a999cbdd2cd",
+   "what": "tavern woman",
+   "text": "Front-facing tavern woman with brown hair, purple top and olive dress, light skin.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#020101",
+      "share": 0.335
+     },
+     {
+      "name": "brown",
+      "hex": "#403627",
+      "share": 0.243
+     },
+     {
+      "name": "olive",
+      "hex": "#696433",
+      "share": 0.15
+     }
+    ],
+    "brightness": 0.247,
+    "detail": 0.659,
+    "fill": 0.082,
+    "mean": "#4B3D2D",
+    "text": "black, brown and olive; dark (0.25); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-a-walk-hold-side": {
+   "sha256": "f1c1eb9fabcdfc200e452f5e22b8b82d79c90830d7014d605dbf84e2dad8aaaa",
+   "what": "woman with tray",
+   "text": "Side-view tavern woman with brown hair holding large silver tray in dark purple and olive.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.325
+     },
+     {
+      "name": "olive",
+      "hex": "#635D2F",
+      "share": 0.147
+     },
+     {
+      "name": "brown",
+      "hex": "#413628",
+      "share": 0.131
+     }
+    ],
+    "brightness": 0.289,
+    "detail": 0.659,
+    "fill": 0.095,
+    "mean": "#51483E",
+    "text": "black, olive and brown; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-a-walk-side": {
+   "sha256": "9e33a849e654286a68953c1655ae677a98b81268a86f7b7fdd25e5d5378b3aab",
+   "what": "tavern woman",
+   "text": "Side-view tavern woman with brown hair in dark purple top and olive dress walking.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.374
+     },
+     {
+      "name": "brown",
+      "hex": "#403527",
+      "share": 0.265
+     },
+     {
+      "name": "olive",
+      "hex": "#655F30",
+      "share": 0.163
+     },
+     {
+      "name": "orange",
+      "hex": "#CD8D59",
+      "share": 0.08
+     }
+    ],
+    "brightness": 0.216,
+    "detail": 0.474,
+    "fill": 0.076,
+    "mean": "#433625",
+    "text": "black, brown, olive and orange; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-b-idle-hold-side": {
+   "sha256": "5c08966555db6dd03cb2f7b5a9c32e3af3bfedb0e3242ec6f0711ca789adc375",
+   "what": "tavern maid holding tray",
+   "text": "Dark-haired woman in side view holding a silver tray, wearing dark purple and olive clothes with light skin.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.308
+     },
+     {
+      "name": "brown",
+      "hex": "#413728",
+      "share": 0.139
+     },
+     {
+      "name": "olive",
+      "hex": "#676232",
+      "share": 0.136
+     }
+    ],
+    "brightness": 0.307,
+    "detail": 0.659,
+    "fill": 0.095,
+    "mean": "#564D42",
+    "text": "black, brown and olive; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-b-idle-side": {
+   "sha256": "9222519f71bd1d87daf62e0bdd42b79001a6084e1a197f6e99db0a999cbdd2cd",
+   "what": "tavern woman",
+   "text": "Front-facing tavern woman with brown hair, dark purple top and olive dress, light skin.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#020101",
+      "share": 0.335
+     },
+     {
+      "name": "brown",
+      "hex": "#403627",
+      "share": 0.243
+     },
+     {
+      "name": "olive",
+      "hex": "#696433",
+      "share": 0.15
+     }
+    ],
+    "brightness": 0.247,
+    "detail": 0.659,
+    "fill": 0.082,
+    "mean": "#4B3D2D",
+    "text": "black, brown and olive; dark (0.25); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-b-walk-hold-side": {
+   "sha256": "f1c1eb9fabcdfc200e452f5e22b8b82d79c90830d7014d605dbf84e2dad8aaaa",
+   "what": "tavern maid lifting tray",
+   "text": "Dark-haired woman in side view lifting a silver tray high, wearing dark purple and olive clothes.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.325
+     },
+     {
+      "name": "olive",
+      "hex": "#635D2F",
+      "share": 0.147
+     },
+     {
+      "name": "brown",
+      "hex": "#413628",
+      "share": 0.131
+     }
+    ],
+    "brightness": 0.289,
+    "detail": 0.659,
+    "fill": 0.095,
+    "mean": "#51483E",
+    "text": "black, olive and brown; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/citizen-f-tavern-b-walk-side": {
+   "sha256": "9e33a849e654286a68953c1655ae677a98b81268a86f7b7fdd25e5d5378b3aab",
+   "what": "tavern maid idle",
+   "text": "Dark-haired woman standing in side view with light skin, wearing dark purple top and olive skirt.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.374
+     },
+     {
+      "name": "brown",
+      "hex": "#403527",
+      "share": 0.265
+     },
+     {
+      "name": "olive",
+      "hex": "#655F30",
+      "share": 0.163
+     },
+     {
+      "name": "orange",
+      "hex": "#CD8D59",
+      "share": 0.08
+     }
+    ],
+    "brightness": 0.216,
+    "detail": 0.474,
+    "fill": 0.076,
+    "mean": "#433625",
+    "text": "black, brown, olive and orange; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/mockups-tavern": {
+   "sha256": "81dd9e8fb11fa4ff72add07abb2ef08248e2b7bbc67e4a6cb09901768ef827d4",
+   "what": "tavern interior mockup",
+   "text": "Detailed dark brown tavern interior with tables, bar and rooms for layout reference.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#5C4125",
+      "share": 0.374
+     },
+     {
+      "name": "black",
+      "hex": "#010100",
+      "share": 0.272
+     },
+     {
+      "name": "dark grey",
+      "hex": "#3F3F37",
+      "share": 0.112
+     }
+    ],
+    "brightness": 0.228,
+    "detail": 0.417,
+    "fill": 1.0,
+    "mean": "#463828",
+    "text": "brown, black and dark grey; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-knight-death": {
+   "sha256": "83abe4b941aa331d1ef55a55b6637641d898b3ecb3f0ef7a363d8eceb933aff9",
+   "what": "armored knight standing",
+   "text": "Small armored knight standing front-facing, light blue armor with dark blue joints and orange boots.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark blue",
+      "hex": "#2F3D49",
+      "share": 0.363
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.271
+     },
+     {
+      "name": "blue",
+      "hex": "#77AEC7",
+      "share": 0.254
+     }
+    ],
+    "brightness": 0.307,
+    "detail": 0.656,
+    "fill": 0.4,
+    "mean": "#435155",
+    "text": "dark blue, black and blue; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-knight-idle": {
+   "sha256": "804a8cedf0a96aa616ba09872f69eef4083176601d4c81076ffaeba419968868",
+   "what": "armored knight standing",
+   "text": "Small armored knight standing front-facing, light blue armor with orange accents and dark outline.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark blue",
+      "hex": "#2F3D49",
+      "share": 0.363
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.271
+     },
+     {
+      "name": "blue",
+      "hex": "#77AEC7",
+      "share": 0.254
+     }
+    ],
+    "brightness": 0.307,
+    "detail": 0.656,
+    "fill": 0.4,
+    "mean": "#435155",
+    "text": "dark blue, black and blue; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-knight-run": {
+   "sha256": "7e37fbc7d972dad9f6f8142888890bcdb9db9d396104446b0d81377db8cd47ed",
+   "what": "armored knight running",
+   "text": "Small armored knight running right in side view, light blue armor with orange boots and belt.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "dark blue",
+      "hex": "#2E3C48",
+      "share": 0.355
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.312
+     },
+     {
+      "name": "blue",
+      "hex": "#77AEC7",
+      "share": 0.248
+     }
+    ],
+    "brightness": 0.294,
+    "detail": 0.656,
+    "fill": 0.103,
+    "mean": "#404E53",
+    "text": "dark blue, black and blue; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-rogue-death": {
+   "sha256": "357305c54b333674f507701e55c3d6927d7b2cebc33f1921befda31633666b25",
+   "what": "hooded rogue cropped",
+   "text": "Cropped side view of a figure in dark olive clothes with brown belt and orange boots.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#414020",
+      "share": 0.421
+     },
+     {
+      "name": "yellow",
+      "hex": "#928230",
+      "share": 0.263
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.201
+     }
+    ],
+    "brightness": 0.286,
+    "detail": 0.422,
+    "fill": 0.204,
+    "mean": "#544923",
+    "text": "olive, yellow and black; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-rogue-idle": {
+   "sha256": "7849ff0ee143faf6a750bea3f670b8503f4a15075eda3a5e14e3bf62a278b173",
+   "what": "hooded rogue standing",
+   "text": "Hooded figure standing front-facing with dark face and purple mask, wearing olive green and brown.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.324
+     },
+     {
+      "name": "olive",
+      "hex": "#474421",
+      "share": 0.295
+     },
+     {
+      "name": "yellow",
+      "hex": "#928230",
+      "share": 0.231
+     }
+    ],
+    "brightness": 0.271,
+    "detail": 0.422,
+    "fill": 0.428,
+    "mean": "#514525",
+    "text": "black, olive and yellow; dark (0.27); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-rogue-run": {
+   "sha256": "9e2f4cca7d436aba63bbdb09e67c4c8947788abddd4ac42bc1074c1efe9f318a",
+   "what": "hooded rogue running",
+   "text": "Hooded figure running right in side view, olive green clothes with brown belt and orange boots.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.336
+     },
+     {
+      "name": "olive",
+      "hex": "#464421",
+      "share": 0.287
+     },
+     {
+      "name": "yellow",
+      "hex": "#928230",
+      "share": 0.225
+     }
+    ],
+    "brightness": 0.264,
+    "detail": 0.422,
+    "fill": 0.111,
+    "mean": "#4F4324",
+    "text": "black, olive and yellow; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-wizzard-death": {
+   "sha256": "f8e6e2caf245a6ff59cadd77cf242a6dd98b010342098b2fdfd07f88b2f97b91",
+   "what": "wizard standing",
+   "text": "Small wizard standing front-facing with white beard, purple hat and robe with orange trim.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "magenta",
+      "hex": "#932D8B",
+      "share": 0.329
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#4F284D",
+      "share": 0.206
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.151
+     },
+     {
+      "name": "white",
+      "hex": "#FDFDFD",
+      "share": 0.108
+     }
+    ],
+    "brightness": 0.364,
+    "detail": 0.914,
+    "fill": 0.454,
+    "mean": "#85506C",
+    "text": "magenta, dark magenta, black and white; dark (0.36); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-wizzard-idle": {
+   "sha256": "0d82cf161cc93a669cb875b70a70f314bba6e355df1d61e3a4c5252f820e7379",
+   "what": "wizard standing",
+   "text": "Small wizard standing front-facing with light beard, purple hat and robe with orange belt.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "magenta",
+      "hex": "#932D8B",
+      "share": 0.329
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#4F284C",
+      "share": 0.204
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.151
+     },
+     {
+      "name": "white",
+      "hex": "#FDFDFD",
+      "share": 0.11
+     }
+    ],
+    "brightness": 0.366,
+    "detail": 0.914,
+    "fill": 0.454,
+    "mean": "#85506D",
+    "text": "magenta, dark magenta, black and white; dark (0.37); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/npcs-wizzard-run": {
+   "sha256": "de66e0a5a05d06527cce2d65ef769aa73cc46880d9a1f284fa82fdc9c798a833",
+   "what": "wizard seated",
+   "text": "Small wizard seated with leg out, purple hat and robe with orange beard and belt.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "magenta",
+      "hex": "#932D8B",
+      "share": 0.298
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#552A52",
+      "share": 0.269
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.158
+     },
+     {
+      "name": "white",
+      "hex": "#FDFDFD",
+      "share": 0.093
+     }
+    ],
+    "brightness": 0.345,
+    "detail": 0.692,
+    "fill": 0.135,
+    "mean": "#7F4B68",
+    "text": "magenta, dark magenta, black and white; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-death": {
+   "sha256": "b654f50afaa40dd7817f6fd919b58299fb71585f3c188554f3cdf018b19dfe33",
+   "what": "green orc",
+   "text": "Medium-dark green muscular orc with brown pants, arms crossed in front-facing idle stance.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#6DA840",
+      "share": 0.32
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.229
+     },
+     {
+      "name": "dark green",
+      "hex": "#2D421E",
+      "share": 0.204
+     },
+     {
+      "name": "brown",
+      "hex": "#573617",
+      "share": 0.183
+     }
+    ],
+    "brightness": 0.34,
+    "detail": 0.557,
+    "fill": 0.069,
+    "mean": "#4F5D2D",
+    "text": "green, black, dark green and brown; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-idle": {
+   "sha256": "7b5bb37f6ed0496b0bb9bcf6b792b2e227391fe730ad3fa1415d667e524e7d0f",
+   "what": "green orc",
+   "text": "Medium-dark green muscular orc with brown pants and belt, stocky front-facing idle stance.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#6EA940",
+      "share": 0.3
+     },
+     {
+      "name": "dark green",
+      "hex": "#2E441F",
+      "share": 0.238
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.208
+     },
+     {
+      "name": "brown",
+      "hex": "#583618",
+      "share": 0.19
+     }
+    ],
+    "brightness": 0.338,
+    "detail": 0.557,
+    "fill": 0.381,
+    "mean": "#4F5D2C",
+    "text": "green, dark green, black and brown; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-rogue-death": {
+   "sha256": "429547f55368e13406bb118809effca5b5ff586564c2412927ff9fddc8b0af94",
+   "what": "helmeted green orc",
+   "text": "Medium-dark green orc wearing brown helmet and armor, stocky front-facing idle stance.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#75451B",
+      "share": 0.354
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.26
+     },
+     {
+      "name": "dark green",
+      "hex": "#2F441F",
+      "share": 0.186
+     },
+     {
+      "name": "green",
+      "hex": "#64983B",
+      "share": 0.127
+     }
+    ],
+    "brightness": 0.286,
+    "detail": 0.444,
+    "fill": 0.083,
+    "mean": "#524A26",
+    "text": "brown, black, dark green and green; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-rogue-idle": {
+   "sha256": "92abf4afbe2075eedb793ac3f1c68a81920920cd6fdc5899ecb3ca9619edd204",
+   "what": "helmeted green orc",
+   "text": "Medium-dark green orc wearing brown helmet and armor, slightly shifted front-facing idle stance.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#72441B",
+      "share": 0.373
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.254
+     },
+     {
+      "name": "dark green",
+      "hex": "#314720",
+      "share": 0.193
+     },
+     {
+      "name": "green",
+      "hex": "#63983B",
+      "share": 0.116
+     }
+    ],
+    "brightness": 0.28,
+    "detail": 0.411,
+    "fill": 0.38,
+    "mean": "#514825",
+    "text": "brown, black, dark green and green; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-rogue-run": {
+   "sha256": "dd71d4e37186bed41e8997900e79f6396ad3a3fcc07c432a5dfd832ebed406c2",
+   "what": "running helmeted orc",
+   "text": "Medium-dark green orc in brown helmet and armor mid-run with black trail behind.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6F421A",
+      "share": 0.36
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.327
+     },
+     {
+      "name": "dark green",
+      "hex": "#30461F",
+      "share": 0.147
+     },
+     {
+      "name": "green",
+      "hex": "#63983B",
+      "share": 0.105
+     }
+    ],
+    "brightness": 0.26,
+    "detail": 0.411,
+    "fill": 0.104,
+    "mean": "#4C4323",
+    "text": "brown, black, dark green and green; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-run": {
+   "sha256": "3e9de034a46f394a93d8cf22fa3405e9ea2ef3f9a75359422eeee43475199763",
+   "what": "running green orc",
+   "text": "Medium-dark green orc with brown pants mid-stride, black motion pixel for running enemy.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.292
+     },
+     {
+      "name": "green",
+      "hex": "#6EA940",
+      "share": 0.285
+     },
+     {
+      "name": "dark green",
+      "hex": "#2F441F",
+      "share": 0.226
+     },
+     {
+      "name": "brown",
+      "hex": "#533417",
+      "share": 0.132
+     }
+    ],
+    "brightness": 0.317,
+    "detail": 0.557,
+    "fill": 0.104,
+    "mean": "#49572A",
+    "text": "black, green, dark green and brown; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-shaman-death": {
+   "sha256": "64f3c7068eed48c285ef351fa2de61f11502edb3a22b638b24773c40de3ee838",
+   "what": "fallen hooded orc",
+   "text": "Dark red-hooded green orc lying dead with brown boots, dark side-view defeat frame.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.267
+     },
+     {
+      "name": "red",
+      "hex": "#C24B2E",
+      "share": 0.246
+     },
+     {
+      "name": "dark green",
+      "hex": "#334A21",
+      "share": 0.134
+     },
+     {
+      "name": "tan",
+      "hex": "#E7C5A4",
+      "share": 0.109
+     }
+    ],
+    "brightness": 0.305,
+    "detail": 0.557,
+    "fill": 0.08,
+    "mean": "#6A4830",
+    "text": "black, red, dark green and tan; dark (0.30); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-shaman-idle": {
+   "sha256": "6e29a5561f6c73d0993326df6543e50579fdb83e26dfcf6ef0e3e391b9fdd416",
+   "what": "red hooded orc",
+   "text": "Dark green orc in dark red hood and cape, standing front-facing idle rogue stance.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.261
+     },
+     {
+      "name": "red",
+      "hex": "#C14B2E",
+      "share": 0.251
+     },
+     {
+      "name": "dark green",
+      "hex": "#324921",
+      "share": 0.132
+     },
+     {
+      "name": "dark red",
+      "hex": "#5F1F1F",
+      "share": 0.109
+     }
+    ],
+    "brightness": 0.303,
+    "detail": 0.557,
+    "fill": 0.385,
+    "mean": "#6A482F",
+    "text": "black, red, dark green and dark red; dark (0.30); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-shaman-run": {
+   "sha256": "bd441ca82515335480117dee5bc3a02d1543eb12365ba99b8f8e04b5fc0c6e4d",
+   "what": "running hooded orc",
+   "text": "Dark green orc in dark red hood mid-run with black trail, side-view fast enemy.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.303
+     },
+     {
+      "name": "red",
+      "hex": "#C04B2E",
+      "share": 0.222
+     },
+     {
+      "name": "dark green",
+      "hex": "#354E22",
+      "share": 0.12
+     },
+     {
+      "name": "dark red",
+      "hex": "#5F1F1F",
+      "share": 0.104
+     }
+    ],
+    "brightness": 0.264,
+    "detail": 0.411,
+    "fill": 0.105,
+    "mean": "#5E3E2A",
+    "text": "black, red, dark green and dark red; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-warrior-death": {
+   "sha256": "7e21255a240c68d9225e337327a3f52b4a8b36c0cc88e320fee890dce883f0d3",
+   "what": "tiny corpse remnants",
+   "text": "Tiny dark green and brown remnant pixels on grey, faint light-scale death disappearance effect.",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.217
+     },
+     {
+      "name": "green",
+      "hex": "#6CA640",
+      "share": 0.208
+     },
+     {
+      "name": "dark green",
+      "hex": "#2F441F",
+      "share": 0.159
+     },
+     {
+      "name": "blue",
+      "hex": "#77AFC8",
+      "share": 0.123
+     }
+    ],
+    "brightness": 0.355,
+    "detail": 0.557,
+    "fill": 0.055,
+    "mean": "#506043",
+    "text": "black, green, dark green and blue; dark (0.35); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-warrior-idle": {
+   "sha256": "a344e3b5e09ab49a8a78bfc6387db39e8d5eacc6602eef99ee5e1950f339b63c",
+   "what": "blue robed orc",
+   "text": "Medium green orc with red crest wearing light blue robe and grey trim, staff-holding shaman.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.203
+     },
+     {
+      "name": "green",
+      "hex": "#6DA840",
+      "share": 0.18
+     },
+     {
+      "name": "dark green",
+      "hex": "#30461F",
+      "share": 0.145
+     },
+     {
+      "name": "blue",
+      "hex": "#75ADC6",
+      "share": 0.131
+     }
+    ],
+    "brightness": 0.353,
+    "detail": 0.557,
+    "fill": 0.5,
+    "mean": "#515F44",
+    "text": "black, green, dark green and blue; dark (0.35); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/orc-crew-warrior-run": {
+   "sha256": "c92bd1c493e10437b1a3f5abf340d10688121de3e6d8a5fed82512eb249a9f18",
+   "what": "running robed orc",
+   "text": "Medium green orc with red crest in light blue robe mid-run with black trail.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.286
+     },
+     {
+      "name": "green",
+      "hex": "#6DA740",
+      "share": 0.201
+     },
+     {
+      "name": "dark green",
+      "hex": "#2F451F",
+      "share": 0.167
+     },
+     {
+      "name": "blue",
+      "hex": "#75ACC5",
+      "share": 0.139
+     }
+    ],
+    "brightness": 0.329,
+    "detail": 0.557,
+    "fill": 0.121,
+    "mean": "#495A3E",
+    "text": "black, green, dark green and blue; dark (0.33); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-animated-pan-01": {
+   "sha256": "57b07eff728976659d8a3109f7d1dcd9c3f41d4c2316f6e30a1e399cc3e1a915",
+   "what": "furnace stove",
+   "text": "Dark gray furnace with glowing light blue fire and orange base, front-facing boxy stove.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#070A0C",
+      "share": 0.479
+     },
+     {
+      "name": "dark grey-blue",
+      "hex": "#313F45",
+      "share": 0.171
+     },
+     {
+      "name": "blue",
+      "hex": "#3A7E99",
+      "share": 0.168
+     },
+     {
+      "name": "red",
+      "hex": "#B62F1A",
+      "share": 0.089
+     }
+    ],
+    "brightness": 0.225,
+    "detail": 0.563,
+    "fill": 0.285,
+    "mean": "#343A40",
+    "text": "black, dark grey-blue, blue and red; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-animated-pan-02": {
+   "sha256": "94bb4972010e35e5b9db29a56da8a9cc04efe222582ba3aac4e26396d5d408fb",
+   "what": "small furnaces",
+   "text": "Two small dark gray furnaces side by side with light blue fire and orange bases.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#06090A",
+      "share": 0.495
+     },
+     {
+      "name": "dark grey-blue",
+      "hex": "#313F45",
+      "share": 0.181
+     },
+     {
+      "name": "blue",
+      "hex": "#3C829E",
+      "share": 0.11
+     },
+     {
+      "name": "red",
+      "hex": "#AD2618",
+      "share": 0.099
+     }
+    ],
+    "brightness": 0.22,
+    "detail": 0.626,
+    "fill": 0.355,
+    "mean": "#35383E",
+    "text": "black, dark grey-blue, blue and red; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-animated-pan-03": {
+   "sha256": "2d537811c30ca113ddc18d1c241a74f5c01668a38ef09cae0171cbfdc203846c",
+   "what": "frying pan",
+   "text": "Dark brown frying pan viewed from above holding meat, with short handle and light highlight.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010202",
+      "share": 0.45
+     },
+     {
+      "name": "brown",
+      "hex": "#7B482F",
+      "share": 0.402
+     }
+    ],
+    "brightness": 0.187,
+    "detail": 0.396,
+    "fill": 0.185,
+    "mean": "#3E2D24",
+    "text": "black and brown; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-animated-pan-04": {
+   "sha256": "6659aa6806cfa5b3b95b1833d2827e4c0dda391fddaa1afabe1ae2ec3dde7e50",
+   "what": "cooking pot",
+   "text": "Dark gray cooking pot with brown wooden lid, viewed slightly from above with visible sides.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#040608",
+      "share": 0.487
+     },
+     {
+      "name": "brown",
+      "hex": "#6E4029",
+      "share": 0.339
+     },
+     {
+      "name": "blue",
+      "hex": "#4E6A75",
+      "share": 0.125
+     }
+    ],
+    "brightness": 0.169,
+    "detail": 0.395,
+    "fill": 0.219,
+    "mean": "#342924",
+    "text": "black, brown and blue; very dark (0.17); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-animated-pan-05": {
+   "sha256": "d6e571fbcdf7a4968aab44677b38c6fcf8d2c5520357b9e6570e5636ced833b9",
+   "what": "frying pan",
+   "text": "Single frying pan in light gray and dark gray with black outline, side handle and bright highlight for cookware.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#040607",
+      "share": 0.401
+     },
+     {
+      "name": "white",
+      "hex": "#E8E8E8",
+      "share": 0.238
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#84A6B3",
+      "share": 0.145
+     },
+     {
+      "name": "blue",
+      "hex": "#4E6A75",
+      "share": 0.087
+     }
+    ],
+    "brightness": 0.415,
+    "detail": 0.91,
+    "fill": 0.168,
+    "mean": "#636B6F",
+    "text": "black, white, grey-blue and blue; mid (0.41); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-dungeon": {
+   "sha256": "7e2aa58760dddd9f2bc6512ea1ac0a0efcdeb04ee0b60e55dedcbb6b25cf89d0",
+   "what": "dungeon props",
+   "text": "Small dark brown boats and barrels with gray and blue weapons, dark muted set for dungeon decoration.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#080807",
+      "share": 0.366
+     },
+     {
+      "name": "blue",
+      "hex": "#557090",
+      "share": 0.294
+     },
+     {
+      "name": "dark blue",
+      "hex": "#384453",
+      "share": 0.102
+     },
+     {
+      "name": "brown",
+      "hex": "#5D422A",
+      "share": 0.101
+     }
+    ],
+    "brightness": 0.229,
+    "detail": 0.459,
+    "fill": 0.022,
+    "mean": "#363B3F",
+    "text": "black, blue, dark blue and brown; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-esoteric": {
+   "sha256": "0639f2b48cfe6c8385fc10eeda002c0a33e870b45b745f5ab79372279acbc24c",
+   "what": "esoteric items",
+   "text": "Many tiny light potions, books and scrolls in blue brown and white, light detailed set for magic items.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.39
+     },
+     {
+      "name": "blue",
+      "hex": "#6790B4",
+      "share": 0.16
+     }
+    ],
+    "brightness": 0.331,
+    "detail": 0.82,
+    "fill": 0.024,
+    "mean": "#50564D",
+    "text": "black and blue; dark (0.33); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-farm": {
+   "sha256": "6eee3d62288e735efde6214914f865617b159cf8b4cf8f2007cc763a8ee82c8d",
+   "what": "farm props",
+   "text": "Rows of colorful crops, plants and fences in green brown and red, medium-dark set for farming.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.358
+     },
+     {
+      "name": "brown",
+      "hex": "#56361B",
+      "share": 0.234
+     },
+     {
+      "name": "green",
+      "hex": "#608F2B",
+      "share": 0.097
+     },
+     {
+      "name": "orange",
+      "hex": "#AF672B",
+      "share": 0.089
+     }
+    ],
+    "brightness": 0.23,
+    "detail": 0.524,
+    "fill": 0.149,
+    "mean": "#473921",
+    "text": "black, brown, green and orange; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-furniture": {
+   "sha256": "f974d7a11cae707637a0299b4ad8587d6b553c4d4c32acf1239ddf65c7e3b9f1",
+   "what": "wooden furniture",
+   "text": "Large brown wooden tables, chairs and beds, medium-dark furniture with shading for interiors.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#5D3920",
+      "share": 0.381
+     },
+     {
+      "name": "black",
+      "hex": "#020201",
+      "share": 0.327
+     },
+     {
+      "name": "orange",
+      "hex": "#A06131",
+      "share": 0.163
+     }
+    ],
+    "brightness": 0.237,
+    "detail": 0.419,
+    "fill": 0.089,
+    "mean": "#4F3927",
+    "text": "brown, black and orange; dark (0.24); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-meat": {
+   "sha256": "912bf0de310352faef37d74981ee1e08b879a4676f0ff424593f578967ca17f0",
+   "what": "meat pieces",
+   "text": "Small reddish-brown meat cuts and carcasses, dark bloody pieces for food or butchery.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.36
+     },
+     {
+      "name": "brown",
+      "hex": "#734A28",
+      "share": 0.179
+     },
+     {
+      "name": "orange",
+      "hex": "#EB834B",
+      "share": 0.148
+     },
+     {
+      "name": "red",
+      "hex": "#B52B1D",
+      "share": 0.143
+     }
+    ],
+    "brightness": 0.284,
+    "detail": 0.691,
+    "fill": 0.126,
+    "mean": "#6F402C",
+    "text": "black, brown, orange and red; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-pan": {
+   "sha256": "d1df0b4e4eeb06e786835fac687f50fdb4de29a827bf439717ad4c7a22e5cfdd",
+   "what": "pan collection",
+   "text": "Grid of dark gray and black frying pans, dark cookware with varied handles and highlights.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#030405",
+      "share": 0.522
+     },
+     {
+      "name": "dark grey",
+      "hex": "#2C3434",
+      "share": 0.147
+     }
+    ],
+    "brightness": 0.177,
+    "detail": 0.464,
+    "fill": 0.326,
+    "mean": "#2B2D2E",
+    "text": "black and dark grey; very dark (0.18); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-resources": {
+   "sha256": "3e672c0cc9ff6293ddbfee96775afa95c4d94d4ce9afc7fad24fc7eb21179dbc",
+   "what": "resource materials",
+   "text": "Brown wooden frames, white sacks and orange ingots, medium tones for crafting resources.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#020303",
+      "share": 0.417
+     },
+     {
+      "name": "brown",
+      "hex": "#7E5C35",
+      "share": 0.325
+     },
+     {
+      "name": "dark grey",
+      "hex": "#282B2F",
+      "share": 0.093
+     }
+    ],
+    "brightness": 0.225,
+    "detail": 0.491,
+    "fill": 0.019,
+    "mean": "#433828",
+    "text": "black, brown and dark grey; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-rocks": {
+   "sha256": "b153bb87f35e01fffb3a97d10cd48605d93bad9bea121d620658a7a6edbe361c",
+   "what": "rock collection",
+   "text": "Cluster of medium-dark brown and gray rocks and boulders with highlights for terrain.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#493219",
+      "share": 0.597
+     },
+     {
+      "name": "black",
+      "hex": "#0F0A07",
+      "share": 0.158
+     }
+    ],
+    "brightness": 0.251,
+    "detail": 0.39,
+    "fill": 0.133,
+    "mean": "#4E3E2C",
+    "text": "brown and black; dark (0.25); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-shadows": {
+   "sha256": "3ed69023ad565a2152741b8e9c7295a552aee6fdb04209c6f54e475611a93069",
+   "what": "shadow blobs",
+   "text": "Soft medium-gray oval blobs of varied size, flat translucent shadows for grounding sprites.",
+   "view": "top-down",
+   "look": {
+    "colours": [],
+    "brightness": 0.0,
+    "detail": 0.0,
+    "fill": 0.0,
+    "mean": "#000000",
+    "text": "empty"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-tools": {
+   "sha256": "da7105036e3d403a3b94357258fbd3eb900c292a2b4b64fcf40f51a70ccf80f6",
+   "what": "tool collection",
+   "text": "Dense sheet of small gray brown and orange tools and weapons, dark detailed icons for inventory.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000001",
+      "share": 0.434
+     },
+     {
+      "name": "blue",
+      "hex": "#49707F",
+      "share": 0.085
+     }
+    ],
+    "brightness": 0.255,
+    "detail": 0.626,
+    "fill": 0.08,
+    "mean": "#40423D",
+    "text": "black and blue; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/props-static-vegetation": {
+   "sha256": "493eb0edcc6f8a05173b7c8dd3692fb0bdb13e2823b10908bf613ae730aab2f3",
+   "what": "vegetation props set",
+   "text": "Rows of small light green brown and orange bushes grasses and crops for ground decoration.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#3D240E",
+      "share": 0.464
+     },
+     {
+      "name": "olive",
+      "hex": "#5F5511",
+      "share": 0.2
+     },
+     {
+      "name": "green",
+      "hex": "#4E7E0D",
+      "share": 0.151
+     }
+    ],
+    "brightness": 0.281,
+    "detail": 0.382,
+    "fill": 0.147,
+    "mean": "#534A15",
+    "text": "brown, olive and green; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-death": {
+   "sha256": "d87d4890425401b88f55e6249625e1a96f8025d3b9def4bae7107c6ccab1b179",
+   "what": "tan skeleton",
+   "text": "Light tan skeleton with black eye sockets, arms crossed in front-facing idle stance.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.401
+     },
+     {
+      "name": "tan",
+      "hex": "#D3AD88",
+      "share": 0.306
+     },
+     {
+      "name": "brown",
+      "hex": "#715232",
+      "share": 0.294
+     }
+    ],
+    "brightness": 0.344,
+    "detail": 0.737,
+    "fill": 0.082,
+    "mean": "#6A5540",
+    "text": "black, tan and brown; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-idle": {
+   "sha256": "8c48b49e4dba62d2d3a62b4bec8472413909ee4390ba667a9fdd97ba1f2d4d00",
+   "what": "tan skeleton",
+   "text": "Light tan skeleton with black eye sockets, slightly shifted front-facing idle undead stance.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.401
+     },
+     {
+      "name": "tan",
+      "hex": "#D3AD88",
+      "share": 0.306
+     },
+     {
+      "name": "brown",
+      "hex": "#715232",
+      "share": 0.294
+     }
+    ],
+    "brightness": 0.344,
+    "detail": 0.737,
+    "fill": 0.329,
+    "mean": "#6A5540",
+    "text": "black, tan and brown; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-mage-death": {
+   "sha256": "a7739f9367617a3f81507c27a11a1108fcdd8cebbb81a8700c7132fe97dc96a3",
+   "what": "skeletal mage",
+   "text": "Front-facing skeletal mage with beige skull and dark red robe with gold trim and blue gem.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#94322C",
+      "share": 0.302
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.285
+     },
+     {
+      "name": "tan",
+      "hex": "#DDB896",
+      "share": 0.165
+     },
+     {
+      "name": "brown",
+      "hex": "#77532E",
+      "share": 0.125
+     }
+    ],
+    "brightness": 0.31,
+    "detail": 0.737,
+    "fill": 0.099,
+    "mean": "#734739",
+    "text": "red, black, tan and brown; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-mage-idle": {
+   "sha256": "33aedd878fb089fc1601299b4dca30667161484105dd03c5f590293d81e75af6",
+   "what": "skeletal mage",
+   "text": "Small front-facing skeletal mage with beige skull and dark red robe with gold trim.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#92312C",
+      "share": 0.309
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.286
+     },
+     {
+      "name": "tan",
+      "hex": "#DDB896",
+      "share": 0.15
+     },
+     {
+      "name": "brown",
+      "hex": "#77532E",
+      "share": 0.114
+     }
+    ],
+    "brightness": 0.298,
+    "detail": 0.72,
+    "fill": 0.437,
+    "mean": "#704337",
+    "text": "red, black, tan and brown; dark (0.30); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-mage-run": {
+   "sha256": "8779f9996a61f7aad621c67fdf670b6ee1642052d058f1fc11b1ce7f4c6e1111",
+   "what": "skeletal mage",
+   "text": "Small front-facing skeletal mage with beige skull and dark red robe with gold trim.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.301
+     },
+     {
+      "name": "red",
+      "hex": "#8E2F2C",
+      "share": 0.299
+     },
+     {
+      "name": "tan",
+      "hex": "#DDB896",
+      "share": 0.152
+     },
+     {
+      "name": "brown",
+      "hex": "#735230",
+      "share": 0.106
+     }
+    ],
+    "brightness": 0.294,
+    "detail": 0.734,
+    "fill": 0.108,
+    "mean": "#6E4337",
+    "text": "black, red, tan and brown; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-rogue-death": {
+   "sha256": "7a2e16d32d01290c4ee706e6e9fd400eef4df6e798e30f4b4a48337136311b60",
+   "what": "hooded skeleton rogue",
+   "text": "Side-view hooded skeleton rogue in dark red hood and blue chest with running leg pose.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.403
+     },
+     {
+      "name": "red",
+      "hex": "#92322C",
+      "share": 0.289
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#411927",
+      "share": 0.101
+     }
+    ],
+    "brightness": 0.208,
+    "detail": 0.311,
+    "fill": 0.114,
+    "mean": "#502E2B",
+    "text": "black, red and dark magenta; dark (0.21); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-rogue-idle": {
+   "sha256": "d1f0f6ff805a2f67421a7fc07ca0958c33e62202a334752962cc422b881baa65",
+   "what": "hooded skeleton rogue",
+   "text": "Front-facing hooded skeleton rogue in dark red hood with blue chest and red legs.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.355
+     },
+     {
+      "name": "red",
+      "hex": "#92322C",
+      "share": 0.308
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#411927",
+      "share": 0.112
+     }
+    ],
+    "brightness": 0.218,
+    "detail": 0.311,
+    "fill": 0.429,
+    "mean": "#54302D",
+    "text": "black, red and dark magenta; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-rogue-run": {
+   "sha256": "60519eb517c3616fd9e13969cf239c2c4f31511aed5b53bd7f24a8b682151e17",
+   "what": "hooded skeleton rogue",
+   "text": "Side-view hooded skeleton rogue in dark red hood with blue chest in running stride.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.394
+     },
+     {
+      "name": "red",
+      "hex": "#93322C",
+      "share": 0.312
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#411927",
+      "share": 0.084
+     }
+    ],
+    "brightness": 0.214,
+    "detail": 0.311,
+    "fill": 0.113,
+    "mean": "#522F2C",
+    "text": "black, red and dark magenta; dark (0.21); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-run": {
+   "sha256": "d2e18975ebcf59ba799e913668002baae562621cf9b24d9eef256ae4a186ac33",
+   "what": "running tan skeleton",
+   "text": "Light tan skeleton with black eye sockets mid-run with black trail, side-view enemy.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.458
+     },
+     {
+      "name": "tan",
+      "hex": "#D4AD89",
+      "share": 0.284
+     },
+     {
+      "name": "brown",
+      "hex": "#715232",
+      "share": 0.258
+     }
+    ],
+    "brightness": 0.322,
+    "detail": 0.737,
+    "fill": 0.087,
+    "mean": "#63503C",
+    "text": "black, tan and brown; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-warrior-death": {
+   "sha256": "2a4787097ceb74ebea3b070c54c306e0a614de72217124dbc01754ed0219e70a",
+   "what": "skeletal warrior",
+   "text": "Side-view skeletal warrior in medium blue armor with beige skull, body split for death.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.389
+     },
+     {
+      "name": "tan",
+      "hex": "#DAB592",
+      "share": 0.188
+     },
+     {
+      "name": "brown",
+      "hex": "#6D4F30",
+      "share": 0.179
+     },
+     {
+      "name": "dark blue",
+      "hex": "#31414C",
+      "share": 0.106
+     }
+    ],
+    "brightness": 0.324,
+    "detail": 0.737,
+    "fill": 0.196,
+    "mean": "#595148",
+    "text": "black, tan, brown and dark blue; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-warrior-idle": {
+   "sha256": "23f9827acb391b1d616118c96c5f1fb28ba5cbebabd7accde24dda6dae04313c",
+   "what": "skeletal warrior",
+   "text": "Front-facing skeletal warrior with beige skull and medium blue armor with dark details.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.369
+     },
+     {
+      "name": "brown",
+      "hex": "#6D4F30",
+      "share": 0.193
+     },
+     {
+      "name": "tan",
+      "hex": "#DAB592",
+      "share": 0.186
+     },
+     {
+      "name": "blue",
+      "hex": "#6FA5BD",
+      "share": 0.107
+     }
+    ],
+    "brightness": 0.328,
+    "detail": 0.737,
+    "fill": 0.384,
+    "mean": "#5B5249",
+    "text": "black, brown, tan and blue; dark (0.33); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/skeleton-crew-warrior-run": {
+   "sha256": "d7a384f4eff08550c6cd04e9134a796abd84907dbb73cfdbca7342dea7118b89",
+   "what": "skeletal warrior",
+   "text": "Side-view skeletal warrior in medium blue armor with beige skull in running stride and cape.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.428
+     },
+     {
+      "name": "tan",
+      "hex": "#D9B491",
+      "share": 0.179
+     },
+     {
+      "name": "brown",
+      "hex": "#725332",
+      "share": 0.156
+     },
+     {
+      "name": "blue",
+      "hex": "#6EA4BC",
+      "share": 0.11
+     }
+    ],
+    "brightness": 0.316,
+    "detail": 0.737,
+    "fill": 0.102,
+    "mean": "#565047",
+    "text": "black, tan, brown and blue; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-01-size-02": {
+   "sha256": "86f7887324be93db317213bc0d2255df709a67da298d5d9c669b03b0382f4989",
+   "what": "small autumn trees",
+   "text": "Six small autumn trees with green yellow and orange crowns and brown trunks, light bright foliage.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#4A3016",
+      "share": 0.529
+     },
+     {
+      "name": "orange",
+      "hex": "#B5692C",
+      "share": 0.181
+     },
+     {
+      "name": "green",
+      "hex": "#689913",
+      "share": 0.127
+     }
+    ],
+    "brightness": 0.328,
+    "detail": 0.458,
+    "fill": 0.392,
+    "mean": "#695319",
+    "text": "brown, orange and green; dark (0.33); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-01-size-03": {
+   "sha256": "99251d9966dc608cf0d05db46e9a7a45e8dc7d3213c282446631c48c93cee642",
+   "what": "seasonal trees",
+   "text": "Eight medium trees in green yellow bare brown and icy light blue, varied seasons with brown trunks.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#50331B",
+      "share": 0.544
+     },
+     {
+      "name": "orange",
+      "hex": "#B46B31",
+      "share": 0.131
+     },
+     {
+      "name": "green",
+      "hex": "#669413",
+      "share": 0.092
+     },
+     {
+      "name": "blue",
+      "hex": "#518AA2",
+      "share": 0.081
+     }
+    ],
+    "brightness": 0.343,
+    "detail": 0.554,
+    "fill": 0.498,
+    "mean": "#66572D",
+    "text": "brown, orange, green and blue; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-01-size-04": {
+   "sha256": "9402a30d31c336da54604e25ebb7aaf3ecdb277c664396a035f278e50a4a7735",
+   "what": "large seasonal trees",
+   "text": "Eight larger trees in bright green orange brown and pale blue, thick trunks for seasonal forest.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#54361C",
+      "share": 0.522
+     },
+     {
+      "name": "orange",
+      "hex": "#B56B31",
+      "share": 0.147
+     },
+     {
+      "name": "green",
+      "hex": "#639012",
+      "share": 0.115
+     }
+    ],
+    "brightness": 0.353,
+    "detail": 0.48,
+    "fill": 0.399,
+    "mean": "#6A5A2A",
+    "text": "brown, orange and green; dark (0.35); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-01-size-05": {
+   "sha256": "d33f6b2bd2651c0353f4a9fcf481c9e91d7c745bf5017c84ac6da46be1668356",
+   "what": "huge seasonal trees",
+   "text": "Ten very large trees in bright green orange brown and icy white-blue, heavy canopies and thick trunks.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#50341C",
+      "share": 0.601
+     },
+     {
+      "name": "orange",
+      "hex": "#B36B34",
+      "share": 0.1
+     },
+     {
+      "name": "green",
+      "hex": "#5C8A10",
+      "share": 0.091
+     }
+    ],
+    "brightness": 0.323,
+    "detail": 0.458,
+    "fill": 0.458,
+    "mean": "#61522B",
+    "text": "brown, orange and green; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-02-size": {
+   "sha256": "f3c73b2b53de443837a1726a296e6151f17db3aff9eb251d47d6d7fe78e28ad2",
+   "what": "small pine trees",
+   "text": "Six tiny dark green pine trees, dark conifers with dense foliage for forest fill.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#2D2011",
+      "share": 0.424
+     },
+     {
+      "name": "dark teal",
+      "hex": "#0A483F",
+      "share": 0.26
+     },
+     {
+      "name": "dark green",
+      "hex": "#0B4B22",
+      "share": 0.195
+     }
+    ],
+    "brightness": 0.193,
+    "detail": 0.189,
+    "fill": 0.359,
+    "mean": "#1E3826",
+    "text": "brown, dark teal and dark green; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-02-size-03": {
+   "sha256": "55f8f016279f0abd9862940f53d73d3e031f063b02b7c12820b3035d4cf8142d",
+   "what": "small pine variants",
+   "text": "Five small dark teal green pines and a bare brown trunk with compact triangular canopies for dense forest.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "dark teal",
+      "hex": "#0B4841",
+      "share": 0.304
+     },
+     {
+      "name": "dark green",
+      "hex": "#0C4F25",
+      "share": 0.236
+     },
+     {
+      "name": "brown",
+      "hex": "#2C1F11",
+      "share": 0.222
+     },
+     {
+      "name": "green",
+      "hex": "#0C6E28",
+      "share": 0.113
+     }
+    ],
+    "brightness": 0.233,
+    "detail": 0.21,
+    "fill": 0.35,
+    "mean": "#17482E",
+    "text": "dark teal, dark green, brown and green; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-02-size-04": {
+   "sha256": "72b3c2bf3894b7b332f2440245fea7390deef8659aa8c165357dbf23549940fe",
+   "what": "medium pine variants",
+   "text": "Four medium dark teal green pines plus bare brown trunk and tiny figure showing scale for woodland.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "dark teal",
+      "hex": "#0B4942",
+      "share": 0.292
+     },
+     {
+      "name": "brown",
+      "hex": "#2D2011",
+      "share": 0.242
+     },
+     {
+      "name": "dark green",
+      "hex": "#0B4E26",
+      "share": 0.233
+     },
+     {
+      "name": "green",
+      "hex": "#0C6E28",
+      "share": 0.104
+     }
+    ],
+    "brightness": 0.229,
+    "detail": 0.21,
+    "fill": 0.34,
+    "mean": "#17462E",
+    "text": "dark teal, brown, dark green and green; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-02-size-05": {
+   "sha256": "31fd571767e9c21119531f6b1dc8c1cc72364768db69f3a1bb1e40a9a0735228",
+   "what": "large pine variants",
+   "text": "Four large dark teal green pines plus bare brown trunk and tiny figure showing scale for woodland.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "dark teal",
+      "hex": "#0A433D",
+      "share": 0.293
+     },
+     {
+      "name": "brown",
+      "hex": "#2D2012",
+      "share": 0.245
+     },
+     {
+      "name": "dark green",
+      "hex": "#0B4C25",
+      "share": 0.208
+     },
+     {
+      "name": "green",
+      "hex": "#0C6F2B",
+      "share": 0.125
+     }
+    ],
+    "brightness": 0.224,
+    "detail": 0.215,
+    "fill": 0.383,
+    "mean": "#17442D",
+    "text": "dark teal, brown, dark green and green; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-03-size": {
+   "sha256": "b0fb56c4eded361c491f45218f5d0285cc436ae4148365ce027b6744ce261e01",
+   "what": "seasonal tree set",
+   "text": "Six medium light green yellow brown and red broadleaf trees plus bare trunk for seasonal variation.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#442F17",
+      "share": 0.474
+     },
+     {
+      "name": "olive",
+      "hex": "#6A5F23",
+      "share": 0.142
+     },
+     {
+      "name": "red",
+      "hex": "#7D2320",
+      "share": 0.121
+     },
+     {
+      "name": "green",
+      "hex": "#576F27",
+      "share": 0.095
+     }
+    ],
+    "brightness": 0.284,
+    "detail": 0.288,
+    "fill": 0.376,
+    "mean": "#5E4624",
+    "text": "brown, olive, red and green; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-03-size-02": {
+   "sha256": "fc457bf1dbcaebe1b4691f63e85d4f747073b9d633509c14aacd8070d8964361",
+   "what": "seasonal tree set",
+   "text": "Eight small light green yellow brown and red broadleaf trees with varied trunks for seasonal forest.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#402C16",
+      "share": 0.552
+     },
+     {
+      "name": "olive",
+      "hex": "#675E27",
+      "share": 0.13
+     },
+     {
+      "name": "red",
+      "hex": "#7C2320",
+      "share": 0.128
+     },
+     {
+      "name": "green",
+      "hex": "#54682C",
+      "share": 0.096
+     }
+    ],
+    "brightness": 0.255,
+    "detail": 0.262,
+    "fill": 0.32,
+    "mean": "#553E21",
+    "text": "brown, olive, red and green; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-03-size-04": {
+   "sha256": "52b4fd202213392dee48add2f4e192f820899ee3bfe24de9893eb1bdc8728130",
+   "what": "tall seasonal trees",
+   "text": "Six tall light green yellow brown and red broadleaf trees plus thin trunks for seasonal woodland.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#463019",
+      "share": 0.454
+     },
+     {
+      "name": "olive",
+      "hex": "#605826",
+      "share": 0.162
+     },
+     {
+      "name": "red",
+      "hex": "#7D2320",
+      "share": 0.129
+     },
+     {
+      "name": "green",
+      "hex": "#54682C",
+      "share": 0.101
+     }
+    ],
+    "brightness": 0.269,
+    "detail": 0.262,
+    "fill": 0.366,
+    "mean": "#594224",
+    "text": "brown, olive, red and green; dark (0.27); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-03-size-04-2": {
+   "sha256": "52b4fd202213392dee48add2f4e192f820899ee3bfe24de9893eb1bdc8728130",
+   "what": "tall seasonal trees",
+   "text": "Six tall light green yellow brown and red broadleaf trees plus thin trunks for seasonal woodland.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#463019",
+      "share": 0.454
+     },
+     {
+      "name": "olive",
+      "hex": "#605826",
+      "share": 0.162
+     },
+     {
+      "name": "red",
+      "hex": "#7D2320",
+      "share": 0.129
+     },
+     {
+      "name": "green",
+      "hex": "#54682C",
+      "share": 0.101
+     }
+    ],
+    "brightness": 0.269,
+    "detail": 0.262,
+    "fill": 0.366,
+    "mean": "#594224",
+    "text": "brown, olive, red and green; dark (0.27); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-03-size-04-3": {
+   "sha256": "219e146c0444d53bf8a84f6a6825e16342bf1a59a4eed3585498e89385f1bd9f",
+   "what": "large seasonal trees",
+   "text": "Six large light green yellow brown and red broadleaf trees plus bare trunk for seasonal woodland.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#493119",
+      "share": 0.471
+     },
+     {
+      "name": "olive",
+      "hex": "#6A6023",
+      "share": 0.146
+     },
+     {
+      "name": "red",
+      "hex": "#7D2320",
+      "share": 0.129
+     },
+     {
+      "name": "green",
+      "hex": "#576F27",
+      "share": 0.101
+     }
+    ],
+    "brightness": 0.277,
+    "detail": 0.288,
+    "fill": 0.264,
+    "mean": "#5C4422",
+    "text": "brown, olive, red and green; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-03-size-05": {
+   "sha256": "d62a2623960d68bdb32927260e077899fec5db8a7f0cc44cf3eb208b3d00869c",
+   "what": "large seasonal trees",
+   "text": "Six very large light green yellow brown and red broadleaf trees plus bare trunk for landmark woodland.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#422C17",
+      "share": 0.477
+     },
+     {
+      "name": "olive",
+      "hex": "#5F5623",
+      "share": 0.141
+     },
+     {
+      "name": "orange",
+      "hex": "#CDA164",
+      "share": 0.099
+     },
+     {
+      "name": "red",
+      "hex": "#782420",
+      "share": 0.098
+     }
+    ],
+    "brightness": 0.273,
+    "detail": 0.396,
+    "fill": 0.336,
+    "mean": "#594324",
+    "text": "brown, olive, orange and red; dark (0.27); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/static-trees-model-03-size-2": {
+   "sha256": "b0fb56c4eded361c491f45218f5d0285cc436ae4148365ce027b6744ce261e01",
+   "what": "seasonal tree set",
+   "text": "Six medium light green yellow brown and red broadleaf trees plus bare trunk for seasonal variation.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#442F17",
+      "share": 0.474
+     },
+     {
+      "name": "olive",
+      "hex": "#6A5F23",
+      "share": 0.142
+     },
+     {
+      "name": "red",
+      "hex": "#7D2320",
+      "share": 0.121
+     },
+     {
+      "name": "green",
+      "hex": "#576F27",
+      "share": 0.095
+     }
+    ],
+    "brightness": 0.284,
+    "detail": 0.288,
+    "fill": 0.376,
+    "mean": "#5E4624",
+    "text": "brown, olive, red and green; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-butchery-01": {
+   "sha256": "6a6b95c54105c2716d4e388b97bd4e2fa90428b3a9a7d2ebc3c11f1abf2e2caa",
+   "what": "chopping block meat",
+   "text": "Medium light-brown wooden block with pink-red meat and gray cleaver, clear top detail for butchery.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#7B5234",
+      "share": 0.456
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.314
+     },
+     {
+      "name": "orange",
+      "hex": "#F38751",
+      "share": 0.117
+     }
+    ],
+    "brightness": 0.261,
+    "detail": 0.515,
+    "fill": 0.106,
+    "mean": "#653B26",
+    "text": "brown, black and orange; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-butchery-02": {
+   "sha256": "56dde6f1b965e4a91db1ff2ee800ae612df87f4880b9511e1246017382e4f954",
+   "what": "butcher work table",
+   "text": "Medium brown wooden table with pink-red meats, gray cleaver and jars, dark outlines with bloody details.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#86603D",
+      "share": 0.436
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.306
+     }
+    ],
+    "brightness": 0.284,
+    "detail": 0.58,
+    "fill": 0.185,
+    "mean": "#634330",
+    "text": "brown and black; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-butchery-03": {
+   "sha256": "ddb9f0d7a7ab4b4ab33cb45a85561560b636fb39b78caf14aa02cc00626b0c6b",
+   "what": "butcher market stall",
+   "text": "Medium brown wooden market stall with orange-pink hanging meats and tools, dark outlines, front-facing shop.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.357
+     },
+     {
+      "name": "brown",
+      "hex": "#795436",
+      "share": 0.314
+     },
+     {
+      "name": "tan",
+      "hex": "#C1AD9D",
+      "share": 0.082
+     }
+    ],
+    "brightness": 0.282,
+    "detail": 0.721,
+    "fill": 0.282,
+    "mean": "#604334",
+    "text": "black, brown and tan; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-butchery-04": {
+   "sha256": "03126213ac45df0d05a627bf23eebcdc755617a0bbcf94291b16b45154dbadeb",
+   "what": "butchery tool set",
+   "text": "Small brown and gray butchery scene with pink meats, blue tools and red display, mixed dark and light.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.359
+     },
+     {
+      "name": "brown",
+      "hex": "#7F5735",
+      "share": 0.225
+     },
+     {
+      "name": "red",
+      "hex": "#BB3028",
+      "share": 0.149
+     },
+     {
+      "name": "tan",
+      "hex": "#C5B1A3",
+      "share": 0.082
+     }
+    ],
+    "brightness": 0.282,
+    "detail": 0.721,
+    "fill": 0.414,
+    "mean": "#694032",
+    "text": "black, brown, red and tan; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-cooker-01": {
+   "sha256": "ab820143055b8337d54a55a8be067f98f8cf294055b20f5714c81fe2d7a37932",
+   "what": "campfire tripod stand",
+   "text": "Dark brown wooden tripod with hanging hook, dark thin legs forming tall campfire cooking stand.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.659
+     },
+     {
+      "name": "brown",
+      "hex": "#6B402A",
+      "share": 0.329
+     }
+    ],
+    "brightness": 0.099,
+    "detail": 0.296,
+    "fill": 0.084,
+    "mean": "#25170F",
+    "text": "black and brown; very dark (0.10); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-cooker-02": {
+   "sha256": "37d244b2ee6a2890cd906a8af34a778ce0308bd9c4284e6f0d4f12601a3f8ebd",
+   "what": "metal gantry frame",
+   "text": "Dark gray-blue metal U-shaped frame with cross feet, dark flat industrial stand for hanging.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.666
+     },
+     {
+      "name": "dark grey-blue",
+      "hex": "#313F45",
+      "share": 0.187
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#84A6B3",
+      "share": 0.1
+     }
+    ],
+    "brightness": 0.126,
+    "detail": 0.442,
+    "fill": 0.073,
+    "mean": "#1A2124",
+    "text": "black, dark grey-blue and grey-blue; very dark (0.13); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-cooker-03": {
+   "sha256": "72e7386acdb98df0ac0392a2b054381b0c1a26e1f69b76cd1cabf0598815b667",
+   "what": "large square furnace",
+   "text": "Very dark gray square furnace with glowing red-orange mouth, dark heavy box with bright fire slit.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#464E4D",
+      "share": 0.52
+     },
+     {
+      "name": "black",
+      "hex": "#0A0C0C",
+      "share": 0.327
+     }
+    ],
+    "brightness": 0.218,
+    "detail": 0.33,
+    "fill": 0.718,
+    "mean": "#3E3632",
+    "text": "dark grey and black; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-cooker-04": {
+   "sha256": "4ea85992fa5fa931102e4a687ef15678fa862b41e48c0953ac02948c67d454b3",
+   "what": "industrial cooker machine",
+   "text": "Dark gray industrial cooker with brown crate and blue-orange lights, dark machine with small colorful details.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#090A0A",
+      "share": 0.39
+     },
+     {
+      "name": "dark grey",
+      "hex": "#464D4C",
+      "share": 0.245
+     },
+     {
+      "name": "brown",
+      "hex": "#522E19",
+      "share": 0.14
+     }
+    ],
+    "brightness": 0.198,
+    "detail": 0.395,
+    "fill": 0.51,
+    "mean": "#35322F",
+    "text": "black, dark grey and brown; very dark (0.20); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-grill-01": {
+   "sha256": "05964898204d5b335f21b92233dce764d48fb84fca192e41aae31247c05bc7a6",
+   "what": "meat spit grill",
+   "text": "Small dark spit with three orange meats over embers and drips, bright fire highlights for cooking choice.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.571
+     },
+     {
+      "name": "brown",
+      "hex": "#6B4029",
+      "share": 0.266
+     }
+    ],
+    "brightness": 0.144,
+    "detail": 0.339,
+    "fill": 0.138,
+    "mean": "#3C1F16",
+    "text": "black and brown; very dark (0.14); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-grill-02": {
+   "sha256": "96f1c58ae41611d6f02aa28ad3c1e05f1112546cdea107b25673627646bad252",
+   "what": "meat spit grill",
+   "text": "Dark metal spit with pink hanging meats and barrel, medium tones with red blood drips.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.531
+     },
+     {
+      "name": "brown",
+      "hex": "#8C693E",
+      "share": 0.165
+     },
+     {
+      "name": "red",
+      "hex": "#B93127",
+      "share": 0.091
+     }
+    ],
+    "brightness": 0.216,
+    "detail": 0.626,
+    "fill": 0.164,
+    "mean": "#48342A",
+    "text": "black, brown and red; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-grill-03": {
+   "sha256": "e26f97a12e297746c795912c9362db62dfe16795f79525ef2a33e281645fc709",
+   "what": "meat grill rack",
+   "text": "Dark metal rack with orange bacon strips and pink hams, medium tones with crate and barrel.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.527
+     },
+     {
+      "name": "orange",
+      "hex": "#F3874F",
+      "share": 0.091
+     },
+     {
+      "name": "red",
+      "hex": "#B02C22",
+      "share": 0.086
+     }
+    ],
+    "brightness": 0.239,
+    "detail": 0.645,
+    "fill": 0.222,
+    "mean": "#4E3932",
+    "text": "black, orange and red; dark (0.24); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/stations-cooking-station-grill-04": {
+   "sha256": "cb843ade4e42944e0f57bf92d2aa07ebbd4bb67670079cbba95abb9708fd4538",
+   "what": "meat grill rack",
+   "text": "Dark metal grill loaded with large red raw meat cuts, bright red drips for butcher cooking.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.424
+     },
+     {
+      "name": "red",
+      "hex": "#B92D21",
+      "share": 0.164
+     },
+     {
+      "name": "orange",
+      "hex": "#F48B55",
+      "share": 0.137
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#84A6B3",
+      "share": 0.104
+     }
+    ],
+    "brightness": 0.297,
+    "detail": 0.744,
+    "fill": 0.27,
+    "mean": "#68453C",
+    "text": "black, red, orange and grey-blue; dark (0.30); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-buildings-interior-props-01": {
+   "sha256": "ca9477552fe01fe1582ca28d0d41c8d5ca5b0f0ab8dc38921797e8ba8ce26dbf",
+   "what": "interior props set",
+   "text": "Assorted dark grey stone blue brown and green furniture crates and room items for building interiors.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#543A28",
+      "share": 0.274
+     },
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.214
+     },
+     {
+      "name": "dark red",
+      "hex": "#5A453E",
+      "share": 0.137
+     },
+     {
+      "name": "dark grey",
+      "hex": "#363937",
+      "share": 0.085
+     }
+    ],
+    "brightness": 0.257,
+    "detail": 0.475,
+    "fill": 0.399,
+    "mean": "#484138",
+    "text": "brown, black, dark red and dark grey; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-buildings-interior-walls-01": {
+   "sha256": "84f5d20122992b711fa4aad481e2cd46b58ca9a9b19a65f7d9ad53c8665f41a9",
+   "what": "interior doorways set",
+   "text": "Four dark black and brown doorways with stone bases plus light stone floor tiles for interiors.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#634326",
+      "share": 0.402
+     },
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.348
+     },
+     {
+      "name": "dark grey",
+      "hex": "#3E3E34",
+      "share": 0.124
+     }
+    ],
+    "brightness": 0.2,
+    "detail": 0.408,
+    "fill": 0.355,
+    "mean": "#413120",
+    "text": "brown, black and dark grey; dark (0.20); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-buildings-props": {
+   "sha256": "505b0471514ad4cbb85ae5e5c0f5ca72fe4ba3c65b463491f3cfce10f62de510",
+   "what": "building parts set",
+   "text": "Brown wooden doors windows fences benches and light green plants for dark building exteriors.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#633E24",
+      "share": 0.405
+     },
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.373
+     }
+    ],
+    "brightness": 0.206,
+    "detail": 0.462,
+    "fill": 0.134,
+    "mean": "#423320",
+    "text": "brown and black; dark (0.21); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-buildings-roofs": {
+   "sha256": "ebeead148001283bf3f7fcc6ce7d5828ca8b44de3f8c66e54bd86f04c7a737be",
+   "what": "roof pieces set",
+   "text": "Brown wooden and light teal pitched roofs gables and striped awnings for house construction.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#35A377",
+      "share": 0.304
+     },
+     {
+      "name": "brown",
+      "hex": "#633B1C",
+      "share": 0.266
+     },
+     {
+      "name": "orange",
+      "hex": "#A06131",
+      "share": 0.226
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.097
+     }
+    ],
+    "brightness": 0.375,
+    "detail": 0.541,
+    "fill": 0.26,
+    "mean": "#566545",
+    "text": "green, brown, orange and black; dark (0.38); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-buildings-shadows": {
+   "sha256": "efd6de6dcb0c41b8cc7d46ec4100e162799d09afc958af7a626806916fffe934",
+   "what": "shadow shapes set",
+   "text": "Dark grey jagged and octagonal flat shapes representing building shadows for placement.",
+   "view": "flat",
+   "look": {
+    "colours": [],
+    "brightness": 0.0,
+    "detail": 0.0,
+    "fill": 0.0,
+    "mean": "#000000",
+    "text": "empty"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-buildings-walls": {
+   "sha256": "0ddb9ff0c8cbcbe2924404cb00c2966d094f6e517ebb1536bd9db3f2e6e55e08",
+   "what": "wall tiles",
+   "text": "Sheet of brown and light-blue wall pieces, medium tones, showing varied tops and edges for building construction.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6C4225",
+      "share": 0.373
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.217
+     },
+     {
+      "name": "tan",
+      "hex": "#C7AF93",
+      "share": 0.216
+     },
+     {
+      "name": "blue",
+      "hex": "#80BAD3",
+      "share": 0.119
+     }
+    ],
+    "brightness": 0.368,
+    "detail": 0.748,
+    "fill": 0.311,
+    "mean": "#6B5C4D",
+    "text": "brown, black, tan and blue; dark (0.37); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-alchemy-table-01": {
+   "sha256": "f345c09ec54f47800649ef6d074c0a8b37e566d54fa85e5e616ecf9afe8273c6",
+   "what": "alchemy equipment",
+   "text": "Vertical strip of tiny light grey and yellow items, dark, showing repeated bottles and tools in rows.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.419
+     },
+     {
+      "name": "brown",
+      "hex": "#603D16",
+      "share": 0.113
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F0D",
+      "share": 0.104
+     },
+     {
+      "name": "teal",
+      "hex": "#195D63",
+      "share": 0.093
+     }
+    ],
+    "brightness": 0.245,
+    "detail": 0.675,
+    "fill": 0.36,
+    "mean": "#3F4032",
+    "text": "black, brown, orange and teal; dark (0.24); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-alchemy-table-02": {
+   "sha256": "30e6d59057b3b2c3c853c55988a0fcea9af173080c68e6436ceee0ff7dd8eda7",
+   "what": "alchemy bottles",
+   "text": "Sheet of tiny grey and yellow lab items, dark, showing repeated rows of bottles and tools.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.372
+     },
+     {
+      "name": "orange",
+      "hex": "#A15F17",
+      "share": 0.122
+     },
+     {
+      "name": "brown",
+      "hex": "#673E1A",
+      "share": 0.097
+     },
+     {
+      "name": "teal",
+      "hex": "#195D63",
+      "share": 0.096
+     }
+    ],
+    "brightness": 0.221,
+    "detail": 0.428,
+    "fill": 0.497,
+    "mean": "#3B3928",
+    "text": "black, orange, brown and teal; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-alchemy-table-03": {
+   "sha256": "eb11cf240023cf1d8d0127bd171e0326b347f0510f4835daa87da4080d2903b1",
+   "what": "alchemy components",
+   "text": "Grid of small grey tools with green plants, dark with light accents, showing many crafting components.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.337
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F15",
+      "share": 0.156
+     },
+     {
+      "name": "brown",
+      "hex": "#683E1B",
+      "share": 0.127
+     }
+    ],
+    "brightness": 0.261,
+    "detail": 0.642,
+    "fill": 0.448,
+    "mean": "#4C422B",
+    "text": "black, orange and brown; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-anvil": {
+   "sha256": "2fb970a28237423c62f27e606dfa084e80400aa0652c5cb1bb2b87d97cf4469b",
+   "what": "anvil parts",
+   "text": "Small blue-grey and orange anvil pieces, medium-dark, with separate tops and bases for assembly.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#020203",
+      "share": 0.332
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#84A6B3",
+      "share": 0.171
+     },
+     {
+      "name": "brown",
+      "hex": "#664215",
+      "share": 0.121
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F0F",
+      "share": 0.094
+     }
+    ],
+    "brightness": 0.317,
+    "detail": 0.626,
+    "fill": 0.254,
+    "mean": "#515248",
+    "text": "black, grey-blue, brown and orange; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-anvil-01": {
+   "sha256": "aaf62862ca64c0a05e3d0e6a4472b32ebcf68315acd4307f42385c663f02c110",
+   "what": "anvil frames",
+   "text": "Rows of small orange-brown frames, medium-dark, showing identical repeated icons for an anvil stage.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000101",
+      "share": 0.337
+     },
+     {
+      "name": "brown",
+      "hex": "#694215",
+      "share": 0.245
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F14",
+      "share": 0.211
+     }
+    ],
+    "brightness": 0.255,
+    "detail": 0.563,
+    "fill": 0.219,
+    "mean": "#513F26",
+    "text": "black, brown and orange; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-anvil-02": {
+   "sha256": "48ab02390c9eac7d22847d2ff64c76ef896e6a807e857898feccfd07214e6335",
+   "what": "metal troughs",
+   "text": "Rows of light grey metal segments, medium-light, showing long repeated anvil or trough variations.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#020303",
+      "share": 0.359
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#84A6B3",
+      "share": 0.152
+     },
+     {
+      "name": "brown",
+      "hex": "#603D16",
+      "share": 0.124
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F0D",
+      "share": 0.084
+     }
+    ],
+    "brightness": 0.294,
+    "detail": 0.626,
+    "fill": 0.378,
+    "mean": "#4B4C44",
+    "text": "black, grey-blue, brown and orange; dark (0.29); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-anvil-03": {
+   "sha256": "9c91a19b568db7fac7290392c7595e1b9d3245642b2569b8bd8f5b324504f47b",
+   "what": "metal parts",
+   "text": "Grid of light grey and blue metal pieces, medium-light, showing varied anvil or station parts.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#020203",
+      "share": 0.414
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#84A6B3",
+      "share": 0.138
+     },
+     {
+      "name": "white",
+      "hex": "#CFE2EA",
+      "share": 0.083
+     },
+     {
+      "name": "dark grey",
+      "hex": "#282B30",
+      "share": 0.08
+     }
+    ],
+    "brightness": 0.281,
+    "detail": 0.697,
+    "fill": 0.322,
+    "mean": "#444945",
+    "text": "black, grey-blue, white and dark grey; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire": {
+   "sha256": "c9ed30b9cab5c876cc64b4c821f3023c575fc1839e723724746f951446e1ea09",
+   "what": "bonfire stages",
+   "text": "Tall strip of small dark grey and brown fire stages, dark, showing progressive bonfire build states.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#050505",
+      "share": 0.459
+     },
+     {
+      "name": "dark grey",
+      "hex": "#383D3F",
+      "share": 0.239
+     },
+     {
+      "name": "brown",
+      "hex": "#6F4A2F",
+      "share": 0.178
+     }
+    ],
+    "brightness": 0.151,
+    "detail": 0.419,
+    "fill": 0.158,
+    "mean": "#2B2621",
+    "text": "black, dark grey and brown; very dark (0.15); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-01": {
+   "sha256": "b5eb31fb9a98ccb5fd72222d74b5e0e01ad08c88afb87e569a231b4dbb729e7e",
+   "what": "stone fire pit",
+   "text": "Circular dark grey stone ring with red-orange flames, medium-dark, symmetrical pit with surrounding rocks.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#090A0A",
+      "share": 0.464
+     },
+     {
+      "name": "dark grey",
+      "hex": "#495050",
+      "share": 0.282
+     },
+     {
+      "name": "red",
+      "hex": "#B42619",
+      "share": 0.108
+     },
+     {
+      "name": "grey",
+      "hex": "#606E6C",
+      "share": 0.101
+     }
+    ],
+    "brightness": 0.197,
+    "detail": 0.419,
+    "fill": 0.434,
+    "mean": "#3D302C",
+    "text": "black, dark grey, red and grey; very dark (0.20); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-02": {
+   "sha256": "2ef6850fd4fa1aff4179b739601036ac74575c2ffad2215f1cc823910b5de7be",
+   "what": "stone fire pit",
+   "text": "Irregular dark grey stone pit with red-yellow flames, medium-dark, large rocks and scattered embers.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#040404",
+      "share": 0.426
+     },
+     {
+      "name": "dark grey",
+      "hex": "#424948",
+      "share": 0.297
+     },
+     {
+      "name": "grey",
+      "hex": "#606E6C",
+      "share": 0.122
+     },
+     {
+      "name": "red",
+      "hex": "#B22519",
+      "share": 0.107
+     }
+    ],
+    "brightness": 0.191,
+    "detail": 0.419,
+    "fill": 0.401,
+    "mean": "#3B2E2A",
+    "text": "black, dark grey, grey and red; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-03": {
+   "sha256": "843c6a114e0b6ccefe2509e6c66af478f8b8cc738239a05960d634d02a7f3150",
+   "what": "burning log",
+   "text": "Horizontal brown log with bright red-orange flames, medium-dark, long burning wood for campfire.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#613924",
+      "share": 0.385
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.309
+     },
+     {
+      "name": "dark red",
+      "hex": "#281613",
+      "share": 0.16
+     },
+     {
+      "name": "red",
+      "hex": "#B12719",
+      "share": 0.145
+     }
+    ],
+    "brightness": 0.151,
+    "detail": 0.296,
+    "fill": 0.269,
+    "mean": "#461F15",
+    "text": "brown, black, dark red and red; very dark (0.15); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-04": {
+   "sha256": "f65fa26c6c2da42ca62faeb3f9757d6cf3ca8541f9c7e75e314cd83f34b170bd",
+   "what": "tree stump",
+   "text": "Brown stump with bright orange-red cut top, medium-dark, short cylinder with bark side texture.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#CB3A1F",
+      "share": 0.34
+     },
+     {
+      "name": "brown",
+      "hex": "#653E28",
+      "share": 0.3
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.231
+     },
+     {
+      "name": "dark red",
+      "hex": "#281613",
+      "share": 0.13
+     }
+    ],
+    "brightness": 0.21,
+    "detail": 0.428,
+    "fill": 0.241,
+    "mean": "#682919",
+    "text": "red, brown, black and dark red; dark (0.21); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-05": {
+   "sha256": "3aef6b79b40c5306d53489f5a9025ec9326f68e935fd16cedcf54b7464c1d5e9",
+   "what": "small campfire",
+   "text": "Small beige logs with red flames, medium, scattered stones around a low campsite fire.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.423
+     },
+     {
+      "name": "red",
+      "hex": "#B22519",
+      "share": 0.31
+     },
+     {
+      "name": "brown",
+      "hex": "#8F6C44",
+      "share": 0.268
+     }
+    ],
+    "brightness": 0.198,
+    "detail": 0.491,
+    "fill": 0.139,
+    "mean": "#5D281A",
+    "text": "black, red and brown; very dark (0.20); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-06": {
+   "sha256": "33b48aa0e8eb403e1f5dd0293d608a6c3bdbf82582ab2c5da76d13a0e57f1837",
+   "what": "wooden log",
+   "text": "Horizontal orange-brown log with dark outline, medium, simple unlit timber with red highlight.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#D64823",
+      "share": 0.457
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.261
+     },
+     {
+      "name": "dark red",
+      "hex": "#281613",
+      "share": 0.152
+     },
+     {
+      "name": "brown",
+      "hex": "#4C2C1C",
+      "share": 0.13
+     }
+    ],
+    "brightness": 0.218,
+    "detail": 0.428,
+    "fill": 0.09,
+    "mean": "#722A16",
+    "text": "red, black, dark red and brown; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-07": {
+   "sha256": "07e1a1fd168420b2caded0e8672926f3c9d8d6fc383efe2cd2b7fa266eff68c5",
+   "what": "fire embers",
+   "text": "Scattered red-orange embers with black char, dark, irregular fragments showing dying fire remains.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.613
+     },
+     {
+      "name": "red",
+      "hex": "#AC2418",
+      "share": 0.251
+     },
+     {
+      "name": "brown",
+      "hex": "#573320",
+      "share": 0.106
+     }
+    ],
+    "brightness": 0.09,
+    "detail": 0.296,
+    "fill": 0.194,
+    "mean": "#360F0A",
+    "text": "black, red and brown; very dark (0.09); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-08": {
+   "sha256": "4b1086353e36e91bb2fe175922da9f78bfe996408e0dec2b0ab2675a3209b8bd",
+   "what": "burning embers pile",
+   "text": "Dark sprawling red-orange flame pile on brown base, bright glowing center with jagged pixel edges for campfire.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#AA2117",
+      "share": 0.531
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.4
+     }
+    ],
+    "brightness": 0.141,
+    "detail": 0.428,
+    "fill": 0.171,
+    "mean": "#60150E",
+    "text": "red and black; very dark (0.14); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-09": {
+   "sha256": "abcc6268de1f9ea3f54e67bd784508ad3de583d671ac5c265be987867748299b",
+   "what": "stone fireplace",
+   "text": "Dark gray stone fireplace with glowing red-orange fire and black coal pile beside, dark with bright fire.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#0A0B0B",
+      "share": 0.372
+     },
+     {
+      "name": "dark grey",
+      "hex": "#3B4042",
+      "share": 0.346
+     },
+     {
+      "name": "red",
+      "hex": "#A62016",
+      "share": 0.116
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#54041F",
+      "share": 0.088
+     }
+    ],
+    "brightness": 0.169,
+    "detail": 0.419,
+    "fill": 0.412,
+    "mean": "#3A2729",
+    "text": "black, dark grey, red and dark magenta; very dark (0.17); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-10": {
+   "sha256": "f5a82b33a141ebe62750e254f3361dd0969bee3189b204718015465b30f8a4e3",
+   "what": "stone fireplace",
+   "text": "Dark gray stone fireplace holding bright red-orange fire, dark structure with glowing firebox and small debris.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#0B0D0D",
+      "share": 0.324
+     },
+     {
+      "name": "dark grey",
+      "hex": "#464D4C",
+      "share": 0.235
+     },
+     {
+      "name": "red",
+      "hex": "#AB2517",
+      "share": 0.201
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#54041F",
+      "share": 0.131
+     }
+    ],
+    "brightness": 0.193,
+    "detail": 0.419,
+    "fill": 0.491,
+    "mean": "#4C2A2B",
+    "text": "black, dark grey, red and dark magenta; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-fire-01": {
+   "sha256": "53d31350462b143acc9aa0278b7b638a1208ec528ba1a589eef2890d6cd6e116",
+   "what": "small flame row",
+   "text": "Four tiny bright red-orange flames on gray, small dark sprites evenly spaced for fire animation.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#A92216",
+      "share": 0.888
+     },
+     {
+      "name": "orange",
+      "hex": "#FC893A",
+      "share": 0.112
+     }
+    ],
+    "brightness": 0.284,
+    "detail": 0.419,
+    "fill": 0.142,
+    "mean": "#B32E1A",
+    "text": "red and orange; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-fire-02": {
+   "sha256": "72e7825014c11cb6103e1a2288d01daa27ea0695616010fc9dd675565d1480bb",
+   "what": "small flame row",
+   "text": "Four tiny bright orange-red flames on gray, small dark sprites evenly spaced for fire animation.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#9F1C14",
+      "share": 0.913
+     },
+     {
+      "name": "orange",
+      "hex": "#F98237",
+      "share": 0.087
+     }
+    ],
+    "brightness": 0.249,
+    "detail": 0.296,
+    "fill": 0.062,
+    "mean": "#A72517",
+    "text": "red and orange; dark (0.25); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-bonfire-smoke": {
+   "sha256": "f1a99937feca87024ea2098d96a1905a8295c033509cc3be1ae165f8f8e29e9e",
+   "what": "small ember row",
+   "text": "Four tiny bright orange-red flame dots on gray, small dark sprites evenly spaced for ember animation.",
+   "view": "front",
+   "look": {
+    "colours": [],
+    "brightness": 0.0,
+    "detail": 0.0,
+    "fill": 0.0,
+    "mean": "#000000",
+    "text": "empty"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-cooking-station": {
+   "sha256": "4bbb987edff01c012ff99dd564a9bbf4ce368625dd6672dde725e26d8e80ebc9",
+   "what": "cooking icons set",
+   "text": "Sheet of tiny brown, red and gray cooking and meat icons, mixed light and dark small game sprites.",
+   "view": "flat",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#030404",
+      "share": 0.423
+     },
+     {
+      "name": "brown",
+      "hex": "#764F31",
+      "share": 0.168
+     },
+     {
+      "name": "red",
+      "hex": "#B2291F",
+      "share": 0.092
+     },
+     {
+      "name": "dark grey",
+      "hex": "#454C4B",
+      "share": 0.089
+     }
+    ],
+    "brightness": 0.228,
+    "detail": 0.592,
+    "fill": 0.272,
+    "mean": "#4D362E",
+    "text": "black, brown, red and dark grey; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-cooking-station-estructure": {
+   "sha256": "efa6aaf8a4f5c603c0a49081f35589fb499ad263487c62e4d7fe45953b10a8ce",
+   "what": "structure parts set",
+   "text": "Sheet of tiny brown, gray and blue tools and furniture parts, mixed light and dark construction sprites.",
+   "view": "flat",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#030303",
+      "share": 0.396
+     },
+     {
+      "name": "brown",
+      "hex": "#7B5535",
+      "share": 0.289
+     },
+     {
+      "name": "dark grey",
+      "hex": "#464D4C",
+      "share": 0.095
+     }
+    ],
+    "brightness": 0.241,
+    "detail": 0.526,
+    "fill": 0.196,
+    "mean": "#463C32",
+    "text": "black, brown and dark grey; dark (0.24); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace": {
+   "sha256": "ec84f0f1078b3b66c844899ac92bc217e0cfa811c70245f47d98d70b9920c777",
+   "what": "furnace parts set",
+   "text": "Tall set of small dark furnace parts with orange fires and brown trims, varied sizes.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#394242",
+      "share": 0.305
+     },
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.259
+     },
+     {
+      "name": "brown",
+      "hex": "#5E3B22",
+      "share": 0.189
+     },
+     {
+      "name": "red",
+      "hex": "#872E1B",
+      "share": 0.102
+     }
+    ],
+    "brightness": 0.211,
+    "detail": 0.395,
+    "fill": 0.424,
+    "mean": "#3F342D",
+    "text": "dark grey, black, brown and red; dark (0.21); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-bricks-01": {
+   "sha256": "85d8a5f37fdc5b5ab95c423908ba356428ec27857dabe61fd9751bd798dd870e",
+   "what": "brick furnaces",
+   "text": "Four medium brown brick furnaces with bright orange fire mouths, dark outlines for station choice.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#603C24",
+      "share": 0.44
+     },
+     {
+      "name": "red",
+      "hex": "#812D1C",
+      "share": 0.353
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.187
+     }
+    ],
+    "brightness": 0.207,
+    "detail": 0.375,
+    "fill": 0.701,
+    "mean": "#5B2C1B",
+    "text": "brown, red and black; dark (0.21); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-bricks-02": {
+   "sha256": "918d1a564d074cc523824933808d6cbda803d8e8eacf2f0aadc3a77a551bad28",
+   "what": "brick furnaces",
+   "text": "Four small brown brick furnaces with orange fire mouths, dark and compact for station choice.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#5F3B24",
+      "share": 0.484
+     },
+     {
+      "name": "red",
+      "hex": "#812C1B",
+      "share": 0.285
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.214
+     }
+    ],
+    "brightness": 0.199,
+    "detail": 0.375,
+    "fill": 0.575,
+    "mean": "#562B1A",
+    "text": "brown, red and black; very dark (0.20); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-bricks-03": {
+   "sha256": "e08c63a62a201844cb68f41e0215e0b56dac63bb423fd911841dd8ee2ef70dbd",
+   "what": "brick furnaces",
+   "text": "Four dark brown brick furnaces with orange-red fire mouths, squat shape for station choice.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#623E24",
+      "share": 0.482
+     },
+     {
+      "name": "red",
+      "hex": "#852719",
+      "share": 0.252
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.25
+     }
+    ],
+    "brightness": 0.191,
+    "detail": 0.375,
+    "fill": 0.809,
+    "mean": "#532918",
+    "text": "brown, red and black; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-iron-01": {
+   "sha256": "ae9c48fb4118cca4aa8c37d69884a08706e6af33f353c156ad95029fad865441",
+   "what": "iron furnaces",
+   "text": "Four dark grey iron furnaces with red trims and orange fire mouths, tall rounded shape.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#272F2F",
+      "share": 0.313
+     },
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.303
+     },
+     {
+      "name": "blue",
+      "hex": "#4E6A75",
+      "share": 0.112
+     },
+     {
+      "name": "red",
+      "hex": "#AF2618",
+      "share": 0.088
+     }
+    ],
+    "brightness": 0.193,
+    "detail": 0.395,
+    "fill": 0.816,
+    "mean": "#353030",
+    "text": "dark grey, black, blue and red; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-iron-02": {
+   "sha256": "e9e520dea1e90a2fe827f11220d42ff39214071602f77db2abdb9a83cf4fd694",
+   "what": "iron furnaces",
+   "text": "Four small dark grey iron furnaces with orange fires, compact rounded shape for station choice.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#283030",
+      "share": 0.371
+     },
+     {
+      "name": "black",
+      "hex": "#010202",
+      "share": 0.284
+     },
+     {
+      "name": "blue",
+      "hex": "#4E6A75",
+      "share": 0.119
+     }
+    ],
+    "brightness": 0.189,
+    "detail": 0.395,
+    "fill": 0.592,
+    "mean": "#332F30",
+    "text": "dark grey, black and blue; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-iron-03": {
+   "sha256": "8383f9bf723cb73f50832adfeef1635f841cf31ec3fd6a466fb4e5479e2839e0",
+   "what": "iron furnaces",
+   "text": "Four dark grey iron furnaces with orange fires and pipes, tall industrial shape for choice.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#2C3434",
+      "share": 0.331
+     },
+     {
+      "name": "black",
+      "hex": "#010101",
+      "share": 0.306
+     },
+     {
+      "name": "blue",
+      "hex": "#4E6A75",
+      "share": 0.096
+     },
+     {
+      "name": "red",
+      "hex": "#AF2718",
+      "share": 0.086
+     }
+    ],
+    "brightness": 0.191,
+    "detail": 0.395,
+    "fill": 0.872,
+    "mean": "#352F30",
+    "text": "dark grey, black, blue and red; very dark (0.19); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-stone-01": {
+   "sha256": "01c8d1b39b167e02a2c62d2c26cf294a1372045fcb5a5ab159dae4af38e4862e",
+   "what": "stone furnaces",
+   "text": "Four medium grey stone furnaces with red gems and orange fires, rocky texture for choice.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#434D4C",
+      "share": 0.599
+     },
+     {
+      "name": "grey",
+      "hex": "#707877",
+      "share": 0.163
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.143
+     }
+    ],
+    "brightness": 0.28,
+    "detail": 0.464,
+    "fill": 0.645,
+    "mean": "#4B4744",
+    "text": "dark grey, grey and black; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-stone-02": {
+   "sha256": "61f883a6b1c738675e2284c08e1fb6533ba06dddee471616ca06055a6f3bfdeb",
+   "what": "stone furnaces",
+   "text": "Four medium grey stone furnaces with red gems and orange fire, rocky uneven shape.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#444F4E",
+      "share": 0.712
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.13
+     }
+    ],
+    "brightness": 0.267,
+    "detail": 0.386,
+    "fill": 0.417,
+    "mean": "#474442",
+    "text": "dark grey and black; dark (0.27); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-furnace-stone-03": {
+   "sha256": "2b39445432f66e25f42a9a78c050478bee6c37da4bbbf69d1437f3ee71f6e916",
+   "what": "stone furnaces",
+   "text": "Four small medium grey stone furnaces with red gems and orange fire, compact rocky shape.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#45504F",
+      "share": 0.637
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.167
+     },
+     {
+      "name": "grey",
+      "hex": "#707877",
+      "share": 0.13
+     }
+    ],
+    "brightness": 0.271,
+    "detail": 0.464,
+    "fill": 0.595,
+    "mean": "#464543",
+    "text": "dark grey, black and grey; dark (0.27); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-sawmill": {
+   "sha256": "7a49c49c34c0103985fb10b3881f7620388300a94836d5a2d8eea56ac21f5c8e",
+   "what": "sawmill parts set",
+   "text": "Scattered small light brown sawmill parts with grey saws, light wood tones for building choice.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#704C23",
+      "share": 0.395
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.35
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F0D",
+      "share": 0.096
+     }
+    ],
+    "brightness": 0.238,
+    "detail": 0.491,
+    "fill": 0.288,
+    "mean": "#4E3A23",
+    "text": "brown, black and orange; dark (0.24); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-sawmill-level-1": {
+   "sha256": "8be22335bc731f023e36b05818589e88141ba895d8a5e922511092699c92f8cb",
+   "what": "stump cutting saw",
+   "text": "Light brown stump with grey rock and orange saw blade, dark outlines for cutting station.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#765126",
+      "share": 0.46
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.339
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F0D",
+      "share": 0.098
+     }
+    ],
+    "brightness": 0.227,
+    "detail": 0.491,
+    "fill": 0.389,
+    "mean": "#4D371B",
+    "text": "brown, black and orange; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-sawmill-level-2": {
+   "sha256": "48fcc10f07cb9ab360783465a0b26062acd1ad9b40fbe8919658e3485d107004",
+   "what": "sawmill station sprites",
+   "text": "Grid of small dark brown and grey sawmill structures with repeated frames for placement.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#714E26",
+      "share": 0.443
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.359
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F0D",
+      "share": 0.091
+     }
+    ],
+    "brightness": 0.235,
+    "detail": 0.491,
+    "fill": 0.358,
+    "mean": "#4E3920",
+    "text": "brown, black and orange; dark (0.23); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-sawmill-level-3": {
+   "sha256": "2dc51fea853808ca90cae6b8dc24b31d439828e280abf4f1f09764afce54e4c0",
+   "what": "sawmill station sprites",
+   "text": "Grid of small dark brown and grey upgraded sawmills with dense repeated frames for placement.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#7A562D",
+      "share": 0.419
+     },
+     {
+      "name": "black",
+      "hex": "#000000",
+      "share": 0.339
+     }
+    ],
+    "brightness": 0.256,
+    "detail": 0.491,
+    "fill": 0.413,
+    "mean": "#503F2A",
+    "text": "brown and black; dark (0.26); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/structures-stations-workbench": {
+   "sha256": "f81c1cf59202c6139d2b1cbfd899c5a552e7535dc39076fafbc45c1adcb16f57",
+   "what": "workbench equipment icons",
+   "text": "Small light grey and brown workbench tools with blue accents for crafting stations.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#010202",
+      "share": 0.251
+     },
+     {
+      "name": "grey",
+      "hex": "#707877",
+      "share": 0.151
+     },
+     {
+      "name": "dark grey",
+      "hex": "#45504F",
+      "share": 0.141
+     },
+     {
+      "name": "orange",
+      "hex": "#A05F0D",
+      "share": 0.114
+     }
+    ],
+    "brightness": 0.316,
+    "detail": 0.626,
+    "fill": 0.435,
+    "mean": "#535146",
+    "text": "black, grey, dark grey and orange; dark (0.32); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/tilesets-dungeon-tiles": {
+   "sha256": "5c7deca9dd1d38337014a3b027164e8eafd7d2dd875197163f30e528ab294c67",
+   "what": "dark dungeon tiles",
+   "text": "Dark near-black to blue-grey horizontal bands forming simple dungeon shading for backgrounds.",
+   "view": "flat",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#161716",
+      "share": 0.688
+     },
+     {
+      "name": "blue",
+      "hex": "#5C718C",
+      "share": 0.125
+     },
+     {
+      "name": "dark grey-blue",
+      "hex": "#2F363E",
+      "share": 0.117
+     }
+    ],
+    "brightness": 0.158,
+    "detail": 0.321,
+    "fill": 1.0,
+    "mean": "#24292E",
+    "text": "black, blue and dark grey-blue; very dark (0.16); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/tilesets-floors-tiles": {
+   "sha256": "4e39ce176ab9def4b95cee74f44b46b1253d6b8b0b98190b10c1891274799267",
+   "what": "green grass tile",
+   "text": "Bright light green flat square with small grey corner notch for grass flooring.",
+   "view": "flat",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#337703",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.377,
+    "detail": 0.015,
+    "fill": 0.914,
+    "mean": "#337703",
+    "text": "green; dark (0.38); flat, no detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/tilesets-wall-tiles": {
+   "sha256": "0a72dfea6307c9e01c078a0d61ee7329e52fc1f87c286af9ad270a6643150673",
+   "what": "brown dirt corner",
+   "text": "Light brown rounded dirt corner with dark brown outline for floor transitions.",
+   "view": "flat",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#9F6C3F",
+      "share": 0.551
+     },
+     {
+      "name": "brown",
+      "hex": "#936139",
+      "share": 0.308
+     },
+     {
+      "name": "dark red",
+      "hex": "#47281F",
+      "share": 0.141
+     }
+    ],
+    "brightness": 0.402,
+    "detail": 0.273,
+    "fill": 0.723,
+    "mean": "#8F5F39",
+    "text": "orange, brown and dark red; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/tilesets-wall-variations": {
+   "sha256": "8aca1bbaa92c5be1e4bbb5676cd7e136aa831b1a1358e4b724eebbb9e4f871be",
+   "what": "brown dirt texture",
+   "text": "Dark mottled brown pixel noise texture for earthy ground or wall fill.",
+   "view": "flat",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6C3E26",
+      "share": 0.57
+     },
+     {
+      "name": "dark red",
+      "hex": "#3E221A",
+      "share": 0.43
+     }
+    ],
+    "brightness": 0.224,
+    "detail": 0.207,
+    "fill": 1.0,
+    "mean": "#583221",
+    "text": "brown and dark red; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/tilesets-water-tiles": {
+   "sha256": "fbfc1910044c6b81ca0733f6edf9fdae9403da0a04c0a063104b589a0d5d5d9d",
+   "what": "blue water tiles",
+   "text": "Light bright blue flat tiles with darker blue spots for stylized water.",
+   "view": "flat",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#3E91D1",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.518,
+    "detail": 0.0,
+    "fill": 1.0,
+    "mean": "#3E91D1",
+    "text": "blue; mid (0.52); flat, no detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "anokolisa-pixel-crawler/weapons-bone": {
+   "sha256": "f44f354edea9ee53b4de118844ad5112ea45c98cbb048a8e3b0ca9ee132299cc",
+   "what": "bone weapons set",
+   "text": "Collection of light beige bone swords, axes and spears with jagged details for items.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#CDA783",
+      "share": 0.4
+     },
+     {
+      "name": "brown",
+      "hex": "#61472B",
+      "share": 0.382
+     },
+     {
+      "name": "black",
+      "hex": "#141412",
+      "share": 0.213
+     }
+    ],
+    "brightness": 0.401,
+    "detail": 0.737,
+    "fill": 0.138,
+    "mean": "#7C6349",
+    "text": "tan, brown and black; mid (0.40); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  }
+ },
+ "tiles": {
+  "pixel-crawler-dungeon/floor": {
+   "sha256": "baf94060f1b78ea412d375cebe6a01af6b0a57ccafb75429786b07ad2669fb5d",
+   "what": "stone floor tile",
+   "text": "Light tan flat pixel tile with slightly darker brown geometric stone pattern.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#8F7B62",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.493,
+    "detail": 0.055,
+    "fill": 1.0,
+    "mean": "#8F7B62",
+    "text": "tan; mid (0.49); low-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "pixel-crawler-dungeon/floor_alt": {
+   "sha256": "2a2b36309ee882a2d5ce61e24e3e2989e49765657e52586bcac49bb6ef5c55cd",
+   "what": "dark stone tile",
+   "text": "Medium-dark brown flat pixel tile with slightly darker geometric stone pattern.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#7E6D56",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.434,
+    "detail": 0.047,
+    "fill": 1.0,
+    "mean": "#7E6D56",
+    "text": "tan; mid (0.43); low-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "pixel-crawler-dungeon/wall": {
+   "sha256": "b27b365f2e920665e27681e72ca733e366feee417e9211c33aed2026ecd46ab4",
+   "what": "wall top tile",
+   "text": "Dark teal flat solid pixel tile with subtle darker edge shading.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "grey-teal",
+      "hex": "#516467",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.379,
+    "detail": 0.008,
+    "fill": 1.0,
+    "mean": "#516467",
+    "text": "grey-teal; dark (0.38); flat, no detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "pixel-crawler-dungeon/wall_face": {
+   "sha256": "ff37e1a163c65a7bfcad3a6e1a03deb07881c776f3e1799d6d8d8671f8217bb5",
+   "what": "dark stone texture",
+   "text": "Dark black and gray blocky diagonal pattern with rough clusters for grim walls.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#2D3536",
+      "share": 0.852
+     },
+     {
+      "name": "dark grey-teal",
+      "hex": "#445355",
+      "share": 0.148
+     }
+    ],
+    "brightness": 0.218,
+    "detail": 0.176,
+    "fill": 1.0,
+    "mean": "#31393B",
+    "text": "dark grey and dark grey-teal; dark (0.22); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "pixel-crawler-dungeon/water": {
+   "sha256": "74aa1d19d5cea845066e2627865674b90d1a43d67aa6e380138fcca6056bb0e4",
+   "what": "blue water tile",
+   "text": "Flat medium-light solid blue square with no detail for uniform water fills.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#4185CA",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.484,
+    "detail": 0.0,
+    "fill": 1.0,
+    "mean": "#4185CA",
+    "text": "blue; mid (0.48); flat, no detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  }
+ }
+}

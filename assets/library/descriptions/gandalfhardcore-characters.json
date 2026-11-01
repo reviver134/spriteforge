@@ -1,0 +1,1996 @@
+{
+ "pack": "gandalfhardcore-characters",
+ "assets": {
+  "gandalfhardcore-characters/character-skin-colors-female-skin1": {
+   "sha256": "162d5cf39c664345a0ce1d625d24b66e0c0754777a3a715af21896b6689a1c02",
+   "what": "character skin colors female skin1",
+   "text": "character skin colors female skin1 (character); black, white, grey-red and tan; mid (0.51); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.33
+     },
+     {
+      "name": "white",
+      "hex": "#FEF0E4",
+      "share": 0.173
+     },
+     {
+      "name": "grey-red",
+      "hex": "#DEA99F",
+      "share": 0.169
+     },
+     {
+      "name": "tan",
+      "hex": "#F3D0C4",
+      "share": 0.132
+     }
+    ],
+    "brightness": 0.506,
+    "detail": 0.872,
+    "fill": 0.085,
+    "mean": "#937C7C",
+    "text": "black, white, grey-red and tan; mid (0.51); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-female-skin2": {
+   "sha256": "fdbaf340a17f346b8ec8c1453fb550499a63cf95bddca0c233bc4c65222915f9",
+   "what": "character skin colors female skin2",
+   "text": "character skin colors female skin2 (character); black, tan and red; mid (0.44); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.33
+     },
+     {
+      "name": "tan",
+      "hex": "#EFC4A6",
+      "share": 0.305
+     },
+     {
+      "name": "red",
+      "hex": "#B6756D",
+      "share": 0.275
+     }
+    ],
+    "brightness": 0.444,
+    "detail": 0.755,
+    "fill": 0.085,
+    "mean": "#896B66",
+    "text": "black, tan and red; mid (0.44); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-female-skin3": {
+   "sha256": "6362ca26f90d8b102d7fcb240bde93625cc0ab1aeb3949176b20e4f165c11086",
+   "what": "character skin colors female skin3",
+   "text": "character skin colors female skin3 (character); red, black and orange; dark (0.34); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#9E6457",
+      "share": 0.406
+     },
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.33
+     },
+     {
+      "name": "orange",
+      "hex": "#CC8D67",
+      "share": 0.173
+     }
+    ],
+    "brightness": 0.342,
+    "detail": 0.518,
+    "fill": 0.085,
+    "mean": "#71514A",
+    "text": "red, black and orange; dark (0.34); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-female-skin4": {
+   "sha256": "8358390e432bd4ede21c62c17eed1881daf652f4fd51aad1dbd67797e99d1d56",
+   "what": "character skin colors female skin4",
+   "text": "character skin colors female skin4 (character); black, red, orange and dark red; dark (0.28); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.33
+     },
+     {
+      "name": "red",
+      "hex": "#915849",
+      "share": 0.309
+     },
+     {
+      "name": "orange",
+      "hex": "#AF6A49",
+      "share": 0.173
+     },
+     {
+      "name": "dark red",
+      "hex": "#513631",
+      "share": 0.102
+     }
+    ],
+    "brightness": 0.285,
+    "detail": 0.387,
+    "fill": 0.085,
+    "mean": "#61433D",
+    "text": "black, red, orange and dark red; dark (0.28); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-female-skin5": {
+   "sha256": "e86010a77b1af6a51d0c1688ce69ec4c09d13339f7f3a69513bf5b05496c7bbb",
+   "what": "character skin colors female skin5",
+   "text": "character skin colors female skin5 (character); black, red, dark red and dark magenta; dark (0.22); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.33
+     },
+     {
+      "name": "red",
+      "hex": "#7C4549",
+      "share": 0.314
+     },
+     {
+      "name": "dark red",
+      "hex": "#5A3037",
+      "share": 0.173
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#422433",
+      "share": 0.097
+     }
+    ],
+    "brightness": 0.216,
+    "detail": 0.261,
+    "fill": 0.085,
+    "mean": "#4A313A",
+    "text": "black, red, dark red and dark magenta; dark (0.22); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-male-skin1": {
+   "sha256": "ac9f4e10119f9e5ee8b19ee42edf980b8e3c375b9b39c89cf4e491d216748c6a",
+   "what": "character skin colors male skin1",
+   "text": "character skin colors male skin1 (character); black, grey-red, tan and white; mid (0.51); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.332
+     },
+     {
+      "name": "grey-red",
+      "hex": "#DEA99F",
+      "share": 0.178
+     },
+     {
+      "name": "tan",
+      "hex": "#F3D0C4",
+      "share": 0.154
+     },
+     {
+      "name": "white",
+      "hex": "#FEF0E5",
+      "share": 0.152
+     }
+    ],
+    "brightness": 0.513,
+    "detail": 0.872,
+    "fill": 0.091,
+    "mean": "#967E7D",
+    "text": "black, grey-red, tan and white; mid (0.51); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-male-skin2": {
+   "sha256": "f6f1194ea8e729f4e09e0450b85e0fd190db1ea11ffde586479d497a6a004db8",
+   "what": "character skin colors male skin2",
+   "text": "character skin colors male skin2 (character); black, tan and red; mid (0.45); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.332
+     },
+     {
+      "name": "tan",
+      "hex": "#EEC2A6",
+      "share": 0.302
+     },
+     {
+      "name": "red",
+      "hex": "#B4756D",
+      "share": 0.291
+     }
+    ],
+    "brightness": 0.45,
+    "detail": 0.755,
+    "fill": 0.091,
+    "mean": "#8B6D67",
+    "text": "black, tan and red; mid (0.45); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-male-skin3": {
+   "sha256": "ceda5c65dc7d3c6a337d8e0d643098aa48cf723f5be87a0513eb2f34265b6cb4",
+   "what": "character skin colors male skin3",
+   "text": "character skin colors male skin3 (character); red, black and orange; dark (0.34); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#9C6457",
+      "share": 0.445
+     },
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.332
+     },
+     {
+      "name": "orange",
+      "hex": "#CC8D67",
+      "share": 0.148
+     }
+    ],
+    "brightness": 0.345,
+    "detail": 0.518,
+    "fill": 0.091,
+    "mean": "#72524B",
+    "text": "red, black and orange; dark (0.34); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-male-skin4": {
+   "sha256": "9e08020b9d6ec54075a2304f4e7e215deb4517276f650e94ede85538a7f25600",
+   "what": "character skin colors male skin4",
+   "text": "character skin colors male skin4 (character); black, red, orange and dark red; dark (0.29); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.332
+     },
+     {
+      "name": "red",
+      "hex": "#905848",
+      "share": 0.332
+     },
+     {
+      "name": "orange",
+      "hex": "#AF6A49",
+      "share": 0.148
+     },
+     {
+      "name": "dark red",
+      "hex": "#513732",
+      "share": 0.118
+     }
+    ],
+    "brightness": 0.288,
+    "detail": 0.387,
+    "fill": 0.091,
+    "mean": "#62433D",
+    "text": "black, red, orange and dark red; dark (0.29); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/character-skin-colors-male-skin5": {
+   "sha256": "2c02cc0b809c324b91db75fa19ad24cde07abd53274facd0e379b8d6b16fb620",
+   "what": "character skin colors male skin5",
+   "text": "character skin colors male skin5 (character); black, red, dark red and dark magenta; dark (0.22); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.332
+     },
+     {
+      "name": "red",
+      "hex": "#794349",
+      "share": 0.302
+     },
+     {
+      "name": "dark red",
+      "hex": "#5A3037",
+      "share": 0.182
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#422433",
+      "share": 0.113
+     }
+    ],
+    "brightness": 0.217,
+    "detail": 0.261,
+    "fill": 0.091,
+    "mean": "#4B313B",
+    "text": "black, red, dark red and dark magenta; dark (0.22); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-blue-corset": {
+   "sha256": "31dbefadfff1c4aeb0c3e9a6c587f7b7abf65db63f4c497a94273e47c2dfac25",
+   "what": "female clothing blue corset",
+   "text": "female clothing blue corset (character); blue, teal and dark blue; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#1E559C",
+      "share": 0.593
+     },
+     {
+      "name": "teal",
+      "hex": "#258FAE",
+      "share": 0.275
+     },
+     {
+      "name": "dark blue",
+      "hex": "#0D2257",
+      "share": 0.132
+     }
+    ],
+    "brightness": 0.331,
+    "detail": 0.35,
+    "fill": 0.018,
+    "mean": "#1E5E98",
+    "text": "blue, teal and dark blue; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-blue-corset-v2": {
+   "sha256": "aa84a15428bc60e13342e7d60c7e2aa57668f1ce4af37270a88d38f02a8fd8da",
+   "what": "female clothing blue corset v2",
+   "text": "female clothing blue corset v2 (character); blue, grey-red, light grey and teal; mid (0.43); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#1E559C",
+      "share": 0.385
+     },
+     {
+      "name": "grey-red",
+      "hex": "#7C645D",
+      "share": 0.242
+     },
+     {
+      "name": "light grey",
+      "hex": "#D8CCC3",
+      "share": 0.165
+     },
+     {
+      "name": "teal",
+      "hex": "#258FAE",
+      "share": 0.154
+     }
+    ],
+    "brightness": 0.434,
+    "detail": 0.597,
+    "fill": 0.018,
+    "mean": "#557392",
+    "text": "blue, grey-red, light grey and teal; mid (0.43); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-blue-panties-and-bra": {
+   "sha256": "edc8940e10e940a926e1eb3feeb22e780bf0ca06649d09a6221bdfe34926a761",
+   "what": "female clothing blue panties and bra",
+   "text": "female clothing blue panties and bra (character); blue, dark blue and grey-blue; mid (0.41); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#556D8D",
+      "share": 0.368
+     },
+     {
+      "name": "dark blue",
+      "hex": "#293757",
+      "share": 0.342
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#94AFC0",
+      "share": 0.263
+     }
+    ],
+    "brightness": 0.411,
+    "detail": 0.456,
+    "fill": 0.007,
+    "mean": "#576B86",
+    "text": "blue, dark blue and grey-blue; mid (0.41); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-boots": {
+   "sha256": "1d700c2630a09c4e6869e8459f435fb80e080812dd8eca1a5e94ff8ea52d3b8f",
+   "what": "female clothing boots",
+   "text": "female clothing boots (character); black and brown; very dark (0.11); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.542
+     },
+     {
+      "name": "brown",
+      "hex": "#312620",
+      "share": 0.458
+     }
+    ],
+    "brightness": 0.113,
+    "detail": 0.109,
+    "fill": 0.012,
+    "mean": "#211C1E",
+    "text": "black and brown; very dark (0.11); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-corset": {
+   "sha256": "5729f6f414c43afc172cf9f33e1eff8ccb41d7a1f79a938ba58cad839e0e6ca8",
+   "what": "female clothing corset",
+   "text": "female clothing corset (character); red, dark red and dark magenta; dark (0.21); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#A92A36",
+      "share": 0.462
+     },
+     {
+      "name": "dark red",
+      "hex": "#5E2027",
+      "share": 0.407
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#330F1F",
+      "share": 0.132
+     }
+    ],
+    "brightness": 0.212,
+    "detail": 0.195,
+    "fill": 0.018,
+    "mean": "#7B232D",
+    "text": "red, dark red and dark magenta; dark (0.21); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-corset-v2": {
+   "sha256": "73356da93a5dd645d1f65eade66fcd64eaeaad7cda3748a5452b7e3e2b2a069a",
+   "what": "female clothing corset v2",
+   "text": "female clothing corset v2 (character); red, dark red, grey-red and light grey; dark (0.36); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#A52C36",
+      "share": 0.286
+     },
+     {
+      "name": "dark red",
+      "hex": "#5E2027",
+      "share": 0.264
+     },
+     {
+      "name": "grey-red",
+      "hex": "#7C645D",
+      "share": 0.242
+     },
+     {
+      "name": "light grey",
+      "hex": "#D8CCC3",
+      "share": 0.165
+     }
+    ],
+    "brightness": 0.363,
+    "detail": 0.682,
+    "fill": 0.018,
+    "mean": "#8C4F52",
+    "text": "red, dark red, grey-red and light grey; dark (0.36); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-green-corset": {
+   "sha256": "aac1e09bb20560c8ef078d5636a3f55a625b4a48d1074289ff4877d1949fceca",
+   "what": "female clothing green corset",
+   "text": "female clothing green corset (character); green and dark green; mid (0.41); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#3A882D",
+      "share": 0.868
+     },
+     {
+      "name": "dark green",
+      "hex": "#124D17",
+      "share": 0.132
+     }
+    ],
+    "brightness": 0.415,
+    "detail": 0.326,
+    "fill": 0.018,
+    "mean": "#34802A",
+    "text": "green and dark green; mid (0.41); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-green-corset-v2": {
+   "sha256": "a47acefad49a2bca6def58525343e23295f79640c9d58e265aff0a8852f81e79",
+   "what": "female clothing green corset v2",
+   "text": "female clothing green corset v2 (character); green, grey-red and light grey; mid (0.48); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#38862C",
+      "share": 0.538
+     },
+     {
+      "name": "grey-red",
+      "hex": "#7C645D",
+      "share": 0.242
+     },
+     {
+      "name": "light grey",
+      "hex": "#D8CCC3",
+      "share": 0.165
+     }
+    ],
+    "brightness": 0.481,
+    "detail": 0.551,
+    "fill": 0.018,
+    "mean": "#628651",
+    "text": "green, grey-red and light grey; mid (0.48); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-green-panties-and-bra": {
+   "sha256": "9f58f06df017de83ecf6211e1d7fac2faf1e8118c8965aa2e520eb9243f1c937",
+   "what": "female clothing green panties and bra",
+   "text": "female clothing green panties and bra (character); green and dark green; mid (0.38); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#408D30",
+      "share": 0.632
+     },
+     {
+      "name": "dark green",
+      "hex": "#124D17",
+      "share": 0.342
+     }
+    ],
+    "brightness": 0.382,
+    "detail": 0.326,
+    "fill": 0.007,
+    "mean": "#317528",
+    "text": "green and dark green; mid (0.38); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-green-socks": {
+   "sha256": "f6a60fe5f5596687238eea9b7544120edcda184e0ad6f730272fe171382bc93b",
+   "what": "female clothing green socks",
+   "text": "female clothing green socks (character); black and green; dark (0.25); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.509
+     },
+     {
+      "name": "green",
+      "hex": "#318429",
+      "share": 0.491
+     }
+    ],
+    "brightness": 0.246,
+    "detail": 0.386,
+    "fill": 0.011,
+    "mean": "#224A22",
+    "text": "black and green; dark (0.25); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-orange-corset": {
+   "sha256": "b5a1bfe0537a84ec91d8d417050a27f8cb4923dfc4dafe573427e4ea18828df0",
+   "what": "female clothing orange corset",
+   "text": "female clothing orange corset (character); orange and brown; mid (0.50); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#E5780B",
+      "share": 0.868
+     },
+     {
+      "name": "brown",
+      "hex": "#9C3600",
+      "share": 0.132
+     }
+    ],
+    "brightness": 0.497,
+    "detail": 0.396,
+    "fill": 0.018,
+    "mean": "#DB6F09",
+    "text": "orange and brown; mid (0.50); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-orange-corset-v2": {
+   "sha256": "4eac08d7b8829c55da056691c49dc6414366b96c46f75c4d1c6164398d99292c",
+   "what": "female clothing orange corset v2",
+   "text": "female clothing orange corset v2 (character); orange, grey-red and light grey; mid (0.53); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#E3760A",
+      "share": 0.538
+     },
+     {
+      "name": "grey-red",
+      "hex": "#7C645D",
+      "share": 0.242
+     },
+     {
+      "name": "light grey",
+      "hex": "#D8CCC3",
+      "share": 0.165
+     }
+    ],
+    "brightness": 0.53,
+    "detail": 0.551,
+    "fill": 0.018,
+    "mean": "#C47D3D",
+    "text": "orange, grey-red and light grey; mid (0.53); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-orange-panties-and-bra": {
+   "sha256": "d6882e61363df18737c427bf0843b2efc5f72828ce90db2931de844815855016",
+   "what": "female clothing orange panties and bra",
+   "text": "female clothing orange panties and bra (character); orange and brown; mid (0.46); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#E97F0D",
+      "share": 0.632
+     },
+     {
+      "name": "brown",
+      "hex": "#9C3600",
+      "share": 0.342
+     }
+    ],
+    "brightness": 0.455,
+    "detail": 0.396,
+    "fill": 0.007,
+    "mean": "#CB650A",
+    "text": "orange and brown; mid (0.46); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-orange-socks": {
+   "sha256": "01507a51af26cc1d18c7701c0db0a83fd1a437dff6b001d116fa47f1a7c0d6fe",
+   "what": "female clothing orange socks",
+   "text": "female clothing orange socks (character); black and orange; dark (0.28); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.509
+     },
+     {
+      "name": "orange",
+      "hex": "#E26E08",
+      "share": 0.491
+     }
+    ],
+    "brightness": 0.284,
+    "detail": 0.463,
+    "fill": 0.011,
+    "mean": "#793F12",
+    "text": "black and orange; dark (0.28); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-purple-corset": {
+   "sha256": "ec17db8e4e857e3c406862118e98afa1d6c58b2b24a9de4eb249fa8ff30a38d2",
+   "what": "female clothing purple corset",
+   "text": "female clothing purple corset (character); purple, dark purple and dark blue; very dark (0.15); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "purple",
+      "hex": "#512884",
+      "share": 0.462
+     },
+     {
+      "name": "dark purple",
+      "hex": "#251354",
+      "share": 0.407
+     },
+     {
+      "name": "dark blue",
+      "hex": "#130A33",
+      "share": 0.132
+     }
+    ],
+    "brightness": 0.151,
+    "detail": 0.182,
+    "fill": 0.018,
+    "mean": "#371B66",
+    "text": "purple, dark purple and dark blue; very dark (0.15); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-purple-corset-v2": {
+   "sha256": "8ed74cc1d55b5a5e209d0f8ad2280095215d66067e526827d500b7d19cf72f79",
+   "what": "female clothing purple corset v2",
+   "text": "female clothing purple corset v2 (character); purple, dark purple, grey-red and light grey; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "purple",
+      "hex": "#502783",
+      "share": 0.275
+     },
+     {
+      "name": "dark purple",
+      "hex": "#251354",
+      "share": 0.264
+     },
+     {
+      "name": "grey-red",
+      "hex": "#7C645D",
+      "share": 0.242
+     },
+     {
+      "name": "light grey",
+      "hex": "#D8CCC3",
+      "share": 0.165
+     }
+    ],
+    "brightness": 0.326,
+    "detail": 0.754,
+    "fill": 0.018,
+    "mean": "#634B74",
+    "text": "purple, dark purple, grey-red and light grey; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-purple-panties-and-bra": {
+   "sha256": "279323abb162f2efbb9a8d8b6b87062283e25420aa5fc74fe25d87e73222faae",
+   "what": "female clothing purple panties and bra",
+   "text": "female clothing purple panties and bra (character); purple, dark blue and dark purple; very dark (0.14); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "purple",
+      "hex": "#522985",
+      "share": 0.395
+     },
+     {
+      "name": "dark blue",
+      "hex": "#130A33",
+      "share": 0.342
+     },
+     {
+      "name": "dark purple",
+      "hex": "#251354",
+      "share": 0.237
+     }
+    ],
+    "brightness": 0.141,
+    "detail": 0.182,
+    "fill": 0.007,
+    "mean": "#321A5C",
+    "text": "purple, dark blue and dark purple; very dark (0.14); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-purple-socks": {
+   "sha256": "19d5211a4ab6123a6de986661065aaf99b2ee247b52c5b2307c8a4c3c399a0e2",
+   "what": "female clothing purple socks",
+   "text": "female clothing purple socks (character); black, purple and dark purple; very dark (0.12); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.509
+     },
+     {
+      "name": "purple",
+      "hex": "#43207A",
+      "share": 0.309
+     },
+     {
+      "name": "dark purple",
+      "hex": "#251354",
+      "share": 0.182
+     }
+    ],
+    "brightness": 0.115,
+    "detail": 0.103,
+    "fill": 0.011,
+    "mean": "#251743",
+    "text": "black, purple and dark purple; very dark (0.12); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-red-panties-and-bra": {
+   "sha256": "2a7a47da45b02c713a176b2059c09c4070ad32da6443a9bfe09b8e3822a0008d",
+   "what": "female clothing red panties and bra",
+   "text": "female clothing red panties and bra (character); red, dark magenta and dark red; very dark (0.19); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#A72C38",
+      "share": 0.421
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#330F1F",
+      "share": 0.342
+     },
+     {
+      "name": "dark red",
+      "hex": "#5E2027",
+      "share": 0.237
+     }
+    ],
+    "brightness": 0.192,
+    "detail": 0.195,
+    "fill": 0.007,
+    "mean": "#6E1F2B",
+    "text": "red, dark magenta and dark red; very dark (0.19); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-red-socks": {
+   "sha256": "ff5b86ffa0d9bdacb994b3bb7fea0d8e857b806b6dbcf8304f033f9898c19fda",
+   "what": "female clothing red socks",
+   "text": "female clothing red socks (character); black, red and dark red; very dark (0.15); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.509
+     },
+     {
+      "name": "red",
+      "hex": "#912B2E",
+      "share": 0.309
+     },
+     {
+      "name": "dark red",
+      "hex": "#5E2027",
+      "share": 0.182
+     }
+    ],
+    "brightness": 0.15,
+    "detail": 0.177,
+    "fill": 0.011,
+    "mean": "#481D24",
+    "text": "black, red and dark red; very dark (0.15); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-skirt": {
+   "sha256": "4caa054ff15a34eff816ce127d61adcaa141162f212a3b3022fa29bbaebba01d",
+   "what": "female clothing skirt",
+   "text": "female clothing skirt (character); light grey, grey-red and black; mid (0.58); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#D7CBC2",
+      "share": 0.508
+     },
+     {
+      "name": "grey-red",
+      "hex": "#846C65",
+      "share": 0.377
+     },
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.115
+     }
+    ],
+    "brightness": 0.584,
+    "detail": 0.784,
+    "fill": 0.049,
+    "mean": "#A1928C",
+    "text": "light grey, grey-red and black; mid (0.58); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-skyblue-panties-and-bra": {
+   "sha256": "bb5c1bda08c26b61ad438e6fe50f8ba4d37bb1ec1af5968ccabee4b8ee4b99e1",
+   "what": "female clothing skyblue panties and bra",
+   "text": "female clothing skyblue panties and bra (character); blue, dark blue and teal; dark (0.29); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#1F569D",
+      "share": 0.368
+     },
+     {
+      "name": "dark blue",
+      "hex": "#0D2257",
+      "share": 0.342
+     },
+     {
+      "name": "teal",
+      "hex": "#258FAE",
+      "share": 0.263
+     }
+    ],
+    "brightness": 0.295,
+    "detail": 0.35,
+    "fill": 0.007,
+    "mean": "#1C5387",
+    "text": "blue, dark blue and teal; dark (0.29); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-skyblue-socks": {
+   "sha256": "572c513628a637e122cc83bfd4f0fdea70b7a7106852273ae720c0c6b5678417",
+   "what": "female clothing skyblue socks",
+   "text": "female clothing skyblue socks (character); black and blue; dark (0.21); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.509
+     },
+     {
+      "name": "blue",
+      "hex": "#2461A5",
+      "share": 0.491
+     }
+    ],
+    "brightness": 0.211,
+    "detail": 0.322,
+    "fill": 0.011,
+    "mean": "#1B395F",
+    "text": "black and blue; dark (0.21); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-clothing-socks": {
+   "sha256": "ffaa608da8a94a8df4a15465d3f65da024ec2da51d25482c5387e7a6d2b04bf7",
+   "what": "female clothing socks",
+   "text": "female clothing socks (character); black, blue and dark blue; dark (0.20); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.509
+     },
+     {
+      "name": "blue",
+      "hex": "#536B8B",
+      "share": 0.309
+     },
+     {
+      "name": "dark blue",
+      "hex": "#293757",
+      "share": 0.182
+     }
+    ],
+    "brightness": 0.204,
+    "detail": 0.291,
+    "fill": 0.011,
+    "mean": "#2B3549",
+    "text": "black, blue and dark blue; dark (0.20); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-hair-hair1": {
+   "sha256": "52a6eecfc52a1d5e207b987a263d01f9ceff1f7f8f5e23fea1babe8363064199",
+   "what": "female hair hair1",
+   "text": "female hair hair1 (character); brown and black; very dark (0.11); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#35271E",
+      "share": 0.554
+     },
+     {
+      "name": "black",
+      "hex": "#140B0F",
+      "share": 0.446
+     }
+    ],
+    "brightness": 0.113,
+    "detail": 0.137,
+    "fill": 0.022,
+    "mean": "#261A18",
+    "text": "brown and black; very dark (0.11); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-hair-hair2": {
+   "sha256": "aa306df360519ade775303b2c41e09df00ce78d9368dc65752dc0a71609cd4b1",
+   "what": "female hair hair2",
+   "text": "female hair hair2 (character); brown and black; dark (0.20); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6D4823",
+      "share": 0.554
+     },
+     {
+      "name": "black",
+      "hex": "#211209",
+      "share": 0.446
+     }
+    ],
+    "brightness": 0.204,
+    "detail": 0.289,
+    "fill": 0.022,
+    "mean": "#4B3017",
+    "text": "brown and black; dark (0.20); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-hair-hair3": {
+   "sha256": "a25078e85607ac8bd23ed87b6f7b4b2eb44f9459f8db157a270aab39ca374999",
+   "what": "female hair hair3",
+   "text": "female hair hair3 (character); red and dark red; very dark (0.14); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#75201F",
+      "share": 0.554
+     },
+     {
+      "name": "dark red",
+      "hex": "#2C0C0F",
+      "share": 0.446
+     }
+    ],
+    "brightness": 0.141,
+    "detail": 0.158,
+    "fill": 0.022,
+    "mean": "#541718",
+    "text": "red and dark red; very dark (0.14); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-hair-hair4": {
+   "sha256": "8e5e8e8082c306e67d4430cc10889547c9ca84681657de3ac39f339c82402f08",
+   "what": "female hair hair4",
+   "text": "female hair hair4 (character); brown, orange and yellow; mid (0.51); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#634219",
+      "share": 0.446
+     },
+     {
+      "name": "orange",
+      "hex": "#C29A44",
+      "share": 0.304
+     },
+     {
+      "name": "yellow",
+      "hex": "#E6C963",
+      "share": 0.25
+     }
+    ],
+    "brightness": 0.505,
+    "detail": 0.509,
+    "fill": 0.022,
+    "mean": "#A17E39",
+    "text": "brown, orange and yellow; mid (0.51); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-hair-hair5": {
+   "sha256": "c5e15f08d5ea67802a4cae3a68d3484f86cecd518dfc77d0ffca418c05b54f4e",
+   "what": "female hair hair5",
+   "text": "female hair hair5 (character); black and dark grey; very dark (0.08); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#0F0F0D",
+      "share": 0.75
+     },
+     {
+      "name": "dark grey",
+      "hex": "#232220",
+      "share": 0.25
+     }
+    ],
+    "brightness": 0.077,
+    "detail": 0.092,
+    "fill": 0.022,
+    "mean": "#141412",
+    "text": "black and dark grey; very dark (0.08); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/female-hand-sword": {
+   "sha256": "a36272bdf490b7bc92d607da70d4707d4f9957fee61538158b2407f10b07eea4",
+   "what": "female hand sword",
+   "text": "female hand sword (character); black, white, dark grey and grey-purple; dark (0.32); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#16151B",
+      "share": 0.608
+     },
+     {
+      "name": "white",
+      "hex": "#FFFFFF",
+      "share": 0.165
+     },
+     {
+      "name": "dark grey",
+      "hex": "#3C3636",
+      "share": 0.114
+     },
+     {
+      "name": "grey-purple",
+      "hex": "#AEA1BC",
+      "share": 0.114
+     }
+    ],
+    "brightness": 0.316,
+    "detail": 0.923,
+    "fill": 0.015,
+    "mean": "#525056",
+    "text": "black, white, dark grey and grey-purple; dark (0.32); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-blue-pants": {
+   "sha256": "deef60edfcc621793e143e3e0e5092d238e1411fbed85f9c996874622234d342",
+   "what": "male clothing blue pants",
+   "text": "male clothing blue pants (character); blue, teal and dark blue; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#225CA2",
+      "share": 0.602
+     },
+     {
+      "name": "teal",
+      "hex": "#258FAE",
+      "share": 0.214
+     },
+     {
+      "name": "dark blue",
+      "hex": "#0D2257",
+      "share": 0.184
+     }
+    ],
+    "brightness": 0.328,
+    "detail": 0.35,
+    "fill": 0.019,
+    "mean": "#1F5C97",
+    "text": "blue, teal and dark blue; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-blue-shirt-v2": {
+   "sha256": "c9b270aa0f16a4aac9f6bb2e13385f347e737150de14d9dbee1bdef5c075da05",
+   "what": "male clothing blue shirt v2",
+   "text": "male clothing blue shirt v2 (character); light grey and grey-red; light (0.70); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#DACEC5",
+      "share": 0.711
+     },
+     {
+      "name": "grey-red",
+      "hex": "#886F68",
+      "share": 0.215
+     }
+    ],
+    "brightness": 0.698,
+    "detail": 0.551,
+    "fill": 0.026,
+    "mean": "#BAB0AE",
+    "text": "light grey and grey-red; light (0.70); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-boots": {
+   "sha256": "79fb1eff2e1e714608b8877581a7ed22e7132d9d0013373f557379d8af0642d5",
+   "what": "male clothing boots",
+   "text": "male clothing boots (character); brown and black; very dark (0.15); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#352822",
+      "share": 0.783
+     },
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.217
+     }
+    ],
+    "brightness": 0.147,
+    "detail": 0.109,
+    "fill": 0.009,
+    "mean": "#2D2421",
+    "text": "brown and black; very dark (0.15); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-green-pants": {
+   "sha256": "63af6e784f36c94abbda7cace8bccad78bfbdbe678ae4550533662e0191df418",
+   "what": "male clothing green pants",
+   "text": "male clothing green pants (character); green and dark green; mid (0.41); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#3B8A2E",
+      "share": 0.816
+     },
+     {
+      "name": "dark green",
+      "hex": "#124D17",
+      "share": 0.184
+     }
+    ],
+    "brightness": 0.41,
+    "detail": 0.326,
+    "fill": 0.019,
+    "mean": "#337F2A",
+    "text": "green and dark green; mid (0.41); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-green-shirt-v2": {
+   "sha256": "7dabee7c06bb98b968f3f1be184276c81b6249593d50792bc35856a93f0016f9",
+   "what": "male clothing green shirt v2",
+   "text": "male clothing green shirt v2 (character); light grey and grey-red; light (0.70); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#DACEC5",
+      "share": 0.711
+     },
+     {
+      "name": "grey-red",
+      "hex": "#886F68",
+      "share": 0.215
+     }
+    ],
+    "brightness": 0.704,
+    "detail": 0.512,
+    "fill": 0.026,
+    "mean": "#BBB3A5",
+    "text": "light grey and grey-red; light (0.70); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-green-underwear": {
+   "sha256": "e3365e29b4167d94fb1fc9388d3ff1dd9c99f387619cba7aba631646d1429f4a",
+   "what": "male clothing green underwear",
+   "text": "male clothing green underwear (character); green and dark green; mid (0.45); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#4D9836",
+      "share": 0.774
+     },
+     {
+      "name": "dark green",
+      "hex": "#124D17",
+      "share": 0.226
+     }
+    ],
+    "brightness": 0.446,
+    "detail": 0.326,
+    "fill": 0.006,
+    "mean": "#40872F",
+    "text": "green and dark green; mid (0.45); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-orange-pants": {
+   "sha256": "fe88f6be54dc11b6a84367b646326806ad52f4fc829984432cd42141266609d1",
+   "what": "male clothing orange pants",
+   "text": "male clothing orange pants (character); orange and brown; mid (0.49); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#E7790B",
+      "share": 0.816
+     },
+     {
+      "name": "brown",
+      "hex": "#9C3600",
+      "share": 0.184
+     }
+    ],
+    "brightness": 0.488,
+    "detail": 0.396,
+    "fill": 0.019,
+    "mean": "#D96D09",
+    "text": "orange and brown; mid (0.49); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-orange-shirt-v2": {
+   "sha256": "7601f0956699fca61a30ee543eed51f87f081bb8da9117461916aaf3d41e196c",
+   "what": "male clothing orange shirt v2",
+   "text": "male clothing orange shirt v2 (character); light grey and grey-red; light (0.71); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#DACEC5",
+      "share": 0.711
+     },
+     {
+      "name": "grey-red",
+      "hex": "#886F68",
+      "share": 0.215
+     }
+    ],
+    "brightness": 0.71,
+    "detail": 0.437,
+    "fill": 0.026,
+    "mean": "#C8B1A3",
+    "text": "light grey and grey-red; light (0.71); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-orange-underwear": {
+   "sha256": "e1eba391c6619ef977bc988d61c4955a3de225b031a5ad77e15c2a3c75e2b018",
+   "what": "male clothing orange underwear",
+   "text": "male clothing orange underwear (character); orange and brown; mid (0.53); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#F38E13",
+      "share": 0.774
+     },
+     {
+      "name": "brown",
+      "hex": "#9C3600",
+      "share": 0.226
+     }
+    ],
+    "brightness": 0.533,
+    "detail": 0.396,
+    "fill": 0.006,
+    "mean": "#E07A0F",
+    "text": "orange and brown; mid (0.53); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-pants": {
+   "sha256": "7261beaf7ead48051ea9e736cfc9b9612f3efa84b5e4296d0e4e4fbd774eff8e",
+   "what": "male clothing pants",
+   "text": "male clothing pants (character); red, dark red and dark magenta; dark (0.21); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#A12B33",
+      "share": 0.52
+     },
+     {
+      "name": "dark red",
+      "hex": "#5E2027",
+      "share": 0.296
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#330F1F",
+      "share": 0.184
+     }
+    ],
+    "brightness": 0.21,
+    "detail": 0.195,
+    "fill": 0.019,
+    "mean": "#79222C",
+    "text": "red, dark red and dark magenta; dark (0.21); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-purple-pants": {
+   "sha256": "e103e9acf685df02a2f1a2230171832455af2642672be7e4b48945135ab98158",
+   "what": "male clothing purple pants",
+   "text": "male clothing purple pants (character); purple, dark purple and dark blue; very dark (0.15); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "purple",
+      "hex": "#4C2581",
+      "share": 0.52
+     },
+     {
+      "name": "dark purple",
+      "hex": "#251354",
+      "share": 0.296
+     },
+     {
+      "name": "dark blue",
+      "hex": "#130A33",
+      "share": 0.184
+     }
+    ],
+    "brightness": 0.149,
+    "detail": 0.182,
+    "fill": 0.019,
+    "mean": "#361B65",
+    "text": "purple, dark purple and dark blue; very dark (0.15); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-purple-shirt-v2": {
+   "sha256": "3f975571fe49781e744ac927f8eab2a1df9666c3de9fb0b221920f56a2ca13d7",
+   "what": "male clothing purple shirt v2",
+   "text": "male clothing purple shirt v2 (character); light grey and grey-red; light (0.69); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#DACEC5",
+      "share": 0.711
+     },
+     {
+      "name": "grey-red",
+      "hex": "#886F68",
+      "share": 0.215
+     }
+    ],
+    "brightness": 0.691,
+    "detail": 0.551,
+    "fill": 0.026,
+    "mean": "#BDADAC",
+    "text": "light grey and grey-red; light (0.69); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-purple-underwear": {
+   "sha256": "85cda870c5bfc1f0e8a14ed96bcf038bbcd3656aa6eb7a41eac77040dd48be90",
+   "what": "male clothing purple underwear",
+   "text": "male clothing purple underwear (character); purple, dark blue and dark purple; very dark (0.17); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "purple",
+      "hex": "#542A86",
+      "share": 0.645
+     },
+     {
+      "name": "dark blue",
+      "hex": "#130A33",
+      "share": 0.226
+     },
+     {
+      "name": "dark purple",
+      "hex": "#251354",
+      "share": 0.129
+     }
+    ],
+    "brightness": 0.172,
+    "detail": 0.182,
+    "fill": 0.006,
+    "mean": "#3F206D",
+    "text": "purple, dark blue and dark purple; very dark (0.17); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-red-underwear": {
+   "sha256": "730db6b26d4addd9be41aced189a87da302ff7fceacf806160d1838727591b8c",
+   "what": "male clothing red underwear",
+   "text": "male clothing red underwear (character); red, dark magenta and dark red; dark (0.23); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#AF2A38",
+      "share": 0.645
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#330F1F",
+      "share": 0.226
+     },
+     {
+      "name": "dark red",
+      "hex": "#5E2027",
+      "share": 0.129
+     }
+    ],
+    "brightness": 0.225,
+    "detail": 0.195,
+    "fill": 0.006,
+    "mean": "#892330",
+    "text": "red, dark magenta and dark red; dark (0.23); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-shirt": {
+   "sha256": "b79302937d6035522b3fc36e56a66650a614d60b079c928d7827bf17630b1a28",
+   "what": "male clothing shirt",
+   "text": "male clothing shirt (character); light grey and grey-red; light (0.72); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#DACEC5",
+      "share": 0.726
+     },
+     {
+      "name": "grey-red",
+      "hex": "#8E756E",
+      "share": 0.274
+     }
+    ],
+    "brightness": 0.722,
+    "detail": 0.305,
+    "fill": 0.026,
+    "mean": "#C5B5AD",
+    "text": "light grey and grey-red; light (0.72); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-shirt-v2": {
+   "sha256": "7601f0956699fca61a30ee543eed51f87f081bb8da9117461916aaf3d41e196c",
+   "what": "male clothing shirt v2",
+   "text": "male clothing shirt v2 (character); light grey and grey-red; light (0.71); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey",
+      "hex": "#DACEC5",
+      "share": 0.711
+     },
+     {
+      "name": "grey-red",
+      "hex": "#886F68",
+      "share": 0.215
+     }
+    ],
+    "brightness": 0.71,
+    "detail": 0.437,
+    "fill": 0.026,
+    "mean": "#C8B1A3",
+    "text": "light grey and grey-red; light (0.71); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-shoes": {
+   "sha256": "59a134a5fee920ffdb806eb8861829288aec3d75fd2a12a2b9c847ff45074101",
+   "what": "male clothing shoes",
+   "text": "male clothing shoes (character); brown; very dark (0.17); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#352922",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.169,
+    "detail": 0.063,
+    "fill": 0.002,
+    "mean": "#352922",
+    "text": "brown; very dark (0.17); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-skyblue-underwear": {
+   "sha256": "0fb7adcd57c3c23ffff5e170ac4c8453a3d2ba2b1b89d0a113c2e06702c4e7ba",
+   "what": "male clothing skyblue underwear",
+   "text": "male clothing skyblue underwear (character); teal, blue and dark blue; dark (0.36); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "teal",
+      "hex": "#258FAE",
+      "share": 0.484
+     },
+     {
+      "name": "blue",
+      "hex": "#225EA3",
+      "share": 0.29
+     },
+     {
+      "name": "dark blue",
+      "hex": "#0D2257",
+      "share": 0.226
+     }
+    ],
+    "brightness": 0.361,
+    "detail": 0.35,
+    "fill": 0.006,
+    "mean": "#1F6897",
+    "text": "teal, blue and dark blue; dark (0.36); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-clothing-underwear": {
+   "sha256": "1009d991a082f316137c6438a0a8f54d1c974ed3c280492ad60fd11b20cde3b8",
+   "what": "male clothing underwear",
+   "text": "male clothing underwear (character); grey-blue, blue and dark blue; mid (0.50); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "grey-blue",
+      "hex": "#94AFC0",
+      "share": 0.484
+     },
+     {
+      "name": "blue",
+      "hex": "#5B7593",
+      "share": 0.29
+     },
+     {
+      "name": "dark blue",
+      "hex": "#293757",
+      "share": 0.226
+     }
+    ],
+    "brightness": 0.501,
+    "detail": 0.456,
+    "fill": 0.006,
+    "mean": "#6B839B",
+    "text": "grey-blue, blue and dark blue; mid (0.50); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-hair-hair1": {
+   "sha256": "e5012028f6d807689f0c975740face48f7a8fe61416a35ec75da86b6236129b0",
+   "what": "male hair hair1",
+   "text": "male hair hair1 (character); brown and black; very dark (0.12); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#35271E",
+      "share": 0.556
+     },
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.444
+     }
+    ],
+    "brightness": 0.124,
+    "detail": 0.112,
+    "fill": 0.012,
+    "mean": "#261E1D",
+    "text": "brown and black; very dark (0.12); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-hair-hair2": {
+   "sha256": "fe2a7aec3828070a1021d72ee63f2f286f800ea33483e38c572a75399a850ef7",
+   "what": "male hair hair2",
+   "text": "male hair hair2 (character); brown and black; very dark (0.20); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6A4622",
+      "share": 0.556
+     },
+     {
+      "name": "black",
+      "hex": "#211209",
+      "share": 0.444
+     }
+    ],
+    "brightness": 0.199,
+    "detail": 0.289,
+    "fill": 0.012,
+    "mean": "#492F17",
+    "text": "brown and black; very dark (0.20); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-hair-hair3": {
+   "sha256": "96be8ead0d00330cdeac4b234430e97133d5a17b401455f813dc31c6891de343",
+   "what": "male hair hair3",
+   "text": "male hair hair3 (character); red and dark red; very dark (0.14); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#721F1F",
+      "share": 0.556
+     },
+     {
+      "name": "dark red",
+      "hex": "#2C0C0F",
+      "share": 0.444
+     }
+    ],
+    "brightness": 0.138,
+    "detail": 0.158,
+    "fill": 0.012,
+    "mean": "#531618",
+    "text": "red and dark red; very dark (0.14); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-hair-hair4": {
+   "sha256": "8381997a26e09b6066abe1004a5a3e9d8c5bd69252daf9435cc8838c3e51717c",
+   "what": "male hair hair4",
+   "text": "male hair hair4 (character); brown, orange and yellow; mid (0.50); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#634219",
+      "share": 0.444
+     },
+     {
+      "name": "orange",
+      "hex": "#C29A44",
+      "share": 0.349
+     },
+     {
+      "name": "yellow",
+      "hex": "#E6C963",
+      "share": 0.206
+     }
+    ],
+    "brightness": 0.498,
+    "detail": 0.509,
+    "fill": 0.012,
+    "mean": "#9F7D37",
+    "text": "brown, orange and yellow; mid (0.50); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-hair-hair5": {
+   "sha256": "513e137810eecce2d3e86435611cec8a5536d1b889ecd94ba36aef3f9fc24e3d",
+   "what": "male hair hair5",
+   "text": "male hair hair5 (character); black and dark grey; very dark (0.07); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#100F0D",
+      "share": 0.794
+     },
+     {
+      "name": "dark grey",
+      "hex": "#232220",
+      "share": 0.206
+     }
+    ],
+    "brightness": 0.075,
+    "detail": 0.092,
+    "fill": 0.012,
+    "mean": "#141311",
+    "text": "black and dark grey; very dark (0.07); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-characters/male-hand-sword": {
+   "sha256": "359211705852d69a3187b3942665656c7db1e41ee284cbdaa5662fcad67d1fc4",
+   "what": "male hand sword",
+   "text": "male hand sword (character); black, white, dark grey and grey-purple; dark (0.32); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#16151B",
+      "share": 0.608
+     },
+     {
+      "name": "white",
+      "hex": "#FFFFFF",
+      "share": 0.165
+     },
+     {
+      "name": "dark grey",
+      "hex": "#3C3636",
+      "share": 0.114
+     },
+     {
+      "name": "grey-purple",
+      "hex": "#AEA1BC",
+      "share": 0.114
+     }
+    ],
+    "brightness": 0.316,
+    "detail": 0.923,
+    "fill": 0.015,
+    "mean": "#525056",
+    "text": "black, white, dark grey and grey-purple; dark (0.32); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  }
+ },
+ "tiles": {}
+}

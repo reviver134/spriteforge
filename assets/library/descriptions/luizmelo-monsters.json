@@ -1,0 +1,673 @@
+{
+ "pack": "luizmelo-monsters",
+ "assets": {
+  "luizmelo-monsters/all-characters": {
+   "sha256": "85ff882af06556564f23996065a8dd3bbc2cc9dec189740ff159164f654b651a",
+   "what": "all characters",
+   "text": "all characters (other); tan; mid (0.47); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#8B7D6A",
+      "share": 0.903
+     }
+    ],
+    "brightness": 0.475,
+    "detail": 0.0,
+    "fill": 1.0,
+    "mean": "#867764",
+    "text": "tan; mid (0.47); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/flying-eye-attack": {
+   "sha256": "af27387a198b6dbe417f218ab14dbc942e8b74b4ecd3354a900d9d5ee7172a48",
+   "what": "flying eye attack",
+   "text": "flying eye attack (enemy); brown and black; dark (0.27); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#4F3722",
+      "share": 0.749
+     },
+     {
+      "name": "black",
+      "hex": "#18100A",
+      "share": 0.147
+     }
+    ],
+    "brightness": 0.269,
+    "detail": 0.242,
+    "fill": 0.019,
+    "mean": "#574131",
+    "text": "brown and black; dark (0.27); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/flying-eye-death": {
+   "sha256": "1993bd74a6267360c56fbfff213a40e8dcfaecdf9368f9db877157d9486ec746",
+   "what": "flying eye death",
+   "text": "flying eye death (enemy); brown and black; dark (0.27); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#4F3722",
+      "share": 0.749
+     },
+     {
+      "name": "black",
+      "hex": "#18100A",
+      "share": 0.147
+     }
+    ],
+    "brightness": 0.269,
+    "detail": 0.242,
+    "fill": 0.019,
+    "mean": "#574131",
+    "text": "brown and black; dark (0.27); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/flying-eye-flight": {
+   "sha256": "8124dd2ef4d02a68a19d5bf1521af0874c5e671ade9d36c79f8c5158c4d9d662",
+   "what": "flying eye flight",
+   "text": "flying eye flight (enemy); brown and black; dark (0.27); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#4F3722",
+      "share": 0.749
+     },
+     {
+      "name": "black",
+      "hex": "#18100A",
+      "share": 0.147
+     }
+    ],
+    "brightness": 0.269,
+    "detail": 0.242,
+    "fill": 0.019,
+    "mean": "#574131",
+    "text": "brown and black; dark (0.27); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/flying-eye-take-hit": {
+   "sha256": "10151dbaadef7c7e49864343ffa4a543970087be2ea61a4acbb077af1df4fadb",
+   "what": "flying eye take hit",
+   "text": "flying eye take hit (enemy); brown and black; dark (0.27); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#4F3722",
+      "share": 0.749
+     },
+     {
+      "name": "black",
+      "hex": "#18100A",
+      "share": 0.147
+     }
+    ],
+    "brightness": 0.269,
+    "detail": 0.242,
+    "fill": 0.019,
+    "mean": "#574131",
+    "text": "brown and black; dark (0.27); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/goblin-attack": {
+   "sha256": "62f4e88de542b9f842a5795166fe2f975b8b8311b670da29279de9bed04a5d54",
+   "what": "goblin attack",
+   "text": "goblin attack (enemy); brown, dark grey, dark green and green; dark (0.30); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#723A24",
+      "share": 0.339
+     },
+     {
+      "name": "dark grey",
+      "hex": "#35363C",
+      "share": 0.224
+     },
+     {
+      "name": "dark green",
+      "hex": "#2A3A17",
+      "share": 0.216
+     },
+     {
+      "name": "green",
+      "hex": "#53732C",
+      "share": 0.133
+     }
+    ],
+    "brightness": 0.299,
+    "detail": 0.243,
+    "fill": 0.022,
+    "mean": "#574C31",
+    "text": "brown, dark grey, dark green and green; dark (0.30); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/goblin-death": {
+   "sha256": "e2dd0a32659fd142afe9296f6df862b19ff790b03ca0558d56cc275007953363",
+   "what": "goblin death",
+   "text": "goblin death (enemy); dark green, brown, dark grey and green; dark (0.31); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#2A3A17",
+      "share": 0.328
+     },
+     {
+      "name": "brown",
+      "hex": "#713923",
+      "share": 0.235
+     },
+     {
+      "name": "dark grey",
+      "hex": "#34353B",
+      "share": 0.173
+     },
+     {
+      "name": "green",
+      "hex": "#53732C",
+      "share": 0.138
+     }
+    ],
+    "brightness": 0.313,
+    "detail": 0.391,
+    "fill": 0.019,
+    "mean": "#545133",
+    "text": "dark green, brown, dark grey and green; dark (0.31); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/goblin-idle": {
+   "sha256": "b456c9c7d8f24847ea3fcf17e4798bc3ebbdf1ca5abcfd555c224fa40467b837",
+   "what": "goblin idle",
+   "text": "goblin idle (enemy); brown, dark grey, dark green and green; dark (0.30); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#723A24",
+      "share": 0.339
+     },
+     {
+      "name": "dark grey",
+      "hex": "#35363C",
+      "share": 0.226
+     },
+     {
+      "name": "dark green",
+      "hex": "#2A3A17",
+      "share": 0.216
+     },
+     {
+      "name": "green",
+      "hex": "#53732C",
+      "share": 0.133
+     }
+    ],
+    "brightness": 0.299,
+    "detail": 0.243,
+    "fill": 0.022,
+    "mean": "#574C31",
+    "text": "brown, dark grey, dark green and green; dark (0.30); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/goblin-run": {
+   "sha256": "e9e9c6ef0e292b41adf78972291dce081608473f3756e86d04a4505a5fab4ebb",
+   "what": "goblin run",
+   "text": "goblin run (enemy); brown, dark grey, dark green and green; dark (0.29); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6E3721",
+      "share": 0.312
+     },
+     {
+      "name": "dark grey",
+      "hex": "#33343A",
+      "share": 0.24
+     },
+     {
+      "name": "dark green",
+      "hex": "#2A3A17",
+      "share": 0.232
+     },
+     {
+      "name": "green",
+      "hex": "#53732C",
+      "share": 0.127
+     }
+    ],
+    "brightness": 0.293,
+    "detail": 0.243,
+    "fill": 0.023,
+    "mean": "#544B31",
+    "text": "brown, dark grey, dark green and green; dark (0.29); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/goblin-take-hit": {
+   "sha256": "4f2a1e4dbfb211d1922f84f3d8c9e456db10c1c301fba4e7c709bce817c0add1",
+   "what": "goblin take hit",
+   "text": "goblin take hit (enemy); brown, dark grey, dark green and green; dark (0.30); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#723A24",
+      "share": 0.339
+     },
+     {
+      "name": "dark grey",
+      "hex": "#35363C",
+      "share": 0.226
+     },
+     {
+      "name": "dark green",
+      "hex": "#2A3A17",
+      "share": 0.216
+     },
+     {
+      "name": "green",
+      "hex": "#53732C",
+      "share": 0.133
+     }
+    ],
+    "brightness": 0.299,
+    "detail": 0.243,
+    "fill": 0.022,
+    "mean": "#574C31",
+    "text": "brown, dark grey, dark green and green; dark (0.30); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/mushroom-attack": {
+   "sha256": "9383a352ed8ac4dbe69ee876e5ddbaba9e0e725832e4b047119c416046e70cdd",
+   "what": "mushroom attack",
+   "text": "mushroom attack (enemy); tan, red and dark red; mid (0.43); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#B2A088",
+      "share": 0.572
+     },
+     {
+      "name": "red",
+      "hex": "#692128",
+      "share": 0.26
+     },
+     {
+      "name": "dark red",
+      "hex": "#331013",
+      "share": 0.168
+     }
+    ],
+    "brightness": 0.428,
+    "detail": 0.585,
+    "fill": 0.026,
+    "mean": "#8A665C",
+    "text": "tan, red and dark red; mid (0.43); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/mushroom-death": {
+   "sha256": "19cd736e78f9adccc78feb28b49203ed792a8a075eab7e482a9c19a35c595699",
+   "what": "mushroom death",
+   "text": "mushroom death (enemy); tan, red and dark red; mid (0.43); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#B2A088",
+      "share": 0.572
+     },
+     {
+      "name": "red",
+      "hex": "#692128",
+      "share": 0.26
+     },
+     {
+      "name": "dark red",
+      "hex": "#331013",
+      "share": 0.168
+     }
+    ],
+    "brightness": 0.428,
+    "detail": 0.585,
+    "fill": 0.026,
+    "mean": "#8A665C",
+    "text": "tan, red and dark red; mid (0.43); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/mushroom-idle": {
+   "sha256": "f7cb06ae9f9dfc09ffa0c46be71c0b786cbd5b3cf16a604b378122e9ef9651e9",
+   "what": "mushroom idle",
+   "text": "mushroom idle (enemy); tan, red and dark red; mid (0.43); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#B2A088",
+      "share": 0.572
+     },
+     {
+      "name": "red",
+      "hex": "#692128",
+      "share": 0.26
+     },
+     {
+      "name": "dark red",
+      "hex": "#331013",
+      "share": 0.168
+     }
+    ],
+    "brightness": 0.428,
+    "detail": 0.585,
+    "fill": 0.026,
+    "mean": "#8A665C",
+    "text": "tan, red and dark red; mid (0.43); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/mushroom-run": {
+   "sha256": "8460b38e51750ad0e771b81b12e1510909d678bb5f9454c7dffb520f56e15e20",
+   "what": "mushroom run",
+   "text": "mushroom run (enemy); tan, red and dark red; mid (0.42); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#B4A28A",
+      "share": 0.558
+     },
+     {
+      "name": "red",
+      "hex": "#692128",
+      "share": 0.268
+     },
+     {
+      "name": "dark red",
+      "hex": "#331013",
+      "share": 0.174
+     }
+    ],
+    "brightness": 0.425,
+    "detail": 0.585,
+    "fill": 0.025,
+    "mean": "#89665B",
+    "text": "tan, red and dark red; mid (0.42); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/mushroom-take-hit": {
+   "sha256": "8f9c2aa27a4b93e8637598cd98716a26c747d0617062781836c7ce807177c786",
+   "what": "mushroom take hit",
+   "text": "mushroom take hit (enemy); tan, red and dark red; mid (0.43); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#B2A088",
+      "share": 0.572
+     },
+     {
+      "name": "red",
+      "hex": "#692128",
+      "share": 0.26
+     },
+     {
+      "name": "dark red",
+      "hex": "#331013",
+      "share": 0.168
+     }
+    ],
+    "brightness": 0.428,
+    "detail": 0.585,
+    "fill": 0.026,
+    "mean": "#8A665C",
+    "text": "tan, red and dark red; mid (0.43); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/skeleton-attack": {
+   "sha256": "564937db0b35629a69f7fde0129b4a3518dc0e17443307934b1e8d7cfc7d4cb2",
+   "what": "skeleton attack",
+   "text": "skeleton attack (enemy); brown, olive and grey; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#543312",
+      "share": 0.308
+     },
+     {
+      "name": "olive",
+      "hex": "#4F4C33",
+      "share": 0.308
+     },
+     {
+      "name": "grey",
+      "hex": "#737371",
+      "share": 0.303
+     }
+    ],
+    "brightness": 0.329,
+    "detail": 0.341,
+    "fill": 0.032,
+    "mean": "#5E5340",
+    "text": "brown, olive and grey; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/skeleton-death": {
+   "sha256": "3c50064136b8329ba060d18f638b6668f4f305ed1293ef58245725d3c6b49cb1",
+   "what": "skeleton death",
+   "text": "skeleton death (enemy); grey, olive and brown; dark (0.34); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "grey",
+      "hex": "#737371",
+      "share": 0.319
+     },
+     {
+      "name": "olive",
+      "hex": "#4F4C34",
+      "share": 0.317
+     },
+     {
+      "name": "brown",
+      "hex": "#543312",
+      "share": 0.277
+     }
+    ],
+    "brightness": 0.335,
+    "detail": 0.341,
+    "fill": 0.03,
+    "mean": "#5F5542",
+    "text": "grey, olive and brown; dark (0.34); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/skeleton-idle": {
+   "sha256": "e1bd73f999a9cfed2aba72f8513c3d45f3b9b283fc339266fac8b8455947946b",
+   "what": "skeleton idle",
+   "text": "skeleton idle (enemy); brown, olive and grey; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#543312",
+      "share": 0.308
+     },
+     {
+      "name": "olive",
+      "hex": "#4F4C33",
+      "share": 0.308
+     },
+     {
+      "name": "grey",
+      "hex": "#737371",
+      "share": 0.303
+     }
+    ],
+    "brightness": 0.329,
+    "detail": 0.341,
+    "fill": 0.032,
+    "mean": "#5E5340",
+    "text": "brown, olive and grey; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/skeleton-shield": {
+   "sha256": "19238b99e7d5bc04361b0a51931d1836bec8c051527b35561f30734eac512b6f",
+   "what": "skeleton shield",
+   "text": "skeleton shield (enemy); olive, brown and grey; dark (0.32); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#535036",
+      "share": 0.343
+     },
+     {
+      "name": "brown",
+      "hex": "#533312",
+      "share": 0.303
+     },
+     {
+      "name": "grey",
+      "hex": "#727270",
+      "share": 0.303
+     }
+    ],
+    "brightness": 0.319,
+    "detail": 0.244,
+    "fill": 0.029,
+    "mean": "#5B503D",
+    "text": "olive, brown and grey; dark (0.32); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/skeleton-take-hit": {
+   "sha256": "5f71bf8d1b778272a89f782ebb83220a08ce4d495de94b0004b4f965646eb01b",
+   "what": "skeleton take hit",
+   "text": "skeleton take hit (enemy); brown, olive and grey; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#543312",
+      "share": 0.308
+     },
+     {
+      "name": "olive",
+      "hex": "#4F4C33",
+      "share": 0.308
+     },
+     {
+      "name": "grey",
+      "hex": "#737371",
+      "share": 0.303
+     }
+    ],
+    "brightness": 0.329,
+    "detail": 0.341,
+    "fill": 0.032,
+    "mean": "#5E5340",
+    "text": "brown, olive and grey; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "luizmelo-monsters/skeleton-walk": {
+   "sha256": "c45ef5139419c2f120edf6cff05b9552002e63f9753cd7834c466477301cdd8d",
+   "what": "skeleton walk",
+   "text": "skeleton walk (enemy); brown, olive and grey; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#543312",
+      "share": 0.307
+     },
+     {
+      "name": "olive",
+      "hex": "#4D4A32",
+      "share": 0.307
+     },
+     {
+      "name": "grey",
+      "hex": "#737371",
+      "share": 0.305
+     }
+    ],
+    "brightness": 0.327,
+    "detail": 0.341,
+    "fill": 0.032,
+    "mean": "#5E5240",
+    "text": "brown, olive and grey; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  }
+ },
+ "tiles": {}
+}

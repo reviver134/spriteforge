@@ -1,0 +1,769 @@
+{
+ "pack": "ptdesigns-cozy-fall-fireside",
+ "assets": {
+  "ptdesigns-cozy-fall-fireside/autumn-landscape-frame": {
+   "sha256": "bd85fc9c2aa670f3facdd3435e338ade3fa02cdd6dac3c0f9c1bfbbbc9251751",
+   "what": "framed landscape painting",
+   "text": "Dark brown framed painting showing light autumn landscape with house river and trees.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6B3914",
+      "share": 0.478
+     },
+     {
+      "name": "orange",
+      "hex": "#B96C2C",
+      "share": 0.226
+     },
+     {
+      "name": "tan",
+      "hex": "#E0BC94",
+      "share": 0.21
+     }
+    ],
+    "brightness": 0.418,
+    "detail": 0.621,
+    "fill": 0.727,
+    "mean": "#956338",
+    "text": "brown, orange and tan; mid (0.42); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/book-stack": {
+   "sha256": "ba01d5a5b055f3f8b512b286caa45c135351896e2d2c13a00db2eda4a8a5ed22",
+   "what": "stacked books",
+   "text": "Three stacked books in light yellow, green and medium red with gold leaf patterns.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BE6B2E",
+      "share": 0.499
+     },
+     {
+      "name": "brown",
+      "hex": "#6E3E15",
+      "share": 0.201
+     },
+     {
+      "name": "olive",
+      "hex": "#615326",
+      "share": 0.118
+     }
+    ],
+    "brightness": 0.386,
+    "detail": 0.424,
+    "fill": 0.595,
+    "mean": "#985827",
+    "text": "orange, brown and olive; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/braided-rug": {
+   "sha256": "9fdacb4dec72c3ddefc0a75338a99ce1efa5c4600fbf6a1406fd5fdb96d5fd8d",
+   "what": "oval braided rug",
+   "text": "Dark red-orange oval braided rug with green center, flat woven rings for warm floor covering.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BB6434",
+      "share": 0.426
+     },
+     {
+      "name": "brown",
+      "hex": "#83441D",
+      "share": 0.196
+     },
+     {
+      "name": "red",
+      "hex": "#8E2F13",
+      "share": 0.194
+     },
+     {
+      "name": "tan",
+      "hex": "#E4BE97",
+      "share": 0.106
+     }
+    ],
+    "brightness": 0.391,
+    "detail": 0.475,
+    "fill": 0.648,
+    "mean": "#A25730",
+    "text": "orange, brown, red and tan; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/brass-floor-lamp": {
+   "sha256": "fe0d2e16c8a13ede92f2943095d6efd3744cff5aaed7c0d64affabd0f4fa97b9",
+   "what": "brass floor lamp",
+   "text": "Dark brass tall floor lamp with light cream shade, slender pole and round base for warm lighting.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#60340C",
+      "share": 0.341
+     },
+     {
+      "name": "tan",
+      "hex": "#EBC79F",
+      "share": 0.335
+     },
+     {
+      "name": "orange",
+      "hex": "#C18645",
+      "share": 0.227
+     }
+    ],
+    "brightness": 0.484,
+    "detail": 0.772,
+    "fill": 0.337,
+    "mean": "#A0764B",
+    "text": "brown, tan and orange; mid (0.48); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/brick-fireplace": {
+   "sha256": "020ada8f9caaadc086b6579bdbef5e63e6c7e01ee1b75594c016e25dd5daca76",
+   "what": "brick fireplace",
+   "text": "Red-brown light brick fireplace with glowing orange fire and plants on mantel, cozy focal point.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#663216",
+      "share": 0.314
+     },
+     {
+      "name": "orange",
+      "hex": "#BC642F",
+      "share": 0.283
+     },
+     {
+      "name": "red",
+      "hex": "#8F341A",
+      "share": 0.147
+     },
+     {
+      "name": "dark red",
+      "hex": "#4A170B",
+      "share": 0.108
+     }
+    ],
+    "brightness": 0.313,
+    "detail": 0.436,
+    "fill": 0.613,
+    "mean": "#844523",
+    "text": "brown, orange, red and dark red; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/ceramic-table-lamp": {
+   "sha256": "4391cd5518f9e8e0cafe76760cdf0714bd27ade89daa9c2c45afcd00ed3ade54",
+   "what": "ceramic table lamp",
+   "text": "Small table lamp with dark green shade and light white floral ceramic base, vintage accent for side table.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#675A2B",
+      "share": 0.431
+     },
+     {
+      "name": "yellow",
+      "hex": "#9B874C",
+      "share": 0.152
+     },
+     {
+      "name": "brown",
+      "hex": "#613F1C",
+      "share": 0.147
+     },
+     {
+      "name": "tan",
+      "hex": "#DFBB91",
+      "share": 0.131
+     }
+    ],
+    "brightness": 0.419,
+    "detail": 0.536,
+    "fill": 0.476,
+    "mean": "#80693D",
+    "text": "olive, yellow, brown and tan; mid (0.42); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/chestnut-bowl": {
+   "sha256": "8537c25d1da5e4807e0730cbcfa948652278265b8dddb72296c484c7dece8835",
+   "what": "chestnut bowl",
+   "text": "Medium brown wooden bowl filled with dark reddish-brown chestnuts and light tan leaf.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6E3210",
+      "share": 0.531
+     },
+     {
+      "name": "orange",
+      "hex": "#BC6B30",
+      "share": 0.259
+     },
+     {
+      "name": "dark red",
+      "hex": "#3F1207",
+      "share": 0.098
+     }
+    ],
+    "brightness": 0.284,
+    "detail": 0.4,
+    "fill": 0.613,
+    "mean": "#7D3E19",
+    "text": "brown, orange and dark red; dark (0.28); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/cocoa-mug": {
+   "sha256": "1f97d6d09338d4bae5fef8eda0e5080e42c4853ed75ac8f76b78b0d3311c931f",
+   "what": "cocoa mug",
+   "text": "Light cream mug holding dark brown cocoa with white cream and orange-green leaf pattern.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#E4BF98",
+      "share": 0.41
+     },
+     {
+      "name": "orange",
+      "hex": "#B7794B",
+      "share": 0.248
+     },
+     {
+      "name": "brown",
+      "hex": "#734325",
+      "share": 0.24
+     }
+    ],
+    "brightness": 0.551,
+    "detail": 0.622,
+    "fill": 0.576,
+    "mean": "#B28660",
+    "text": "tan, orange and brown; mid (0.55); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/crochet-footstool": {
+   "sha256": "2eff38da00a3e734c76e79e8cce0770b46b6bb02334d09db6b49e6207656aea0",
+   "what": "round footstool",
+   "text": "Light cream crocheted round stool top on four short dark brown legs.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#E3BE98",
+      "share": 0.584
+     },
+     {
+      "name": "brown",
+      "hex": "#6B3F21",
+      "share": 0.255
+     },
+     {
+      "name": "orange",
+      "hex": "#B18156",
+      "share": 0.136
+     }
+    ],
+    "brightness": 0.594,
+    "detail": 0.652,
+    "fill": 0.556,
+    "mean": "#B9926E",
+    "text": "tan, brown and orange; mid (0.59); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/dried-flower-vase": {
+   "sha256": "7e535ba1311b40ed1fc8157171304aab4c194fccf5525c0f94705e38eb5429d1",
+   "what": "flower vase",
+   "text": "Light cream vase with green leaves holding tall orange brown and white dried flowers.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#753610",
+      "share": 0.466
+     },
+     {
+      "name": "orange",
+      "hex": "#BC773B",
+      "share": 0.272
+     },
+     {
+      "name": "tan",
+      "hex": "#E3BF95",
+      "share": 0.17
+     }
+    ],
+    "brightness": 0.413,
+    "detail": 0.604,
+    "fill": 0.439,
+    "mean": "#9A6034",
+    "text": "brown, orange and tan; mid (0.41); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/firewood-basket": {
+   "sha256": "db2c6d47a5416f86df50015a74fcb1c92b792c38ffb4a0a3a2fba22ea644484d",
+   "what": "firewood basket",
+   "text": "Light-medium brown wicker basket holding dark brown cut logs, rounded shape for fireplace fuel storage.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6A3411",
+      "share": 0.605
+     },
+     {
+      "name": "orange",
+      "hex": "#C57D3D",
+      "share": 0.342
+     }
+    ],
+    "brightness": 0.331,
+    "detail": 0.472,
+    "fill": 0.619,
+    "mean": "#864B20",
+    "text": "brown and orange; dark (0.33); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/knitted-throw": {
+   "sha256": "9307cdd4c804b0e47ac8fd2e59f0d357d7ad1ab9fc1677e7b116bd64d0443d0c",
+   "what": "folded knit blanket",
+   "text": "Light cream folded knitted blanket with fringe edge, soft textured weave for bed or sofa cover.",
+   "view": "top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#E2BE97",
+      "share": 0.679
+     },
+     {
+      "name": "brown",
+      "hex": "#714B2D",
+      "share": 0.175
+     },
+     {
+      "name": "orange",
+      "hex": "#B4865C",
+      "share": 0.137
+     }
+    ],
+    "brightness": 0.653,
+    "detail": 0.519,
+    "fill": 0.525,
+    "mean": "#C7A17C",
+    "text": "tan, brown and orange; light (0.65); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/mantel-clock": {
+   "sha256": "b61a74ada55ccbede66e535ec85cfbb09360f2d263e6e8c348743aacd076938c",
+   "what": "mantel clock",
+   "text": "Small dark brown wooden mantel clock with light cream face and black hands.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#713613",
+      "share": 0.679
+     },
+     {
+      "name": "orange",
+      "hex": "#BB7238",
+      "share": 0.139
+     },
+     {
+      "name": "tan",
+      "hex": "#E3BF97",
+      "share": 0.133
+     }
+    ],
+    "brightness": 0.345,
+    "detail": 0.63,
+    "fill": 0.511,
+    "mean": "#864F29",
+    "text": "brown, orange and tan; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/mustard-armchair": {
+   "sha256": "32aac10f0fe52d81ccb99ba2a37812c82d67f62c097ebde10d2e3f989d433a0a",
+   "what": "mustard armchair",
+   "text": "Mustard-yellow dark single armchair with green pillow and plaid throw, detailed cozy accent for seating.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C8832B",
+      "share": 0.433
+     },
+     {
+      "name": "brown",
+      "hex": "#6F3E0B",
+      "share": 0.313
+     },
+     {
+      "name": "tan",
+      "hex": "#ECC79F",
+      "share": 0.096
+     }
+    ],
+    "brightness": 0.456,
+    "detail": 0.519,
+    "fill": 0.586,
+    "mean": "#A26E2E",
+    "text": "orange, brown and tan; mid (0.46); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/oak-bookcase": {
+   "sha256": "64333576e413ef272a7dfa2205a4e4a5487202fc81f0a24f3dbf4deaa7f4935f",
+   "what": "wooden bookcase",
+   "text": "Medium brown wooden bookcase holding colorful books with green plant and light vase.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#633312",
+      "share": 0.489
+     },
+     {
+      "name": "orange",
+      "hex": "#B66B31",
+      "share": 0.27
+     },
+     {
+      "name": "olive",
+      "hex": "#5B511E",
+      "share": 0.123
+     }
+    ],
+    "brightness": 0.31,
+    "detail": 0.405,
+    "fill": 0.679,
+    "mean": "#78481F",
+    "text": "brown, orange and olive; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/oak-coffee-table": {
+   "sha256": "2f2ae52a294b255c6b55fdc478adbe59027cfdf30260d3d6f8242ecaceb9e8ae",
+   "what": "wooden coffee table",
+   "text": "Medium-dark brown rectangular wooden coffee table with slatted top, sturdy simple design for centerpiece.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BA6F33",
+      "share": 0.563
+     },
+     {
+      "name": "brown",
+      "hex": "#663210",
+      "share": 0.387
+     }
+    ],
+    "brightness": 0.362,
+    "detail": 0.394,
+    "fill": 0.441,
+    "mean": "#925223",
+    "text": "orange and brown; dark (0.36); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/plaid-cushion": {
+   "sha256": "a237bb9b5fdcfca2f2d3e1000cda169a168b687a752de013338871cca36605e9",
+   "what": "plaid throw pillow",
+   "text": "Medium rust-orange plaid square cushion with white stripes, soft puffy shape for sofa accent.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BF6638",
+      "share": 0.495
+     },
+     {
+      "name": "brown",
+      "hex": "#853B17",
+      "share": 0.19
+     },
+     {
+      "name": "tan",
+      "hex": "#EDC8A0",
+      "share": 0.124
+     },
+     {
+      "name": "red",
+      "hex": "#81270D",
+      "share": 0.107
+     }
+    ],
+    "brightness": 0.421,
+    "detail": 0.58,
+    "fill": 0.516,
+    "mean": "#AA5E37",
+    "text": "orange, brown, tan and red; mid (0.42); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/pumpkin-candle": {
+   "sha256": "d5b6fc3a248d777b917dec61bd0afb7f520bc6c6a682bd07503e0b994e87389b",
+   "what": "pumpkin candle",
+   "text": "Medium-dark orange ribbed pumpkin with light highlight and small yellow burning flame.",
+   "view": "front",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CF5A11",
+      "share": 0.742
+     },
+     {
+      "name": "brown",
+      "hex": "#8B2B04",
+      "share": 0.118
+     }
+    ],
+    "brightness": 0.387,
+    "detail": 0.374,
+    "fill": 0.573,
+    "mean": "#BB5112",
+    "text": "orange and brown; mid (0.39); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/round-side-table": {
+   "sha256": "695353f1dc9cab966f48bf2d0a3e71852e741dff5d33969644be948777b5d152",
+   "what": "round wooden stool",
+   "text": "Medium brown round wooden side table with four legs, dark shading for rustic small surface.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BA6E31",
+      "share": 0.493
+     },
+     {
+      "name": "brown",
+      "hex": "#632F0E",
+      "share": 0.439
+     }
+    ],
+    "brightness": 0.336,
+    "detail": 0.427,
+    "fill": 0.51,
+    "mean": "#8A4C1F",
+    "text": "orange and brown; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/rust-sofa": {
+   "sha256": "b49cc1f03e068dca8a7a33c9c1962b0e512db79dff07c93b96a439bd89bf704b",
+   "what": "rust loveseat sofa",
+   "text": "Small dark rust-orange two-seat sofa with cream pillows, cozy worn texture for living room seating.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BC5120",
+      "share": 0.511
+     },
+     {
+      "name": "red",
+      "hex": "#77250F",
+      "share": 0.186
+     },
+     {
+      "name": "brown",
+      "hex": "#823212",
+      "share": 0.117
+     },
+     {
+      "name": "dark red",
+      "hex": "#420F05",
+      "share": 0.1
+     }
+    ],
+    "brightness": 0.338,
+    "detail": 0.4,
+    "fill": 0.558,
+    "mean": "#9D4721",
+    "text": "orange, red, brown and dark red; dark (0.34); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/sleeping-tabby-cat": {
+   "sha256": "73704c73d9887c5a4f2e2a8bb34071bfae9dac1e7dcce881895d9d2c06f2d73f",
+   "what": "sleeping orange cat",
+   "text": "Medium orange tabby cat with dark stripes curled asleep with closed eyes.",
+   "view": "side",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#C56A22",
+      "share": 0.712
+     },
+     {
+      "name": "brown",
+      "hex": "#78340D",
+      "share": 0.162
+     }
+    ],
+    "brightness": 0.439,
+    "detail": 0.423,
+    "fill": 0.642,
+    "mean": "#B46326",
+    "text": "orange and brown; mid (0.44); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/slipper-pair": {
+   "sha256": "d53d0b495a4a33426e706f3e4e26431ac8efc8633022db1d1fa3fb57893b96aa",
+   "what": "plaid slippers",
+   "text": "Pair of plaid slippers in brown green orange with light cream fuzzy trim.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#693C1B",
+      "share": 0.393
+     },
+     {
+      "name": "tan",
+      "hex": "#EAC59C",
+      "share": 0.273
+     },
+     {
+      "name": "orange",
+      "hex": "#BD7A48",
+      "share": 0.27
+     }
+    ],
+    "brightness": 0.472,
+    "detail": 0.679,
+    "fill": 0.551,
+    "mean": "#A2714A",
+    "text": "brown, tan and orange; mid (0.47); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/tea-tray": {
+   "sha256": "b8f8e9c2611060eb26441300e0197ca1fd2cc46ab792663bd08e87c08719ca0b",
+   "what": "tea tray set",
+   "text": "Light cream floral teapot with two small cups on a dark brown rectangular wooden tray.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#673616",
+      "share": 0.456
+     },
+     {
+      "name": "orange",
+      "hex": "#B87740",
+      "share": 0.264
+     },
+     {
+      "name": "tan",
+      "hex": "#E0BB93",
+      "share": 0.203
+     }
+    ],
+    "brightness": 0.416,
+    "detail": 0.657,
+    "fill": 0.474,
+    "mean": "#93623C",
+    "text": "brown, orange and tan; mid (0.42); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  },
+  "ptdesigns-cozy-fall-fireside/wicker-basket": {
+   "sha256": "d36ee95efcfbca2ab86205a86b0e12925f0b1285b3fd9e08a87d257cdfddfe8b",
+   "what": "wicker basket",
+   "text": "Medium brown woven wicker basket, empty, square with light interior shading.",
+   "view": "3/4 top-down",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#69320F",
+      "share": 0.679
+     },
+     {
+      "name": "orange",
+      "hex": "#C17534",
+      "share": 0.294
+     }
+    ],
+    "brightness": 0.307,
+    "detail": 0.395,
+    "fill": 0.623,
+    "mean": "#814519",
+    "text": "brown and orange; dark (0.31); high-contrast detail"
+   },
+   "by": "muse-spark-1.3",
+   "status": "generated"
+  }
+ },
+ "tiles": {}
+}

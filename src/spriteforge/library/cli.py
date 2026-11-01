@@ -61,6 +61,49 @@ def search(category: str = "", tag: str = "", cell: str = "", usage: str = ""):
 
 
 @app.command()
+def describe(
+    pack: Annotated[list[str] | None, typer.Option(help="Only this pack (repeatable).")] = None,
+    force: Annotated[bool, typer.Option(help="Describe again what is already described.")] = False,
+    mock: Annotated[bool, typer.Option(help="Offline: measured looks only, no model.")] = False,
+    max_calls: Annotated[int, typer.Option(help="Cap on Muse Spark calls.")] = 30,
+    max_cost: Annotated[float, typer.Option(help="Cap on the estimated cost, USD.")] = 0.5,
+    config: Path | None = None,
+    workspace: Path | None = None,
+):
+    """Describe every library image: a measured look (colours, brightness, detail) for all,
+    and a Muse Spark (vision) description for packs that allow AI use."""
+    from spriteforge.config import BudgetConfig, init_workspace, load_config
+    from spriteforge.core.cost import Budget
+    from spriteforge.core.credentials import load_credentials
+    from spriteforge.core.state import Store
+    from spriteforge.providers.muse_spark import MuseSparkProvider
+
+    from .describe import describe_library
+
+    cfg = load_config(config)
+    provider, budget = None, None
+    if not mock:
+        load_credentials()
+        root = init_workspace(workspace or cfg.workspace)
+        store = Store(root / "library.sqlite3")
+        cap = BudgetConfig(**{**cfg.budget.model_dump(), "max_calls_per_model": max_calls,
+                              "max_estimated_cost": max_cost})  # fmt: skip
+        run = store.create_run({"workflow": "library-describe", "budget": cap.model_dump()})
+        budget = Budget(store, run.id, cap)
+        provider = MuseSparkProvider(cfg.llm, budget)
+    counts = describe_library(provider=provider, model=cfg.llm.model if provider else "",
+                              reasoning=cfg.llm.reasoning.get("describe"), packs=pack or None,
+                              force=force, log=typer.echo)  # fmt: skip
+    if provider is not None:
+        provider.close()
+    typer.echo(
+        f"{counts['model']} described by the model, {counts['measured']} measured only, "
+        f"{counts['kept']} unchanged, {counts['failed']} not described"
+        + (f"; about ${budget.spent():.3f}" if budget else "")
+    )
+
+
+@app.command()
 def mcp():
     """Expose read-only library tools (packs, search, actors, tile sets) over MCP stdio."""
     from spriteforge.mcp.library import create_server

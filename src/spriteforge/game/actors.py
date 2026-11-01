@@ -336,21 +336,42 @@ def adapt(anims: dict[str, list[Image.Image]], slot_frames: dict[str, int], size
     return strip, counts, body
 
 
-def recolor(strip: Image.Image, hue_deg: float) -> Image.Image:
-    """Rotate the dominant hue of saturated pixels to `hue_deg`, keeping value and shading."""
-    a = np.asarray(strip).astype(float) / 255
+def _hsv(strip: Image.Image) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(hsv, alpha, mask of saturated drawn pixels) of an image, all 0-1."""
+    a = np.asarray(strip.convert("RGBA")).astype(float) / 255
     rgb, alpha = a[..., :3], a[..., 3]
-    hsv = np.zeros_like(rgb)
-    flat = rgb.reshape(-1, 3)
-    conv = np.array([colorsys.rgb_to_hsv(*p) for p in flat]).reshape(rgb.shape)
-    hsv[:] = conv
+    hsv = np.array([colorsys.rgb_to_hsv(*p) for p in rgb.reshape(-1, 3)]).reshape(rgb.shape)
     mask = (alpha > 0.5) & (hsv[..., 1] > 0.25) & (hsv[..., 2] > 0.15)
+    return hsv, alpha, mask
+
+
+def dominant_hue(strip: Image.Image) -> float | None:
+    """The main hue of the saturated pixels, 0-1 (None: no saturated pixels)."""
+    hsv, _, mask = _hsv(strip)
+    if not mask.any():
+        return None
+    hist = np.histogram(hsv[..., 0][mask], bins=36, range=(0, 1))[0]
+    return (hist.argmax() + 0.5) / 36
+
+
+def recolor(strip: Image.Image, hue_deg: float, value: float | None = None) -> Image.Image:
+    """Rotate the dominant hue of saturated pixels to `hue_deg`, keeping their shading. With
+    `value` (0-1, the target colour's HSV value) those pixels' mean brightness is lifted to it
+    when it is lower: a hue turn alone left a dark olive cloak dark teal (a near-black hero).
+    It is never lowered: a "dark red" orc went darker than its dark floor (both live,
+    2026-11-01)."""
+    hsv, alpha, mask = _hsv(strip)
     if not mask.any():
         return strip
     hist = np.histogram(hsv[..., 0][mask], bins=36, range=(0, 1))[0]
     dominant = (hist.argmax() + 0.5) / 36
     near = mask & (np.abs(((hsv[..., 0] - dominant + 0.5) % 1) - 0.5) < 0.12)
     hsv[..., 0] = np.where(near, (hsv[..., 0] - dominant + hue_deg / 360) % 1, hsv[..., 0])
-    out = np.array([colorsys.hsv_to_rgb(*p) for p in hsv.reshape(-1, 3)]).reshape(rgb.shape)
+    v = hsv[..., 2]
+    mean = float(v[near].mean())
+    if value is not None and value > mean:
+        moved = 1 - (1 - v) * (1 - value) / max(1 - mean, 1e-6)
+        hsv[..., 2] = np.where(near, np.clip(moved, 0, 1), v)
+    out = np.array([colorsys.hsv_to_rgb(*p) for p in hsv.reshape(-1, 3)]).reshape(hsv.shape)
     result = np.dstack([out, alpha]) * 255
     return Image.fromarray(result.round().astype(np.uint8), "RGBA")

@@ -23,6 +23,7 @@ backdrop, or `muse`. Code enforces the rule, the model only proposes:
 Nothing here talks to a model directly: callers pass `generate(request, edit) -> png bytes`.
 """
 
+import colorsys
 import io
 import math
 import re
@@ -37,14 +38,41 @@ from PIL import Image, ImageDraw
 from pydantic import Field
 
 from spriteforge.agents.models import Contract
-from spriteforge.library.store import contact_sheet, library_root, load_packs, search
+from spriteforge.library.looks import (
+    FLAT,
+    LUMA,
+    asset_image,
+    colour_gap,
+    detail_word,
+    measure,
+    rgb_of,
+)
+from spriteforge.library.store import (
+    contact_sheet,
+    library_root,
+    load_packs,
+    search,
+    tile_descriptions,
+)
 from spriteforge.pixel.grid import detect_cells, sample_cells
 from spriteforge.pixel.palette import extract_palette, quantize
 from spriteforge.pixel.schemas import ProcessingOptions, ProcessingReport
 from spriteforge.pixel.source import mode_resize, prepare_source
 from spriteforge.providers.base import ImageRequest
 
-from .actors import COLORS, Actor, adapt, canon, face_right, load_actors, recolor, words
+from .actors import (
+    COLORS,
+    NOISE,
+    VERBS,
+    Actor,
+    adapt,
+    canon,
+    dominant_hue,
+    face_right,
+    load_actors,
+    recolor,
+    words,
+)
 from .design import Entity, GameDesign
 from .image_cache import ImageCache
 from .tilesets import backdrop_layers, load_tilesets, pick_variant, tile_ids, tile_image
@@ -74,7 +102,10 @@ class ArtPick(Contract):
     )
     prompt: str = Field(description="muse only: what to draw (subject, colours, materials)")
     reference: str = Field(description="muse only: AI-allowed library asset id; '' = automatic")
-    recolor: str = Field(description="actor only: colour word to hue-shift it to, or ''")
+    recolor: str = Field(
+        description="library art only (actor, object or tile): the colour to recolour it to, "
+        "e.g. 'teal' or 'dark grey', when the library art fits but its colour does not; or ''"
+    )
     reason: str
 
 
@@ -203,10 +234,13 @@ def library_context(camera: str, design: GameDesign | None = None) -> str:
         actors = [a for a in actors if a in heroes or a.tokens & want]
         things = [e for e in design.entities if e.role in {"pickup", "prop", "projectile"}]
         object_words = set().union(*(name_words(e) for e in things))
+    notes = {a["id"]: a for a in search()}
+    tile_notes = tile_descriptions()
     lines = ["# Actors (animated; use source=actor, asset=key)"]
     lines += [
         f"* `{a.key}` {'hero' if a.category == 'character' else 'enemy'}: "
         + ", ".join(f"{v} x{len(f)}" for v, f in sorted(a.anims.items()))
+        + look_note(notes.get(actor_sheet(a)), actor_frame(a))
         for a in actors
     ] or ["(none for this camera)"]
     lines.append("\n# Tiles (source=tile, asset=<tileset>/<tile>)")
@@ -225,7 +259,11 @@ def library_context(camera: str, design: GameDesign | None = None) -> str:
             )
             + ")"
         )
-        lines += [f"  * `{ts['id']}/{n}`: {t['what']}" for n, t in ts["tiles"].items()]
+        lines += [
+            f"  * `{ts['id']}/{n}`: {t['what']}"
+            + look_note(tile_notes.get(f"{ts['id']}/{n}"), tile_image(ts, n), detail=True)
+            for n, t in ts["tiles"].items()
+        ]
     lines.append("\n# Whole objects (source=object; pickups, props, projectiles)")
     objects = [
         o
@@ -238,6 +276,7 @@ def library_context(camera: str, design: GameDesign | None = None) -> str:
         + (f", {o['frames']} frames" if o["frames"] > 1 else "")
         + ("" if o.get("ai_allowed", True) else ", no AI")
         + ")"
+        + look_note(notes.get(o["id"]), asset_image(o, library_root()))
         for o in sorted(objects, key=lambda o: o["id"])
     ] or ["(none named like this game's entities)" if object_words is not None else "(none)"]
     refs = sorted({a["pack"] for a in reference_assets().values()})
@@ -254,6 +293,26 @@ def library_context(camera: str, design: GameDesign | None = None) -> str:
     return "\n".join(lines)
 
 
+def look_note(entry: dict | None, image: Image.Image, detail: bool = False) -> str:
+    """' — <what it is>; <colours>; brightness <0-1>[, <detail>]' for a library line, so the
+    Art Director picks by what the art looks like, not by its file name (a "stone floor" tile
+    it called dark grey was tan, live 2026-11-01). `what` comes from the library description
+    (`spriteforge library describe`); colours, brightness and detail are measured here. The
+    full sentences stay in the MCP tools and `catalog/`, to keep this list short (M10.2)."""
+    look = measure(image)
+    parts = [entry["what"]] if entry and entry.get("described_by", "measured") != "measured" else []
+    parts.append(", ".join(c.name for c in look.colours) or "empty")
+    parts.append(
+        f"brightness {look.brightness:.2f}" + (f", {detail_word(look.detail)}" if detail else "")
+    )
+    return " — " + "; ".join(parts)
+
+
+def actor_frame(actor: Actor) -> Image.Image:
+    frames = actor.anims.get("idle") or next(iter(actor.anims.values()))
+    return frames[0]
+
+
 def art_prompt(design: GameDesign, library: str) -> str:
     entities = "\n".join(
         f"* `{e.id}` ({e.role}, {e.width}x{e.height}, animations: {', '.join(e.animations) or '-'}): "
@@ -267,7 +326,11 @@ def art_prompt(design: GameDesign, library: str) -> str:
         "library gem for a crystal). Sizes do not matter; the harness fits the frames. Only "
         "when nothing of that kind exists, use source=muse with a concrete prompt (subject, "
         "colours, materials, pose) so the image model draws it. Never use an unrelated "
-        "creature. Pick the tile set variant that matches the game's world.\n\n"
+        "creature. Pick the tile set variant that matches the game's world. Each library "
+        "line says what the art shows and how it looks (colours, brightness, detail measured "
+        "from its pixels): when only the colour differs from the entity's look, use it and "
+        "set `recolor` (e.g. 'teal', 'dark grey'); when the shape or detail differs (a flat "
+        "tile for a brick wall), use Muse.\n\n"
         f"Game: {design.title}. {design.pitch}\nCamera: {design.camera}. Look: {design.look}\n\n"
         f"Entities:\n{entities}\n\nLibrary:\n{library}"
     )
@@ -280,12 +343,26 @@ def actor_index() -> dict[str, Actor]:
     return {a.key: a for a in load_actors()}
 
 
+def creature_name(sheet_name: str) -> str:
+    """The creature a sheet belongs to, as `load_actors` groups them ('npcs rogue idle' ->
+    'rogue')."""
+    return " ".join(t for t in words(sheet_name) if t not in VERBS and t not in NOISE).strip()
+
+
 def actor_sheet(actor: Actor) -> str:
-    """The library asset id of an actor's idle (else first) sheet, usable as a reference."""
-    name = set(actor.name.split())
-    sheets = [a for a in search() if a["pack"] == actor.pack and name <= set(a["name"].split())]
-    idle = [a for a in sheets if "idle" in a["name"].split()]
-    return (idle or sheets or [{"id": ""}])[0]["id"]
+    """The library asset id of an actor's idle (else first) sheet, side-facing first: what it
+    looks like and a style reference. Only the actor's own sheets count (a name match also
+    took the orc rogue's sheet for the rogue hero)."""
+    sheets = [
+        a
+        for a in search()
+        if a["pack"] == actor.pack
+        and a["category"] in {"character", "enemy"}
+        and creature_name(a["name"]) == actor.name
+    ]
+    idle = [a for a in sheets if "idle" in words(a["name"])]
+    pool = sorted(idle or sheets, key=lambda a: "side" not in words(a["name"]))
+    return (pool or [{"id": ""}])[0]["id"]
 
 
 def keyword_pick(e: Entity, design: GameDesign, used: set[str]) -> ArtPick:
@@ -367,6 +444,8 @@ def auto_reference(e: Entity, design: GameDesign, chosen_packs: list[str]) -> st
     pixel = sorted((i, a) for i, a in refs.items() if a.get("colors", 0) <= 64)
     if not refs:
         return ""
+    if e.role == "background":
+        return next((i for i, a in sorted(refs.items()) if backdrop_reference(a)), "")
     wanted = {
         "tile": {"tileset"},
         "pickup": {"item", "equipment", "prop"},
@@ -389,6 +468,50 @@ def auto_reference(e: Entity, design: GameDesign, chosen_packs: list[str]) -> st
         or first(lambda a: True)
         or first(lambda a: True, sorted(refs.items()))
     )
+
+
+def backdrop_reference(asset: dict) -> bool:
+    """A style example a background may have: a real backdrop, not a tile sheet or a mockup
+    scene. Muse copied both into backgrounds (an arcade room; stone blocks, live 2026-11-01)."""
+    return asset["category"] == "background" and "mockups" not in asset["tags"]
+
+
+# Words in an entity's look that ask for drawn detail a flat library tile does not have.
+DETAIL_WORDS = {"brick", "bricks", "crack", "cracks", "cracked", "moss", "mossy", "cobble",
+                "cobbles", "cobblestone", "plank", "planks", "stones", "pattern", "patterned",
+                "rune", "runes", "carved", "grass", "grassy", "pebbles", "rocky", "textured",
+                "grain", "veins", "tufts", "stripe", "stripes", "striped", "rust", "rusty",
+                "rivet", "rivets", "riveted", "panel", "panels", "plated", "grime", "grimy",
+                "scratched", "dented", "ornate", "engraved", "mosaic", "ridged", "studded",
+                "bolted", "weathered", "chipped"}  # fmt: skip
+FAR = 25  # colour_gap above which library art is clearly not the colour the design names
+
+
+def main_part(text: str) -> str:
+    """What a look says the thing itself is, before its details: colours after "with" or a
+    comma are accents ("dark stone wall block with red moss edge" -> "dark stone wall block";
+    reading the red moss as the wall's colour turned a dark wall bright red, live 2026-11-01)."""
+    return re.split(r"\bwith\b|[,;.(]", text, maxsplit=1)[0]
+
+
+def far_colour(text: str, mean: str) -> str | None:
+    """The first colour the main part of `text` names, when every colour it names there is far
+    from `mean`."""
+    named = look_colours(main_part(text))
+    if not named or min(colour_gap(code, mean) for _, code in named) <= FAR:
+        return None
+    return named[0][0]
+
+
+def hue_mismatch(text: str, image: Image.Image) -> str | None:
+    """The first hued colour the main part of `text` names, when the art's main hue is more
+    than 45° off."""
+    hued = [phrase for phrase, _ in look_colours(main_part(text)) if phrase.split()[-1] in COLORS]
+    art = dominant_hue(image) if hued else None
+    if art is None:
+        return None
+    gap = abs((COLORS[hued[0].split()[-1]] / 360 - art + 0.5) % 1 - 0.5) * 360
+    return hued[0] if gap > 45 else None
 
 
 def resolve_plan(plan: ArtPlan, design: GameDesign) -> tuple[dict[str, ArtPick], list[str]]:
@@ -443,12 +566,39 @@ def resolve_plan(plan: ArtPlan, design: GameDesign) -> tuple[dict[str, ArtPick],
             continue
         taken = {q.asset for q in out.values() if q.source == "actor"}
         lib = keyword_pick(e, design, taken)
+        if lib.source == "tile" and measure(tile_image(*tiles[lib.asset])).detail < FLAT:
+            # A flat tile is no stand-in for one Muse would draw (a recolour fixes only its
+            # colour): the flat wall top undid the Art Director's choice of Muse for a rusty
+            # metal wall with hazard stripes, live 2026-11-01.
+            continue
         if lib.source != "muse" and lib.reason != GENERIC_HERO:
             out[e.id] = lib
             warnings.append(
                 f"{e.id}: the library has {lib.asset} ({lib.reason}); "
                 "used it instead of Muse (library first)"
             )
+    # Library art must look like what the design asks for (models propose, code enforces): a
+    # flat tile is not used for a look that asks for bricks or moss, a tile far from the colour
+    # the look names is recoloured, an actor or object of another hue is hue-shifted.
+    for e in design.entities:
+        p = out[e.id]
+        if p.source == "tile":
+            look = measure(tile_image(*tiles[p.asset]))
+            asks = sorted(DETAIL_WORDS & set(words(e.look)))
+            if look.detail < FLAT and asks:
+                out[e.id] = to_muse(p, f"library tile {p.asset} is flat ({look.text}) but the "
+                                       f"design asks for {', '.join(asks)}")  # fmt: skip
+            elif not p.recolor and (target := far_colour(e.look, look.mean)):
+                out[e.id] = p.model_copy(update={"recolor": target})
+                warnings.append(f"{e.id}: library tile {p.asset} is {look.colours[0].name} "
+                                f"({look.mean}); the design asks for {target}: recoloured")  # fmt: skip
+        elif p.source in {"actor", "object"} and not p.recolor:
+            image = actor_frame(actors[p.asset]) if p.source == "actor" else (
+                asset_frames(objects[p.asset])[0])  # fmt: skip
+            if target := hue_mismatch(e.look, image):
+                out[e.id] = p.model_copy(update={"recolor": target})
+                warnings.append(f"{e.id}: library {p.source} {p.asset} has another main colour; "
+                                f"the design asks for {target}: recoloured")  # fmt: skip
     refs = reference_assets()
     chosen_packs = list(
         dict.fromkeys(p.asset.split("/", 1)[0] for p in out.values() if p.source == "actor")
@@ -460,7 +610,15 @@ def resolve_plan(plan: ArtPlan, design: GameDesign) -> tuple[dict[str, ArtPick],
         if norm(p.reference) in actor_keys:  # an actor key: use that actor's own idle sheet
             sheet = actor_sheet(actors[actor_keys[norm(p.reference)]])
             p = p.model_copy(update={"reference": sheet})
-        if p.reference and p.reference not in refs:
+        if (
+            p.reference in refs
+            and entities[eid].role == "background"
+            and not backdrop_reference(refs[p.reference])
+        ):
+            warnings.append(f"{eid}: a background takes a style example only from a backdrop, "
+                            f"not {p.reference!r}; drawn from text")  # fmt: skip
+            update["reference"] = ""
+        elif p.reference and p.reference not in refs:
             blocked = any(a["id"] == p.reference for a in search())
             warnings.append(
                 f"{eid}: reference {p.reference!r} "
@@ -543,6 +701,35 @@ def single_frame(e: Entity, image: Image.Image, source: str, reasons, record=Non
     )
 
 
+def recolour_tile(tile: Image.Image, target: str) -> Image.Image:
+    """The tile's light-and-dark pattern in `target`'s colour: its mean brightness moves to the
+    target's and every pixel keeps its difference from that mean (squeezed only where it
+    would pass black or white), so cracks and grain keep their contrast."""
+    a = np.asarray(tile.convert("RGBA")).astype(float)
+    luma = a[..., :3] @ LUMA / 255
+    drawn = a[..., 3] > 127
+    mean = float(luma[drawn].mean() if drawn.any() else luma.mean())
+    colour = np.array(rgb_of(target)) / 255
+    lt = max(float(colour @ LUMA), 1e-3)
+    offset = luma - mean
+    low, high = float(offset.min()), float(offset.max())
+    squeeze = min(1.0, lt / -low if low < 0 else 1.0, (1 - lt) / high if high > 0 else 1.0)
+    new = lt + offset * squeeze
+    rgb = np.clip(colour[None, None, :] * (new / lt)[..., None], 0, 1) * 255
+    return Image.fromarray(np.dstack([rgb, a[..., 3]]).round().astype(np.uint8), "RGBA")
+
+
+def recolour_sprite(strip: Image.Image, phrase: str) -> Image.Image | None:
+    """Hue-shift a sprite to the colour `phrase` names, lifting its brightness to that colour's
+    when it is darker; None when the phrase names no hue (grey, black, white)."""
+    word = next((w for w in reversed(phrase.lower().split()) if w in COLORS), None)
+    if word is None:
+        return None
+    code = (look_palette(phrase) or [None])[0]
+    value = colorsys.rgb_to_hsv(*(np.array(rgb_of(code)) / 255))[2] if code else None
+    return recolor(strip, COLORS[word], value)
+
+
 def actor_art(e: Entity, actor: Actor, size, topdown: bool, faces: str, hue: str) -> Filled:
     wanted = e.animations or ["idle", "walk"]
     if "idle" not in wanted:
@@ -551,8 +738,8 @@ def actor_art(e: Entity, actor: Actor, size, topdown: bool, faces: str, hue: str
         face_right(actor.anims, faces), {a: 1 for a in wanted}, size, topdown
     )
     reasons = [f"{sum(counts.values())} frames from {actor.key}"]
-    if hue in COLORS:
-        strip = recolor(strip, COLORS[hue])
+    if hue and (shifted := recolour_sprite(strip, hue)) is not None:
+        strip = shifted
         reasons.append(f"recoloured {hue}")
     anims, start = {}, 0
     for name, n in counts.items():
@@ -562,19 +749,18 @@ def actor_art(e: Entity, actor: Actor, size, topdown: bool, faces: str, hue: str
     return Filled(png(strip), f"library {actor.key}", reasons, meta)
 
 
-def object_art(e: Entity, asset: dict, size) -> Filled:
+def object_art(e: Entity, asset: dict, size, hue: str = "") -> Filled:
     frames = [fit_sprite(f, size, anchor_for(e.role)) for f in asset_frames(asset)][:8]
     strip = Image.new("RGBA", (size[0] * len(frames), size[1]))
     for i, f in enumerate(frames):
         strip.paste(f, (i * size[0], 0))
+    reasons = [f"{len(frames)} frame(s)"]
+    if hue and (shifted := recolour_sprite(strip, hue)) is not None:
+        strip = shifted
+        reasons.append(f"recoloured {hue}")
     anims = {a: [0, len(frames)] for a in (e.animations or ["idle"])}
     anims.setdefault("idle", [0, len(frames)])
-    return Filled(
-        png(strip),
-        f"library {asset['id']}",
-        [f"{len(frames)} frame(s)"],
-        sprite_meta(e, size, anims),
-    )
+    return Filled(png(strip), f"library {asset['id']}", reasons, sprite_meta(e, size, anims))
 
 
 def placeholder(e: Entity, size) -> Image.Image:
@@ -611,6 +797,12 @@ VIEWS = {
     "top-down": "top-down 3/4 view: the camera is tilted about 45°, we see the top and the "
     "front of the subject",
     "side-view": "flat side view (profile), the camera level with the subject",
+}
+# A background asked for "the top and the front of the subject" came back as stone blocks.
+BACKGROUND_VIEWS = {
+    "top-down": "seen straight down from above, flat: no walls, blocks, platforms, buildings "
+    "or perspective",
+    "side-view": "a distant backdrop behind the level, flat side view",
 }
 # Side-view prompts must not say "top": Muse then tilts the camera.
 LIGHT = {"top-down": "light from the top-left", "side-view": "light from the upper left"}
@@ -656,17 +848,31 @@ def shade(hex_code: str, word: str) -> str:
     return "#" + "".join(f"{c:02X}" for c in rgb)
 
 
-def look_palette(text: str) -> list[str]:
-    """Hex codes and colour words named in `text`, in order (<= 16). "dark purple" is a dark
-    purple; a colour after a negation in its clause ("remove tan stone") is left out."""
-    found = [m.upper() for m in re.findall(r"#[0-9a-fA-F]{6}\b", text)]
+SHADES = {"dark", "darker", "deep", "light", "lighter", "pale"}
+
+
+def look_colours(text: str) -> list[tuple[str, str]]:
+    """(phrase, hex) for the hex codes and colour words named in `text`, in order (<= 16):
+    ("dark grey", "#3A3A3D"). A colour after a negation in its clause ("remove tan stone") is
+    left out."""
+    found = [(m.upper(), m.upper()) for m in re.findall(r"#[0-9a-fA-F]{6}\b", text)]
     for clause in re.split(r"[,;.:]", text.lower()):
-        words, negated = re.findall(r"[a-z]+", clause), False
-        for i, w in enumerate(words):
+        words_, negated = re.findall(r"[a-z]+", clause), False
+        for i, w in enumerate(words_):
             negated = negated or w in NEGATIONS
             if w in COLOR_HEX and not negated:
-                found.append(shade(COLOR_HEX[w], words[i - 1] if i else ""))
-    return list(dict.fromkeys(found))[:16]
+                before = words_[i - 1] if i else ""
+                phrase = f"{before} {w}" if before in SHADES else w
+                found.append((phrase, shade(COLOR_HEX[w], before)))
+    out: dict[str, str] = {}
+    for phrase, code in found:
+        out.setdefault(code, phrase)
+    return [(phrase, code) for code, phrase in out.items()][:16]
+
+
+def look_palette(text: str) -> list[str]:
+    """Hex codes of the colours named in `text` ("dark purple" is a dark purple)."""
+    return [code for _, code in look_colours(text)]
 
 
 def request_size(grid: tuple[int, int], sizes: list[tuple[int, int]]) -> tuple[int, int]:
@@ -720,7 +926,7 @@ def art_spec(
         palette, palette_from = look_palette(design.look), "look"
     return ArtSpec(
         role=e.role,
-        view=VIEWS[design.camera],
+        view=(BACKGROUND_VIEWS if e.role == "background" else VIEWS)[design.camera],
         grid=grid,
         scale_note=scale_note(e, grid, hero_px),
         anchor=anchor,
@@ -745,7 +951,12 @@ def muse_prompt(spec: ArtSpec, pick: ArtPick, has_ref: bool = False) -> str:
     if spec.role == "tile":
         shape = f"One seamless square game tile. {cells}; the grid covers the whole image."
     elif spec.role == "background":
-        shape = f"A game background scene, no characters. {cells}; the grid covers the whole image."
+        # "A game background scene" with no style example came back with lightning bolts,
+        # explosions and green blobs (the game's bolts and slimes), live 2026-11-01.
+        shape = (
+            "A game background: only the empty ground, sky or void itself, with no characters, "
+            f"creatures, items, projectiles or effects. {cells}; the grid covers the whole image."
+        )
     else:
         shape = (
             f"One single game sprite, whole object visible. {cells}; the sprite fills that "
@@ -1153,14 +1364,18 @@ def make_art(
             )
             used_packs.add(actor.pack)
         elif p.source == "object":
-            filled[e.id] = object_art(e, objects[p.asset], size)
+            filled[e.id] = object_art(e, objects[p.asset], size, p.recolor)
             used_packs.add(objects[p.asset]["pack"])
         elif p.source == "tile":
             ts, name = tile_ids(list(tilesets.values()))[p.asset]
             tile = tile_image(ts, name, variant)
+            reasons = [p.reason]
+            if p.recolor and (target := look_palette(p.recolor)):
+                tile = recolour_tile(tile, target[0])
+                reasons.append(f"recoloured {p.recolor} ({target[0]})")
             if tile.size != size:
                 tile = tile.resize(size, Image.Resampling.NEAREST)
-            filled[e.id] = single_frame(e, tile, f"tileset {p.asset} ({variant})", [p.reason])
+            filled[e.id] = single_frame(e, tile, f"tileset {p.asset} ({variant})", reasons)
             used_packs.add(ts["pack"])
         elif p.source == "backdrop":
             ts = tilesets[p.asset]

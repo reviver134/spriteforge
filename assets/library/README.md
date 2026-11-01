@@ -50,10 +50,32 @@ packs must never be sent to Muse (`search(ai=True)` excludes them).
 `characters/Hands.png` (origin unknown) and `characters/Scene Overview.png` (Cainos demo
 scene) are not imported. Tile sets for these packs live in `src/spriteforge/library/tilesets/`.
 
+## Descriptions: what each image shows
+
+```bash
+python -m spriteforge library describe            # after adding or changing a pack
+python -m spriteforge library describe --mock     # offline: measured looks only
+```
+
+Every image (and every named tile of a tile set) gets a **measured look** from its pixels:
+main colours by name, brightness (0-1) and detail ("tan; mid (0.49); low-contrast detail").
+Images from packs that allow AI use also get a **description** from Muse Spark (vision): what
+it is, one sentence on what it shows, and the camera it is drawn for, 16 images per call on a
+numbered contact sheet (`--max-calls`, `--max-cost` cap it; the ledger is
+`<workspace>/library.sqlite3`). `ai_allowed: false` packs are never sent to a model: their
+entry is the file name plus the measured look.
+
+They are written to `descriptions/<pack>.json`, keyed by the image's sha256 (a changed image is
+described again, an unchanged one is not sent twice), and merged into `index.json`, so
+`search()`, the MCP tools, the Art Director's library list and the `catalog/` pages show them.
+Model-written entries are `status: generated`: correct the `text` (or `what`, `view`), set
+`status: reviewed`, and later runs keep your words.
+
 ## Agents use the library through MCP
 
 `spriteforge library mcp` serves four read-only tools (registered as the `library` server in
 `workspace/mcp.json`): `library_packs`, `library_search`, `library_actors` and
-`library_tiles(camera)`. They return metadata and ids only, never pixels.
+`library_tiles(camera)`. They return metadata, ids and descriptions, never pixels;
+`library_search` also matches words in the descriptions ("slime", "tan").
 
 Use `--cell WxH` for sprite sheets so frames are counted.

@@ -1,0 +1,2236 @@
+{
+ "pack": "gandalfhardcore-platformer",
+ "assets": {
+  "gandalfhardcore-platformer/alchemy-decor": {
+   "sha256": "4b9a852310019b60714053f353bf12988b4e623a2df45ca2be33f79eaff05f8c",
+   "what": "alchemy decor",
+   "text": "alchemy decor (prop); olive, brown, dark grey-red and black; dark (0.28); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#4F4913",
+      "share": 0.189
+     },
+     {
+      "name": "brown",
+      "hex": "#593B1E",
+      "share": 0.173
+     },
+     {
+      "name": "dark grey-red",
+      "hex": "#342726",
+      "share": 0.124
+     },
+     {
+      "name": "black",
+      "hex": "#1F1414",
+      "share": 0.094
+     }
+    ],
+    "brightness": 0.281,
+    "detail": 0.399,
+    "fill": 0.24,
+    "mean": "#594533",
+    "text": "olive, brown, dark grey-red and black; dark (0.28); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/angel-statue": {
+   "sha256": "028c202481da50db16b3c6cb6c11cbfd7d397c3f3fda1bc6ed88d72f0b41ed45",
+   "what": "angel statue",
+   "text": "angel statue (prop); tan, brown, black and cream; dark (0.38); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#A68B75",
+      "share": 0.371
+     },
+     {
+      "name": "brown",
+      "hex": "#4E4034",
+      "share": 0.293
+     },
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.18
+     },
+     {
+      "name": "cream",
+      "hex": "#A39674",
+      "share": 0.13
+     }
+    ],
+    "brightness": 0.377,
+    "detail": 0.596,
+    "fill": 0.48,
+    "mean": "#6E5E50",
+    "text": "tan, brown, black and cream; dark (0.38); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/animated-sprites-campfire": {
+   "sha256": "c9623030e5b23a633f65f845881c7ae0aaeca54a9bcb4a83b87f08999391b804",
+   "what": "animated sprites campfire",
+   "text": "animated sprites campfire (effect); brown, white, tan and orange; mid (0.55); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#4F4035",
+      "share": 0.258
+     },
+     {
+      "name": "white",
+      "hex": "#FFFFFF",
+      "share": 0.227
+     },
+     {
+      "name": "tan",
+      "hex": "#A68B75",
+      "share": 0.163
+     },
+     {
+      "name": "orange",
+      "hex": "#DC8441",
+      "share": 0.113
+     }
+    ],
+    "brightness": 0.549,
+    "detail": 0.825,
+    "fill": 0.247,
+    "mean": "#A6876D",
+    "text": "brown, white, tan and orange; mid (0.55); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/animated-sprites-campfire-with-food": {
+   "sha256": "bdedffdf4ac28fdd7ebb825d8f3761d213a99adf3c2846596276dfc4e9c1251b",
+   "what": "animated sprites campfire with food",
+   "text": "animated sprites campfire with food (effect); black, dark grey-blue, dark blue and brown; dark (0.32); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.219
+     },
+     {
+      "name": "dark grey-blue",
+      "hex": "#3A444D",
+      "share": 0.172
+     },
+     {
+      "name": "dark blue",
+      "hex": "#1A1E28",
+      "share": 0.147
+     },
+     {
+      "name": "brown",
+      "hex": "#4F4035",
+      "share": 0.089
+     }
+    ],
+    "brightness": 0.32,
+    "detail": 0.825,
+    "fill": 0.677,
+    "mean": "#57514C",
+    "text": "black, dark grey-blue, dark blue and brown; dark (0.32); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/animated-sprites-gandalfhardcore-portal": {
+   "sha256": "b65c67ae44491d0573983e3e486af88e4a83d5553797a0738572f01fff072b7d",
+   "what": "animated sprites gandalfhardcore portal",
+   "text": "animated sprites gandalfhardcore portal (effect); black; very dark (0.07); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#11111A",
+      "share": 0.952
+     }
+    ],
+    "brightness": 0.072,
+    "detail": 0.0,
+    "fill": 0.358,
+    "mean": "#14111B",
+    "text": "black; very dark (0.07); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/animated-sprites-gandalfhardcore-water-tiles": {
+   "sha256": "97974030fea782b2ae42681de7b6c2c1d9257e39b06065022dc2f2fd06d1b04e",
+   "what": "animated sprites gandalfhardcore water tiles",
+   "text": "animated sprites gandalfhardcore water tiles (tileset); black, teal, dark green and dark grey; dark (0.23); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#131116",
+      "share": 0.382
+     },
+     {
+      "name": "teal",
+      "hex": "#00836F",
+      "share": 0.164
+     },
+     {
+      "name": "dark green",
+      "hex": "#104028",
+      "share": 0.135
+     },
+     {
+      "name": "dark grey",
+      "hex": "#272B28",
+      "share": 0.089
+     }
+    ],
+    "brightness": 0.231,
+    "detail": 0.471,
+    "fill": 0.815,
+    "mean": "#1C4340",
+    "text": "black, teal, dark green and dark grey; dark (0.23); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/animated-sprites-gandalfhardcore-water-tiles-2": {
+   "sha256": "5fac0d66fdd7ccd1a12e282ba260e693928812a96da57acb779cf8c833220a48",
+   "what": "animated sprites gandalfhardcore water tiles",
+   "text": "animated sprites gandalfhardcore water tiles (tileset); dark green, teal, dark grey and cyan; dark (0.37); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#0F482F",
+      "share": 0.333
+     },
+     {
+      "name": "teal",
+      "hex": "#008773",
+      "share": 0.312
+     },
+     {
+      "name": "dark grey",
+      "hex": "#1F2521",
+      "share": 0.163
+     },
+     {
+      "name": "cyan",
+      "hex": "#30CEE2",
+      "share": 0.15
+     }
+    ],
+    "brightness": 0.366,
+    "detail": 0.567,
+    "fill": 0.844,
+    "mean": "#197165",
+    "text": "dark green, teal, dark grey and cyan; dark (0.37); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/autumn-bg-background-castle": {
+   "sha256": "0990413f86d518b15eba7608e50314c46f770c9f37991121329e50186cc2266f",
+   "what": "autumn bg background castle",
+   "text": "autumn bg background castle (background); tan; mid (0.57); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#A39068",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.569,
+    "detail": 0.0,
+    "fill": 0.034,
+    "mean": "#A39068",
+    "text": "tan; mid (0.57); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/autumn-bg-gandalfhardcore-background-layers-layer-1": {
+   "sha256": "419c5a34c4a2723c96fbe326767a1e01ef04550b270fb00c6468e3795210c57a",
+   "what": "autumn bg gandalfhardcore background layers layer 1",
+   "text": "autumn bg gandalfhardcore background layers layer 1 (background); olive; dark (0.28); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#534625",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.276,
+    "detail": 0.059,
+    "fill": 0.59,
+    "mean": "#534625",
+    "text": "olive; dark (0.28); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/autumn-bg-gandalfhardcore-background-layers-layer-2": {
+   "sha256": "3ed4a38df46b3539fefc1228905a71a42182b90ec64870495b895290747aa06b",
+   "what": "autumn bg gandalfhardcore background layers layer 2",
+   "text": "autumn bg gandalfhardcore background layers layer 2 (background); olive; dark (0.36); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#635E35",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.361,
+    "detail": 0.0,
+    "fill": 0.628,
+    "mean": "#635E35",
+    "text": "olive; dark (0.36); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/autumn-bg-gandalfhardcore-background-layers-layer-3": {
+   "sha256": "1451d0c7eff20946979ecfa32d29c52a4cbd43d4b6f107289ce201400fd9445d",
+   "what": "autumn bg gandalfhardcore background layers layer 3",
+   "text": "autumn bg gandalfhardcore background layers layer 3 (background); olive; mid (0.46); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#7F764A",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.458,
+    "detail": 0.0,
+    "fill": 0.652,
+    "mean": "#7F764A",
+    "text": "olive; mid (0.46); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/autumn-bg-gandalfhardcore-background-layers-layer-4": {
+   "sha256": "98795d60728cb8f0f8c8374337507fbebb0cd130c230297fab524d731421b1f8",
+   "what": "autumn bg gandalfhardcore background layers layer 4",
+   "text": "autumn bg gandalfhardcore background layers layer 4 (background); tan; light (0.63); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#B39F73",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.628,
+    "detail": 0.0,
+    "fill": 0.677,
+    "mean": "#B39F73",
+    "text": "tan; light (0.63); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/autumn-bg-gandalfhardcore-background-layers-layer-5": {
+   "sha256": "32d628e724bc7af44a53409c4ecb4662f64aa8e94d937eb0947bc3b628ad07d4",
+   "what": "autumn bg gandalfhardcore background layers layer 5",
+   "text": "autumn bg gandalfhardcore background layers layer 5 (background); cream and tan; very light (0.86); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "cream",
+      "hex": "#EDDCB2",
+      "share": 0.564
+     },
+     {
+      "name": "tan",
+      "hex": "#EDDBB3",
+      "share": 0.428
+     }
+    ],
+    "brightness": 0.863,
+    "detail": 0.153,
+    "fill": 1.0,
+    "mean": "#EDDBB2",
+    "text": "cream and tan; very light (0.86); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/bg-dirt1": {
+   "sha256": "8c5bd3e49f9ae7f1b03978d3e64753c7b7a9caebf6fc0bb7002cfb820e544bcd",
+   "what": "bg dirt1",
+   "text": "bg dirt1 (tileset); brown and dark grey; dark (0.23); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#403831",
+      "share": 0.75
+     },
+     {
+      "name": "dark grey",
+      "hex": "#453C38",
+      "share": 0.25
+     }
+    ],
+    "brightness": 0.228,
+    "detail": 0.104,
+    "fill": 0.773,
+    "mean": "#413933",
+    "text": "brown and dark grey; dark (0.23); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/bg-dirt2": {
+   "sha256": "1d70dae58ca027d8d53d891c1edf9e3c2e6db3898b02bec55aff2ba5905fa418",
+   "what": "bg dirt2",
+   "text": "bg dirt2 (tileset); dark magenta, dark red and brown; very dark (0.18); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark magenta",
+      "hex": "#2E1F26",
+      "share": 0.528
+     },
+     {
+      "name": "dark red",
+      "hex": "#3D2A2D",
+      "share": 0.25
+     },
+     {
+      "name": "brown",
+      "hex": "#544039",
+      "share": 0.222
+     }
+    ],
+    "brightness": 0.176,
+    "detail": 0.13,
+    "fill": 0.773,
+    "mean": "#3A292C",
+    "text": "dark magenta, dark red and brown; very dark (0.18); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/birch1": {
+   "sha256": "708606d7e2c59487ee3a82feed0e5d27e19ee26176527cacbc164e887399f910",
+   "what": "birch1",
+   "text": "birch1 (prop); olive, yellow, brown and dark green; mid (0.41); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#747326",
+      "share": 0.493
+     },
+     {
+      "name": "yellow",
+      "hex": "#A2904A",
+      "share": 0.184
+     },
+     {
+      "name": "brown",
+      "hex": "#644A28",
+      "share": 0.144
+     },
+     {
+      "name": "dark green",
+      "hex": "#304017",
+      "share": 0.12
+     }
+    ],
+    "brightness": 0.414,
+    "detail": 0.283,
+    "fill": 0.464,
+    "mean": "#736D2F",
+    "text": "olive, yellow, brown and dark green; mid (0.41); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/birch2": {
+   "sha256": "797107cdbb84f8fd40f1c874c9338845d66b11f4e31c37e40e17c086913a6ea6",
+   "what": "birch2",
+   "text": "birch2 (prop); orange and brown; mid (0.40); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#B86230",
+      "share": 0.474
+     },
+     {
+      "name": "brown",
+      "hex": "#6D4227",
+      "share": 0.411
+     }
+    ],
+    "brightness": 0.396,
+    "detail": 0.301,
+    "fill": 0.464,
+    "mean": "#985B32",
+    "text": "orange and brown; mid (0.40); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/birch3": {
+   "sha256": "65630c513161bc57e23c0b216af8a4c9ad730e37fe3dc63d337eae855818955f",
+   "what": "birch3",
+   "text": "birch3 (prop); blue, light grey-blue, white and grey-blue; light (0.70); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#7093B5",
+      "share": 0.411
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#C3D7E3",
+      "share": 0.218
+     },
+     {
+      "name": "white",
+      "hex": "#DEECF3",
+      "share": 0.184
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#A9C8DD",
+      "share": 0.121
+     }
+    ],
+    "brightness": 0.703,
+    "detail": 0.412,
+    "fill": 0.464,
+    "mean": "#9EB7CA",
+    "text": "blue, light grey-blue, white and grey-blue; light (0.70); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/birds1": {
+   "sha256": "17807cdf8a8c7bf31581d5c264804a7d7a8908d67c4aada58dd50b68bb56f9a4",
+   "what": "birds1",
+   "text": "birds1 (prop); blue; mid (0.51); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#6C85A2",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.509,
+    "detail": 0.0,
+    "fill": 0.135,
+    "mean": "#6C85A2",
+    "text": "blue; mid (0.51); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/birds2": {
+   "sha256": "1b75fa61619644d5f383d5b134f998b86768a24f483e05a476113b00cb5b0b8f",
+   "what": "birds2",
+   "text": "birds2 (prop); blue; mid (0.51); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#6C85A2",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.509,
+    "detail": 0.0,
+    "fill": 0.125,
+    "mean": "#6C85A2",
+    "text": "blue; mid (0.51); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/birds3": {
+   "sha256": "759f72ae95f87fc3d30d8e45d1a4010e117a045d9ab958f4c82593f47686d75c",
+   "what": "birds3",
+   "text": "birds3 (prop); blue; mid (0.51); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#6C85A2",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.509,
+    "detail": 0.0,
+    "fill": 0.143,
+    "mean": "#6C85A2",
+    "text": "blue; mid (0.51); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/birds4": {
+   "sha256": "9316191460680c50ee05391e3bd878dc2901bb6d24f135a2044406b0c5d9503b",
+   "what": "birds4",
+   "text": "birds4 (prop); blue; mid (0.51); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#6C85A2",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.509,
+    "detail": 0.0,
+    "fill": 0.111,
+    "mean": "#6C85A2",
+    "text": "blue; mid (0.51); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/boat": {
+   "sha256": "3a4e64a407f5699e4677cff7c1fe5bc70954d3de34a22fc88922e8bc9d673210",
+   "what": "boat",
+   "text": "boat (prop); grey, black, dark grey and dark grey-teal; dark (0.30); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "grey",
+      "hex": "#7D8983",
+      "share": 0.292
+     },
+     {
+      "name": "black",
+      "hex": "#13131C",
+      "share": 0.25
+     },
+     {
+      "name": "dark grey",
+      "hex": "#464143",
+      "share": 0.106
+     },
+     {
+      "name": "dark grey-teal",
+      "hex": "#3D5051",
+      "share": 0.092
+     }
+    ],
+    "brightness": 0.302,
+    "detail": 0.497,
+    "fill": 0.395,
+    "mean": "#4A4E4E",
+    "text": "grey, black, dark grey and dark grey-teal; dark (0.30); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/bonsai": {
+   "sha256": "9a9932b918cdd9f478b1e4dfcf826d10d8036dab83c79d09742748cad3f50eed",
+   "what": "bonsai",
+   "text": "bonsai (prop); dark green, olive, brown and yellow; dark (0.33); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#2E3D17",
+      "share": 0.266
+     },
+     {
+      "name": "olive",
+      "hex": "#76702F",
+      "share": 0.202
+     },
+     {
+      "name": "brown",
+      "hex": "#614425",
+      "share": 0.143
+     },
+     {
+      "name": "yellow",
+      "hex": "#A5974C",
+      "share": 0.133
+     }
+    ],
+    "brightness": 0.327,
+    "detail": 0.528,
+    "fill": 0.213,
+    "mean": "#5D552D",
+    "text": "dark green, olive, brown and yellow; dark (0.33); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/christmas-tree": {
+   "sha256": "83c2399eaf5e343149eb48947a1d095117a7611742dd6de70bc11c7750e2d803",
+   "what": "christmas tree",
+   "text": "christmas tree (prop); dark green, dark red, green and olive; dark (0.30); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#2D4323",
+      "share": 0.321
+     },
+     {
+      "name": "dark red",
+      "hex": "#511A22",
+      "share": 0.202
+     },
+     {
+      "name": "green",
+      "hex": "#49611D",
+      "share": 0.135
+     },
+     {
+      "name": "olive",
+      "hex": "#76762A",
+      "share": 0.114
+     }
+    ],
+    "brightness": 0.303,
+    "detail": 0.426,
+    "fill": 0.511,
+    "mean": "#5A4E23",
+    "text": "dark green, dark red, green and olive; dark (0.30); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/cloud1": {
+   "sha256": "758cedc97ef87cd86f9c5182fab24fb5edc78911ceb4d44c6bec1d86209b1e74",
+   "what": "cloud1",
+   "text": "cloud1 (background); white and light grey-blue; very light (0.93); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FAFBFD",
+      "share": 0.52
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#D1E3F3",
+      "share": 0.48
+     }
+    ],
+    "brightness": 0.934,
+    "detail": 0.12,
+    "fill": 0.708,
+    "mean": "#E6F0F8",
+    "text": "white and light grey-blue; very light (0.93); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/cloud2": {
+   "sha256": "1927c3b6e2b7877badbdd64f8cd4dd43f3a273c8e885932e720a6d70a975997f",
+   "what": "cloud2",
+   "text": "cloud2 (background); white and light grey-blue; very light (0.94); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#F8FAFC",
+      "share": 0.577
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#D1E3F3",
+      "share": 0.423
+     }
+    ],
+    "brightness": 0.938,
+    "detail": 0.12,
+    "fill": 0.653,
+    "mean": "#E8F0F8",
+    "text": "white and light grey-blue; very light (0.94); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/cloud3": {
+   "sha256": "ed7022ecddf260dac2a93e3c5f84d4a9988ec607c37866fc3afafff2cd7eb8fb",
+   "what": "cloud3",
+   "text": "cloud3 (background); white and light grey-blue; very light (0.94); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FAFBFC",
+      "share": 0.54
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#D1E3F3",
+      "share": 0.46
+     }
+    ],
+    "brightness": 0.936,
+    "detail": 0.12,
+    "fill": 0.623,
+    "mean": "#E7F0F8",
+    "text": "white and light grey-blue; very light (0.94); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/cloud4": {
+   "sha256": "4b139db71138920b735b9185db4eef03bedb7fffd3f17f0fa3c9dae5b2e36d0b",
+   "what": "cloud4",
+   "text": "cloud4 (background); white and light grey-blue; very light (0.95); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FBFCFD",
+      "share": 0.641
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#D1E3F3",
+      "share": 0.359
+     }
+    ],
+    "brightness": 0.949,
+    "detail": 0.12,
+    "fill": 0.606,
+    "mean": "#ECF3FA",
+    "text": "white and light grey-blue; very light (0.95); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/cloud5": {
+   "sha256": "9e735e07442549d3dd0f8a9a8c37d5329cd26b5ef08880250b500354519958fb",
+   "what": "cloud5",
+   "text": "cloud5 (background); white and light grey-blue; very light (0.94); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FCFCFD",
+      "share": 0.551
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#D1E3F3",
+      "share": 0.449
+     }
+    ],
+    "brightness": 0.94,
+    "detail": 0.12,
+    "fill": 0.639,
+    "mean": "#E8F1F9",
+    "text": "white and light grey-blue; very light (0.94); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/cloud6": {
+   "sha256": "fd28aa3154818cf62fe6df0289e447ffc9e598c6052c969f28a0eac616cbdd7b",
+   "what": "cloud6",
+   "text": "cloud6 (background); white and light grey-blue; very light (0.96); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FAFCFD",
+      "share": 0.744
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#D1E3F3",
+      "share": 0.256
+     }
+    ],
+    "brightness": 0.958,
+    "detail": 0.12,
+    "fill": 0.538,
+    "mean": "#F0F5FA",
+    "text": "white and light grey-blue; very light (0.96); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/cooking-area": {
+   "sha256": "a025043b8dc14c28fb93a764aadc9a9a356756fce9c5a36be079e88f00d87f9b",
+   "what": "cooking area",
+   "text": "cooking area (prop); dark grey-magenta, brown, tan and black; dark (0.28); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey-magenta",
+      "hex": "#22181D",
+      "share": 0.198
+     },
+     {
+      "name": "brown",
+      "hex": "#594032",
+      "share": 0.19
+     },
+     {
+      "name": "tan",
+      "hex": "#8F6E56",
+      "share": 0.19
+     },
+     {
+      "name": "black",
+      "hex": "#14151B",
+      "share": 0.109
+     }
+    ],
+    "brightness": 0.277,
+    "detail": 0.431,
+    "fill": 0.225,
+    "mean": "#574339",
+    "text": "dark grey-magenta, brown, tan and black; dark (0.28); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/decor": {
+   "sha256": "7d4500610ac79068fec33f035585558995c40f1c845500df0559da7244eff4d7",
+   "what": "decor",
+   "text": "decor (prop); tan and brown; mid (0.44); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#9C826C",
+      "share": 0.231
+     },
+     {
+      "name": "brown",
+      "hex": "#614833",
+      "share": 0.206
+     }
+    ],
+    "brightness": 0.444,
+    "detail": 0.601,
+    "fill": 0.213,
+    "mean": "#7F6F5D",
+    "text": "tan and brown; mid (0.44); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/floor-tiles1": {
+   "sha256": "e315841ece8b161b1c09b8a798051e32086190941450f5b6f5a0d01ac0f53b01",
+   "what": "floor tiles1",
+   "text": "floor tiles1 (tileset); brown and olive; dark (0.21); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#27231D",
+      "share": 0.746
+     },
+     {
+      "name": "olive",
+      "hex": "#565A2D",
+      "share": 0.152
+     }
+    ],
+    "brightness": 0.214,
+    "detail": 0.408,
+    "fill": 0.934,
+    "mean": "#383824",
+    "text": "brown and olive; dark (0.21); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/floor-tiles2": {
+   "sha256": "f3940cf97e804821e82937c3c918cdd1d977fe18cc6c64dddfe713c87be93194",
+   "what": "floor tiles2",
+   "text": "floor tiles2 (tileset); black, olive and dark magenta; very dark (0.18); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#131116",
+      "share": 0.581
+     },
+     {
+      "name": "olive",
+      "hex": "#565A2D",
+      "share": 0.152
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#2E1F26",
+      "share": 0.134
+     }
+    ],
+    "brightness": 0.179,
+    "detail": 0.461,
+    "fill": 0.934,
+    "mean": "#2F2E22",
+    "text": "black, olive and dark magenta; very dark (0.18); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/flowering-tree": {
+   "sha256": "c22a6a9620c5ef3ad263b0db12da0b13a1d124e320b90cfcd8f41282cf966f6b",
+   "what": "flowering tree",
+   "text": "flowering tree (prop); olive, dark green and green; mid (0.39); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#787A27",
+      "share": 0.508
+     },
+     {
+      "name": "dark green",
+      "hex": "#36461F",
+      "share": 0.241
+     },
+     {
+      "name": "green",
+      "hex": "#49611D",
+      "share": 0.083
+     }
+    ],
+    "brightness": 0.391,
+    "detail": 0.291,
+    "fill": 0.397,
+    "mean": "#64692F",
+    "text": "olive, dark green and green; mid (0.39); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/furnace-and-sawmill": {
+   "sha256": "e73b7bf0b53782d8174eac9b193442173096fe741b960a0b62347ce0dcfcdc92",
+   "what": "furnace and sawmill",
+   "text": "furnace and sawmill (prop); dark grey, brown, tan and black; dark (0.28); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#49454C",
+      "share": 0.269
+     },
+     {
+      "name": "brown",
+      "hex": "#634636",
+      "share": 0.243
+     },
+     {
+      "name": "tan",
+      "hex": "#866852",
+      "share": 0.159
+     },
+     {
+      "name": "black",
+      "hex": "#1C1B21",
+      "share": 0.114
+     }
+    ],
+    "brightness": 0.278,
+    "detail": 0.329,
+    "fill": 0.514,
+    "mean": "#58433B",
+    "text": "dark grey, brown, tan and black; dark (0.28); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/gandalfhardcore-background-layers": {
+   "sha256": "de2dcb20e6ee79ca56f82b735035bc77cf77a5cffe1b698edbb6978357340acb",
+   "what": "gandalfhardcore background layers",
+   "text": "gandalfhardcore background layers (background); dark green and teal; mid (0.42); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#3D492E",
+      "share": 0.677
+     },
+     {
+      "name": "teal",
+      "hex": "#8DCAD5",
+      "share": 0.179
+     }
+    ],
+    "brightness": 0.422,
+    "detail": 0.542,
+    "fill": 1.0,
+    "mean": "#597262",
+    "text": "dark green and teal; mid (0.42); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/garden-decorations": {
+   "sha256": "81c0fbde5afcab3602570a363e414c5dd89b7552881e29370317e7fcb44956ca",
+   "what": "garden decorations",
+   "text": "garden decorations (prop); dark green, tan, green and olive; mid (0.38); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#294329",
+      "share": 0.207
+     },
+     {
+      "name": "tan",
+      "hex": "#B5A188",
+      "share": 0.199
+     },
+     {
+      "name": "green",
+      "hex": "#4C6A34",
+      "share": 0.156
+     },
+     {
+      "name": "olive",
+      "hex": "#535226",
+      "share": 0.13
+     }
+    ],
+    "brightness": 0.384,
+    "detail": 0.486,
+    "fill": 0.376,
+    "mean": "#656349",
+    "text": "dark green, tan, green and olive; mid (0.38); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/hot-air-balloon": {
+   "sha256": "efc06f2ae7bae504aa8b13ca30dfc2ede7a0653694f4c1b33f3a78d7c41512f3",
+   "what": "hot air balloon",
+   "text": "hot air balloon (prop); red and light red; mid (0.54); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#B76B70",
+      "share": 0.72
+     },
+     {
+      "name": "light red",
+      "hex": "#FC988B",
+      "share": 0.28
+     }
+    ],
+    "brightness": 0.537,
+    "detail": 0.31,
+    "fill": 0.597,
+    "mean": "#CA7778",
+    "text": "red and light red; mid (0.54); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/house-tiles": {
+   "sha256": "b2e66d0a11f581a49e2dfadd78b046b1b875afe18c4722d73ddadff4d2e71855",
+   "what": "house tiles",
+   "text": "house tiles (tileset); dark red, red, black and brown; dark (0.25); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark red",
+      "hex": "#532924",
+      "share": 0.324
+     },
+     {
+      "name": "red",
+      "hex": "#9D4A3C",
+      "share": 0.318
+     },
+     {
+      "name": "black",
+      "hex": "#14121C",
+      "share": 0.169
+     },
+     {
+      "name": "brown",
+      "hex": "#6D5C54",
+      "share": 0.122
+     }
+    ],
+    "brightness": 0.252,
+    "detail": 0.31,
+    "fill": 0.145,
+    "mean": "#623832",
+    "text": "dark red, red, black and brown; dark (0.25); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/large-pine-tree": {
+   "sha256": "fc4e096e8f3ab0bd55b1a8c3b7044561efc224b603a624895b25f1b92646b29a",
+   "what": "large pine tree",
+   "text": "large pine tree (prop); olive, dark green and yellow; dark (0.36); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#726421",
+      "share": 0.559
+     },
+     {
+      "name": "dark green",
+      "hex": "#203620",
+      "share": 0.162
+     },
+     {
+      "name": "yellow",
+      "hex": "#92951F",
+      "share": 0.154
+     }
+    ],
+    "brightness": 0.357,
+    "detail": 0.371,
+    "fill": 0.385,
+    "mean": "#625F22",
+    "text": "olive, dark green and yellow; dark (0.36); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/large-tent": {
+   "sha256": "dd337e0bf018a4e6a8b1df4f61c8d3069d812003eafee4ece574f0c499a049d9",
+   "what": "large tent",
+   "text": "large tent (prop); orange, tan, white and cream; light (0.66); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#BE8C59",
+      "share": 0.285
+     },
+     {
+      "name": "tan",
+      "hex": "#CCB09B",
+      "share": 0.216
+     },
+     {
+      "name": "white",
+      "hex": "#EAE7DA",
+      "share": 0.199
+     },
+     {
+      "name": "cream",
+      "hex": "#DED6BF",
+      "share": 0.121
+     }
+    ],
+    "brightness": 0.656,
+    "detail": 0.517,
+    "fill": 0.722,
+    "mean": "#BEA38A",
+    "text": "orange, tan, white and cream; light (0.66); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/normal-bg-background-castle": {
+   "sha256": "8c9a11595fc2d5ccd9d3073e8a93d2b949bd0b07b25fae7afeaca165e74dd279",
+   "what": "normal bg background castle",
+   "text": "normal bg background castle (background); blue and grey-blue; mid (0.59); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#7D99BA",
+      "share": 0.903
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#92ABC8",
+      "share": 0.097
+     }
+    ],
+    "brightness": 0.593,
+    "detail": 0.0,
+    "fill": 0.034,
+    "mean": "#7F9BBB",
+    "text": "blue and grey-blue; mid (0.59); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/normal-bg-gandalfhardcore-background-layers-layer-1": {
+   "sha256": "93dbda4ce061615ae27ac4dcb9561fddece6bb1b36b2c83c8268301b19562ace",
+   "what": "normal bg gandalfhardcore background layers layer 1",
+   "text": "normal bg gandalfhardcore background layers layer 1 (background); dark green; dark (0.26); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#39462C",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.257,
+    "detail": 0.057,
+    "fill": 0.59,
+    "mean": "#39462C",
+    "text": "dark green; dark (0.26); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/normal-bg-gandalfhardcore-background-layers-layer-2": {
+   "sha256": "4c1c31e1e9e6bfa28e23dbc1725320fd1e6f44fb9fb872af297cf64c45b6848f",
+   "what": "normal bg gandalfhardcore background layers layer 2",
+   "text": "normal bg gandalfhardcore background layers layer 2 (background); dark green; dark (0.34); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#555C37",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.344,
+    "detail": 0.0,
+    "fill": 0.628,
+    "mean": "#555C37",
+    "text": "dark green; dark (0.34); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/normal-bg-gandalfhardcore-background-layers-layer-3": {
+   "sha256": "9a2dbb9024b00201ab22e7dce6f59190f982d2ecb984eb9443dde1bf48224842",
+   "what": "normal bg gandalfhardcore background layers layer 3",
+   "text": "normal bg gandalfhardcore background layers layer 3 (background); olive; mid (0.44); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#71734C",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.438,
+    "detail": 0.0,
+    "fill": 0.652,
+    "mean": "#71734C",
+    "text": "olive; mid (0.44); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/normal-bg-gandalfhardcore-background-layers-layer-4": {
+   "sha256": "3d74d9e74ba2c21464aada46786790df25ef4fe2704537cf9462d725bad1d6ff",
+   "what": "normal bg gandalfhardcore background layers layer 4",
+   "text": "normal bg gandalfhardcore background layers layer 4 (background); grey-blue; light (0.64); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "grey-blue",
+      "hex": "#8FA7C3",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.643,
+    "detail": 0.0,
+    "fill": 0.677,
+    "mean": "#8FA7C3",
+    "text": "grey-blue; light (0.64); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/normal-bg-gandalfhardcore-background-layers-layer-5": {
+   "sha256": "68c439355fab2d4f9f7d3d37075574c2c9d609479e4f719388b3eb995f3dee74",
+   "what": "normal bg gandalfhardcore background layers layer 5",
+   "text": "normal bg gandalfhardcore background layers layer 5 (background); light grey-teal and teal; very light (0.86); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey-teal",
+      "hex": "#C3EBF1",
+      "share": 0.775
+     },
+     {
+      "name": "teal",
+      "hex": "#8DC9D4",
+      "share": 0.168
+     }
+    ],
+    "brightness": 0.859,
+    "detail": 0.159,
+    "fill": 1.0,
+    "mean": "#B8E4EB",
+    "text": "light grey-teal and teal; very light (0.86); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/ores": {
+   "sha256": "9e443753d1bbd5708a9fd105272923417fcb1871eb7c619477cadd1006776adc",
+   "what": "ores",
+   "text": "ores (prop); dark grey, grey and brown; mid (0.40); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark grey",
+      "hex": "#454241",
+      "share": 0.257
+     },
+     {
+      "name": "grey",
+      "hex": "#7C7575",
+      "share": 0.232
+     },
+     {
+      "name": "brown",
+      "hex": "#624D3D",
+      "share": 0.108
+     }
+    ],
+    "brightness": 0.395,
+    "detail": 0.537,
+    "fill": 0.365,
+    "mean": "#6B645C",
+    "text": "dark grey, grey and brown; mid (0.40); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/other-tiles1": {
+   "sha256": "6cc9273afdc7c81018667929bbdb94bb80d841474b4e9e7d4d441f7f54bbc179",
+   "what": "other tiles1",
+   "text": "other tiles1 (tileset); brown and olive; dark (0.23); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#2A2620",
+      "share": 0.719
+     },
+     {
+      "name": "olive",
+      "hex": "#565A2D",
+      "share": 0.144
+     }
+    ],
+    "brightness": 0.234,
+    "detail": 0.408,
+    "fill": 0.983,
+    "mean": "#3E3D28",
+    "text": "brown and olive; dark (0.23); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/other-tiles2": {
+   "sha256": "80cf261aec85313495b6c875c66d7996ed31aa40218909673846f4fa0f99f64b",
+   "what": "other tiles2",
+   "text": "other tiles2 (tileset); black, olive, dark magenta and brown; dark (0.20); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#131116",
+      "share": 0.511
+     },
+     {
+      "name": "olive",
+      "hex": "#565A2D",
+      "share": 0.144
+     },
+     {
+      "name": "dark magenta",
+      "hex": "#2E1F26",
+      "share": 0.115
+     },
+     {
+      "name": "brown",
+      "hex": "#51473C",
+      "share": 0.092
+     }
+    ],
+    "brightness": 0.203,
+    "detail": 0.461,
+    "fill": 0.983,
+    "mean": "#363427",
+    "text": "black, olive, dark magenta and brown; dark (0.20); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/pine-forest": {
+   "sha256": "5b41215141d05320d170103b5d7634e54af583c858f82ed228ef3daf87b801a0",
+   "what": "pine forest",
+   "text": "pine forest (prop); brown and black; very dark (0.17); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#3F2A17",
+      "share": 0.638
+     },
+     {
+      "name": "black",
+      "hex": "#1B1209",
+      "share": 0.257
+     }
+    ],
+    "brightness": 0.165,
+    "detail": 0.199,
+    "fill": 0.295,
+    "mean": "#372815",
+    "text": "brown and black; very dark (0.17); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/pine-trees": {
+   "sha256": "fd51e97a987a46fbdf96f8cac274cd42ea24ad3e2e6315c04db5700a63839982",
+   "what": "pine trees",
+   "text": "pine trees (prop); brown, olive and red; dark (0.35); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#603C23",
+      "share": 0.253
+     },
+     {
+      "name": "olive",
+      "hex": "#545128",
+      "share": 0.141
+     },
+     {
+      "name": "red",
+      "hex": "#8B2C19",
+      "share": 0.123
+     }
+    ],
+    "brightness": 0.352,
+    "detail": 0.512,
+    "fill": 0.294,
+    "mean": "#6C5741",
+    "text": "brown, olive and red; dark (0.35); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/small-tent": {
+   "sha256": "f77d02398be645bfaae580295f6d0bc0fb9d9df8eb3fbb7a05a5ff3590734c55",
+   "what": "small tent",
+   "text": "small tent (prop); tan, brown and orange; mid (0.47); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "tan",
+      "hex": "#A68D6E",
+      "share": 0.566
+     },
+     {
+      "name": "brown",
+      "hex": "#734E2C",
+      "share": 0.202
+     },
+     {
+      "name": "orange",
+      "hex": "#B67C30",
+      "share": 0.105
+     }
+    ],
+    "brightness": 0.475,
+    "detail": 0.438,
+    "fill": 0.714,
+    "mean": "#937553",
+    "text": "tan, brown and orange; mid (0.47); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/snow-blizzard-frame-size-484x274": {
+   "sha256": "304eff0bdafe4f37ec2f7307d8518d222c20fcefd45595f72c2e53a7f0471f80",
+   "what": "snow blizzard frame size 484x274",
+   "text": "snow blizzard frame size 484x274 (effect); white; very light (1.00); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FFFFFF",
+      "share": 1.0
+     }
+    ],
+    "brightness": 1.0,
+    "detail": 0.0,
+    "fill": 0.012,
+    "mean": "#FFFFFF",
+    "text": "white; very light (1.00); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/sun": {
+   "sha256": "aaf325af06bff97d1e98ce33c3342a6629322eb5a55e7208e99fc35e185ac3eb",
+   "what": "sun",
+   "text": "sun (background); white; very light (0.99); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FFFFFF",
+      "share": 0.891
+     }
+    ],
+    "brightness": 0.992,
+    "detail": 0.045,
+    "fill": 0.754,
+    "mean": "#FFFEF0",
+    "text": "white; very light (0.99); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/tall-grass": {
+   "sha256": "5bed6444cbb4604994ce194cad6ef32dbfdef735c1e4184e3b5d8be777ad0a24",
+   "what": "tall grass",
+   "text": "tall grass (prop); green, olive, dark green and yellow; mid (0.43); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "green",
+      "hex": "#627D2F",
+      "share": 0.391
+     },
+     {
+      "name": "olive",
+      "hex": "#677226",
+      "share": 0.339
+     },
+     {
+      "name": "dark green",
+      "hex": "#48521C",
+      "share": 0.148
+     },
+     {
+      "name": "yellow",
+      "hex": "#959833",
+      "share": 0.122
+     }
+    ],
+    "brightness": 0.429,
+    "detail": 0.248,
+    "fill": 0.425,
+    "mean": "#66762A",
+    "text": "green, olive, dark green and yellow; mid (0.43); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/torch": {
+   "sha256": "cd75a2782cc89b566aa642c6e1471e443a00523f198ecc9bec7789d5c90c74f6",
+   "what": "torch",
+   "text": "torch (effect); orange, dark grey-magenta, brown and yellow; dark (0.36); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#F35E06",
+      "share": 0.306
+     },
+     {
+      "name": "dark grey-magenta",
+      "hex": "#22181D",
+      "share": 0.156
+     },
+     {
+      "name": "brown",
+      "hex": "#5C4031",
+      "share": 0.118
+     },
+     {
+      "name": "yellow",
+      "hex": "#FFD609",
+      "share": 0.095
+     }
+    ],
+    "brightness": 0.358,
+    "detail": 0.711,
+    "fill": 0.102,
+    "mean": "#94501D",
+    "text": "orange, dark grey-magenta, brown and yellow; dark (0.36); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/tree1": {
+   "sha256": "c394493acd24c69c8df6496b959846a73babb6ce90bcec422973ada94c14ba85",
+   "what": "tree1",
+   "text": "tree1 (prop); dark green, green and black; dark (0.22); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#163B0D",
+      "share": 0.58
+     },
+     {
+      "name": "green",
+      "hex": "#476922",
+      "share": 0.227
+     },
+     {
+      "name": "black",
+      "hex": "#091708",
+      "share": 0.096
+     }
+    ],
+    "brightness": 0.22,
+    "detail": 0.222,
+    "fill": 0.433,
+    "mean": "#254214",
+    "text": "dark green, green and black; dark (0.22); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/tree2": {
+   "sha256": "d468fae0fac27a4a5292273c11ac288f9ff392e13ddf323850836cae5508e546",
+   "what": "tree2",
+   "text": "tree2 (prop); dark green, green and black; dark (0.22); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "dark green",
+      "hex": "#163C0D",
+      "share": 0.561
+     },
+     {
+      "name": "green",
+      "hex": "#476922",
+      "share": 0.225
+     },
+     {
+      "name": "black",
+      "hex": "#091708",
+      "share": 0.084
+     }
+    ],
+    "brightness": 0.222,
+    "detail": 0.222,
+    "fill": 0.435,
+    "mean": "#284115",
+    "text": "dark green, green and black; dark (0.22); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/tree3": {
+   "sha256": "eaf470f50065cea291744d816446658543a52144ad49cb576a039d706a482a8d",
+   "what": "tree3",
+   "text": "tree3 (prop); red and orange; dark (0.36); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#942D1B",
+      "share": 0.469
+     },
+     {
+      "name": "orange",
+      "hex": "#D1743D",
+      "share": 0.405
+     }
+    ],
+    "brightness": 0.359,
+    "detail": 0.374,
+    "fill": 0.433,
+    "mean": "#A34B2A",
+    "text": "red and orange; dark (0.36); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/tree4": {
+   "sha256": "9034d9e23b1e2c76f85aaf37081ac5ea3de0cb18f3b421eb72186828cfa28c4b",
+   "what": "tree4",
+   "text": "tree4 (prop); blue, grey-blue and light grey-blue; light (0.64); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#7EA1C0",
+      "share": 0.469
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#A9C8DD",
+      "share": 0.185
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#C3D7E3",
+      "share": 0.15
+     }
+    ],
+    "brightness": 0.644,
+    "detail": 0.529,
+    "fill": 0.433,
+    "mean": "#90A8BC",
+    "text": "blue, grey-blue and light grey-blue; light (0.64); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/weeping-willow1": {
+   "sha256": "d2ab695f220c1acae189bc61d0de6774d5cd01a59480cc432bf1b41aadec703e",
+   "what": "weeping willow1",
+   "text": "weeping willow1 (prop); olive and dark green; dark (0.31); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "olive",
+      "hex": "#656D23",
+      "share": 0.484
+     },
+     {
+      "name": "dark green",
+      "hex": "#2E3E17",
+      "share": 0.395
+     }
+    ],
+    "brightness": 0.314,
+    "detail": 0.28,
+    "fill": 0.575,
+    "mean": "#4C561E",
+    "text": "olive and dark green; dark (0.31); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/weeping-willow2": {
+   "sha256": "ff5e763d4290617b6ac023223638fa2acef845eb4e8d609367f116497f4e3215",
+   "what": "weeping willow2",
+   "text": "weeping willow2 (prop); orange and red; mid (0.46); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#CC783E",
+      "share": 0.674
+     },
+     {
+      "name": "red",
+      "hex": "#913522",
+      "share": 0.196
+     }
+    ],
+    "brightness": 0.457,
+    "detail": 0.369,
+    "fill": 0.575,
+    "mean": "#B56839",
+    "text": "orange and red; mid (0.46); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/weeping-willow3": {
+   "sha256": "8af7c304d34dc95a3baff7f94a5f266f0bc476a4316b03b4e07768318ecf09d3",
+   "what": "weeping willow3",
+   "text": "weeping willow3 (prop); blue, grey-blue and white; light (0.65); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#6A8EAF",
+      "share": 0.41
+     },
+     {
+      "name": "grey-blue",
+      "hex": "#A9C8DD",
+      "share": 0.286
+     },
+     {
+      "name": "white",
+      "hex": "#DBEAF1",
+      "share": 0.214
+     }
+    ],
+    "brightness": 0.652,
+    "detail": 0.466,
+    "fill": 0.575,
+    "mean": "#90AABF",
+    "text": "blue, grey-blue and white; light (0.65); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/wheat": {
+   "sha256": "cf55c4194085b756abb8d8c577f2840459a89d6a1b26bd371f7375eeaa8e3e36",
+   "what": "wheat",
+   "text": "wheat (prop); brown, tan, dark green and green; mid (0.44); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#6D4123",
+      "share": 0.351
+     },
+     {
+      "name": "tan",
+      "hex": "#927A5F",
+      "share": 0.144
+     },
+     {
+      "name": "dark green",
+      "hex": "#425729",
+      "share": 0.139
+     },
+     {
+      "name": "green",
+      "hex": "#91BA44",
+      "share": 0.124
+     }
+    ],
+    "brightness": 0.437,
+    "detail": 0.583,
+    "fill": 0.194,
+    "mean": "#81703D",
+    "text": "brown, tan, dark green and green; mid (0.44); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/winter-bg-background-castle": {
+   "sha256": "a36bd329e5cfa1c442fe4dc31bc77bd390bd90ae5f39cdfcc197a2d249f7629c",
+   "what": "winter bg background castle",
+   "text": "winter bg background castle (background); white; very light (0.98); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#F5FAFF",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.978,
+    "detail": 0.0,
+    "fill": 0.034,
+    "mean": "#F5FAFF",
+    "text": "white; very light (0.98); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/winter-bg-gandalfhardcore-background-layers-layer-1": {
+   "sha256": "4441343b8c9c5f75a57c1315c8605c3af9ea49f13145d548544a7c579b8d9c0f",
+   "what": "winter bg gandalfhardcore background layers layer 1",
+   "text": "winter bg gandalfhardcore background layers layer 1 (background); grey-blue and light grey-blue; light (0.78); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "grey-blue",
+      "hex": "#A9C8E0",
+      "share": 0.73
+     },
+     {
+      "name": "light grey-blue",
+      "hex": "#B9D4E7",
+      "share": 0.27
+     }
+    ],
+    "brightness": 0.778,
+    "detail": 0.049,
+    "fill": 0.59,
+    "mean": "#ADCBE2",
+    "text": "grey-blue and light grey-blue; light (0.78); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/winter-bg-gandalfhardcore-background-layers-layer-2": {
+   "sha256": "7cba57aa2bd90f21c6ad03743bec0e0b452bcd02f356355da4e6b5e17407be92",
+   "what": "winter bg gandalfhardcore background layers layer 2",
+   "text": "winter bg gandalfhardcore background layers layer 2 (background); white; very light (0.83); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#C9D5E7",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.83,
+    "detail": 0.0,
+    "fill": 0.628,
+    "mean": "#C9D5E7",
+    "text": "white; very light (0.83); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/winter-bg-gandalfhardcore-background-layers-layer-3": {
+   "sha256": "8621e6415e6d17f0d7f46bef1add665d179ec7ba6bcdf01f47b844e2251511ee",
+   "what": "winter bg gandalfhardcore background layers layer 3",
+   "text": "winter bg gandalfhardcore background layers layer 3 (background); white; very light (0.94); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#ECF1F6",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.942,
+    "detail": 0.0,
+    "fill": 0.652,
+    "mean": "#ECF1F6",
+    "text": "white; very light (0.94); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/winter-bg-gandalfhardcore-background-layers-layer-4": {
+   "sha256": "bee6cf91760e2d52490a2b0cdcb51f944bc60782906e3c861684d06c4a9764cb",
+   "what": "winter bg gandalfhardcore background layers layer 4",
+   "text": "winter bg gandalfhardcore background layers layer 4 (background); white; very light (1.00); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "white",
+      "hex": "#FFFFFF",
+      "share": 1.0
+     }
+    ],
+    "brightness": 1.0,
+    "detail": 0.0,
+    "fill": 0.677,
+    "mean": "#FFFFFF",
+    "text": "white; very light (1.00); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-platformer/winter-bg-gandalfhardcore-background-layers-layer-5": {
+   "sha256": "68c439355fab2d4f9f7d3d37075574c2c9d609479e4f719388b3eb995f3dee74",
+   "what": "winter bg gandalfhardcore background layers layer 5",
+   "text": "winter bg gandalfhardcore background layers layer 5 (background); light grey-teal and teal; very light (0.86); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "light grey-teal",
+      "hex": "#C3EBF1",
+      "share": 0.775
+     },
+     {
+      "name": "teal",
+      "hex": "#8DC9D4",
+      "share": 0.168
+     }
+    ],
+    "brightness": 0.859,
+    "detail": 0.159,
+    "fill": 1.0,
+    "mean": "#B8E4EB",
+    "text": "light grey-teal and teal; very light (0.86); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  }
+ },
+ "tiles": {
+  "gandalf-seasons/ground": {
+   "sha256": "6726e028ce6041f951dbc1295b6bbb8b0dd0ca26a4ae2345e575b98573b6ee9d",
+   "what": "solid earth below the surface",
+   "text": "solid earth below the surface (tile); brown; very dark (0.12); flat, no detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#221F19",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.122,
+    "detail": 0.0,
+    "fill": 1.0,
+    "mean": "#221F19",
+    "text": "brown; very dark (0.12); flat, no detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalf-seasons/ground_top": {
+   "sha256": "7a6357a8849750dbd379ac2d3f2aef85bba3dd7e73ffdbf370d9bf7418937af5",
+   "what": "grass-topped ground surface",
+   "text": "grass-topped ground surface (tile); brown and olive; dark (0.20); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#23201A",
+      "share": 0.753
+     },
+     {
+      "name": "olive",
+      "hex": "#565A2D",
+      "share": 0.142
+     }
+    ],
+    "brightness": 0.204,
+    "detail": 0.408,
+    "fill": 1.0,
+    "mean": "#353621",
+    "text": "brown and olive; dark (0.20); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalf-seasons/platform": {
+   "sha256": "687cf53cb8bbedecf29893dedf2fe556e1ffe9f9cd1fb750caeb25174252b4fe",
+   "what": "floating one-way platform",
+   "text": "floating one-way platform (tile); brown and olive; dark (0.22); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#28241E",
+      "share": 0.733
+     },
+     {
+      "name": "olive",
+      "hex": "#565A2D",
+      "share": 0.153
+     }
+    ],
+    "brightness": 0.222,
+    "detail": 0.408,
+    "fill": 0.926,
+    "mean": "#3A3A25",
+    "text": "brown and olive; dark (0.22); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalf-seasons/spikes": {
+   "sha256": "42100768504d9f9e0df15d3b8dad0ce0785530b1e33be7d2ee6961f4d44abb32",
+   "what": "floor spikes hazard",
+   "text": "floor spikes hazard (tile); brown and tan; dark (0.34); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "brown",
+      "hex": "#3E362D",
+      "share": 0.686
+     },
+     {
+      "name": "tan",
+      "hex": "#B39A86",
+      "share": 0.314
+     }
+    ],
+    "brightness": 0.342,
+    "detail": 0.483,
+    "fill": 0.05,
+    "mean": "#635549",
+    "text": "brown and tan; dark (0.34); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  }
+ }
+}

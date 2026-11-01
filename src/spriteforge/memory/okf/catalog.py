@@ -8,9 +8,9 @@ and skin entries from before games were written from the prompt).
 """
 
 from spriteforge.game.actors import ANIM_SOURCES, load_actors
-from spriteforge.game.art import reference_assets, whole_objects
+from spriteforge.game.art import actor_sheet, reference_assets, whole_objects
 from spriteforge.game.tilesets import load_tilesets
-from spriteforge.library.store import library_root, load_packs
+from spriteforge.library.store import library_root, load_packs, search, tile_descriptions
 
 from .models import Entry, Metadata
 from .store import KnowledgeStore
@@ -147,20 +147,33 @@ Animation/tile cells: {", ".join(grid) or "single images"}. Files live under
     )
 
 
-def _asset_line(a) -> str:
+def _asset_line(a, notes: dict | None = None) -> str:
     grid = f"{a.cell[0]}x{a.cell[1]}" + (f" x{a.frames}" if a.frames > 1 else "")
-    return f"`{a.id}` {a.name} ({grid})"
+    note = (notes or {}).get(a.id, {})
+    shows = f": {note['what']}" if note.get("described_by", "measured") != "measured" else ""
+    return f"`{a.id}` {a.name} ({grid}){shows}"
+
+
+def described(note: dict | None) -> str:
+    """' — <what the image shows>; looks <measured>' from `spriteforge library describe`."""
+    if not note or not note.get("described_by"):
+        return ""
+    parts = [note["description"].rstrip(".")] if note["described_by"] != "measured" else []
+    if note.get("look"):
+        parts.append(f"looks {note['look']}")
+    return f" — {'; '.join(parts)}" if parts else ""
 
 
 def pack_contents(pack) -> str:
     """Every asset by category, so an agent can see that a pack has, say, bonfires or icons."""
+    notes = {a["id"]: a for a in search()}
     lines = []
     for cat in sorted({a.category for a in pack.assets}):
         items = [a for a in pack.assets if a.category == cat]
         shown = items if len(items) <= 40 else items[:40]
         more = f" ... and {len(items) - 40} more" if len(items) > 40 else ""
         lines.append(
-            f"* **{cat}** ({len(items)}): " + "; ".join(_asset_line(a) for a in shown) + more
+            f"* **{cat}** ({len(items)}): " + "; ".join(_asset_line(a, notes) for a in shown) + more
         )
     return "\n".join(lines)
 
@@ -180,9 +193,11 @@ def library_entry() -> Entry:
             + f" | {p.usage} | {'yes' if p.ai_allowed else '**no**'} |"
         )
     actors = load_actors() if packs else []
+    notes = {a["id"]: a for a in search()} if packs else {}
     actor_lines = "\n".join(
         f"* `{a.key}` ({CAMERA[a.side()]} {'hero' if a.category == 'character' else 'enemy'}): "
         + ", ".join(sorted(a.anims))
+        + described(notes.get(actor_sheet(a)))
         for a in actors
     )
     objects = whole_objects() if packs else {}
@@ -191,11 +206,18 @@ def library_entry() -> Entry:
         + (f", {o['frames']} frames" if o["frames"] > 1 else "")
         + ("" if o.get("ai_allowed", True) else ", no AI")
         + ")"
+        + described(notes.get(i))
         for i, o in sorted(objects.items())
     )
     tilesets = load_tilesets() if packs else []
+    tile_notes = tile_descriptions() if packs else {}
     tile_lines = "\n".join(
-        f"* `{ts['id']}` ({ts['camera']}, {ts['tile_size']} px): " + ", ".join(ts["tiles"])
+        f"* `{ts['id']}` ({ts['camera']}, {ts['tile_size']} px): "
+        + ", ".join(ts["tiles"])
+        + "".join(
+            f"\n  * `{ts['id']}/{n}` {t['what']}" + described(tile_notes.get(f"{ts['id']}/{n}"))
+            for n, t in ts["tiles"].items()
+        )
         for ts in tilesets
     )
     refs = sorted({a["pack"] for a in reference_assets().values()}) if packs else []

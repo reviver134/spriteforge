@@ -1,0 +1,156 @@
+{
+ "pack": "gandalfhardcore-hp-bar",
+ "assets": {
+  "gandalfhardcore-hp-bar/blue-bar": {
+   "sha256": "de68f56f51235ec80871bf2723cfa5e63d2cb01816d2b4f5ce875aae659386f1",
+   "what": "blue bar",
+   "text": "blue bar (ui); blue; mid (0.43); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "blue",
+      "hex": "#267AD2",
+      "share": 1.0
+     }
+    ],
+    "brightness": 0.433,
+    "detail": 0.315,
+    "fill": 1.0,
+    "mean": "#267AD2",
+    "text": "blue; mid (0.43); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-hp-bar/hp-bar": {
+   "sha256": "62f9f83f992d6dc65ae3c7cb9780d77f871b7ed5283228346f31d6b05a0db4f5",
+   "what": "hp bar",
+   "text": "hp bar (ui); black, dark grey and dark purple; dark (0.23); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "black",
+      "hex": "#0A070D",
+      "share": 0.363
+     },
+     {
+      "name": "dark grey",
+      "hex": "#413B42",
+      "share": 0.245
+     },
+     {
+      "name": "dark purple",
+      "hex": "#1C1522",
+      "share": 0.175
+     }
+    ],
+    "brightness": 0.226,
+    "detail": 0.56,
+    "fill": 0.301,
+    "mean": "#3D383D",
+    "text": "black, dark grey and dark purple; dark (0.23); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-hp-bar/hp-bar-preview": {
+   "sha256": "43bf07c77b8ddb0a988b2a9a7109a6fc22c4eea2e5971c9e224a620c850edeb7",
+   "what": "hp bar preview",
+   "text": "hp bar preview (ui); red, black, dark grey and dark purple; dark (0.21); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#A4040D",
+      "share": 0.381
+     },
+     {
+      "name": "black",
+      "hex": "#0A070D",
+      "share": 0.187
+     },
+     {
+      "name": "dark grey",
+      "hex": "#413B42",
+      "share": 0.126
+     },
+     {
+      "name": "dark purple",
+      "hex": "#1C1522",
+      "share": 0.09
+     }
+    ],
+    "brightness": 0.209,
+    "detail": 0.435,
+    "fill": 0.585,
+    "mean": "#672730",
+    "text": "red, black, dark grey and dark purple; dark (0.21); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-hp-bar/red-bar": {
+   "sha256": "881427888681e1a8296382ec61cfa4b8b3e2f320a9c2118a923ec54c8f7e9c60",
+   "what": "red bar",
+   "text": "red bar (ui); red and dark red; very dark (0.15); low-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "red",
+      "hex": "#A7060E",
+      "share": 0.92
+     },
+     {
+      "name": "dark red",
+      "hex": "#430000",
+      "share": 0.08
+     }
+    ],
+    "brightness": 0.151,
+    "detail": 0.093,
+    "fill": 0.633,
+    "mean": "#9F050D",
+    "text": "red and dark red; very dark (0.15); low-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  },
+  "gandalfhardcore-hp-bar/yellow-bar": {
+   "sha256": "78e1c14c4cb4a397d5ac0490574def472dad2e4e7742e373d836d555f29e5575",
+   "what": "yellow bar",
+   "text": "yellow bar (ui); orange, light yellow and brown; light (0.65); high-contrast detail",
+   "view": "unknown",
+   "look": {
+    "colours": [
+     {
+      "name": "orange",
+      "hex": "#D69341",
+      "share": 0.453
+     },
+     {
+      "name": "light yellow",
+      "hex": "#FEFF80",
+      "share": 0.305
+     },
+     {
+      "name": "brown",
+      "hex": "#904213",
+      "share": 0.242
+     }
+    ],
+    "brightness": 0.645,
+    "detail": 0.653,
+    "fill": 1.0,
+    "mean": "#D1A049",
+    "text": "orange, light yellow and brown; light (0.65); high-contrast detail"
+   },
+   "by": "measured",
+   "status": "measured"
+  }
+ },
+ "tiles": {}
+}

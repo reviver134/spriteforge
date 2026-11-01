@@ -763,3 +763,9 @@ Plan: `new_plan.md`; details and live results: `docs/milestone-10-art-and-qa.md`
   on the G4 report with an **Apply** button (a targeted rebuild). The review and its fixes
   stay within `game.review_cost_cap` ($0.08): a costlier review leaves room for fewer fixes.
   `game.review: false` turns it off.
+* Library art by its looks: `python -m spriteforge library describe` gives every library image
+  a measured look (colours, brightness, detail) and, for packs that allow AI use, a Muse Spark
+  vision description (`assets/library/descriptions/`). The Art Director's list, the library
+  MCP tools and `catalog/` show them; code recolours a library tile or sprite whose colour is
+  far from the one the design names, sends a flat tile to Muse when the design asks for
+  bricks or moss, and draws backgrounds flat, from text only, unless a real backdrop exists.
