@@ -159,6 +159,39 @@ def test_qa_regression_across_versions(tmp_path):
     assert read(store, ident, "game/v2/code.json") == read(store, ident, "game/v1/code.json")
 
 
+def test_story_bible_and_game_database_through_the_gates(tmp_path):
+    """G2 shows the story bible with the design; the game database holds the canon, the human's
+    approvals promote it, and builds add the characters' locked art."""
+    from spriteforge.game.gamedb import open_db
+
+    store, ident = to_design_gate(tmp_path)
+    ids = lambda: {a.name: a.id for a in store.artifacts(ident)}
+    gate = Gates(store).pending(ident)
+    assert ids()["game/design/v1-story.json"] in gate.artifacts_to_show
+    story = read(store, ident, "game/design/v1-story.json")
+    assert [c["entity"] for c in story["characters"]][:1] == ["hero"] and story["canon"]
+    root = tmp_path / "runs" / ident / "game" / "db"
+    assert (root / "story" / "overview.md").is_file() and (
+        root / "characters" / "hero.md"
+    ).is_file()
+
+    submit(store, ident, "Make the session shorter")  # design v2 brings story v2
+    gate = Gates(store).pending(ident)
+    assert ids()["game/design/v2-story.json"] in gate.artifacts_to_show
+
+    submit(store, ident)  # approve: the database is promoted, then build v1 adds the art
+    db = open_db(root, store, ident)
+    tiers = {e.id: e.metadata.trust_tier for e in db.scan()[0]}
+    assert tiers["story/overview"] == tiers["story/canon"] == "human-reviewed"
+    assert tiers["characters/hero"] == tiers["levels/level-1"] == "unverified"
+    assert (root / "characters" / "hero.png").is_file()
+    report = read(store, ident, "game/v1/report.json")
+    assert report["game_db"]["entries"] == len(tiers) >= 9
+
+    submit(store, ident)  # approve G4: everything the human saw is human-reviewed
+    assert {e.metadata.trust_tier for e in db.scan()[0]} == {"human-reviewed"}
+
+
 def test_identical_requests_come_from_the_cache_and_still_lock(tmp_path):
     """A second run in the same workspace makes the same Muse requests: every image comes
     from <workspace>/cache/muse-image with no call, and a rebuild locks it like any art."""

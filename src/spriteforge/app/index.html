@@ -69,6 +69,16 @@ async function renderArtifact(a,container){
  list('Entities',d.entities.map(e=>e.id+' ('+e.role+', '+e.width+'x'+e.height+'): '+e.look+' — '+e.behaviour));
  list('Checks the playtest will verify',d.checks.map(c=>c.event+' ≥ '+c.min_count+(c.by_second?' by '+c.by_second+' s':'')+' — '+c.description));
  fig.append(box);cap.textContent='Game design doc · '+a.name;}
+ else if(a.mime==='application/json'&&/^game\/design\/v\d+-story\.json$/.test(a.name)){const s=await(await fetch('/api/artifacts/'+a.id)).json();const box=document.createElement('div');
+ const list=(title,items)=>{const t=document.createElement('h4');t.textContent=title;const ul=document.createElement('ul');for(const i of items){const li=document.createElement('li');li.textContent=i;ul.append(li);}box.append(t,ul);};
+ const h=document.createElement('h3');h.textContent=s.title+' — story bible';box.append(h);
+ box.append(Object.assign(document.createElement('p'),{textContent:s.logline}),Object.assign(document.createElement('p'),{textContent:s.premise}));
+ list('Basics',['Setting: '+s.setting,'Tone: '+s.tone,'Themes: '+(s.themes.join(', ')||'-')]);
+ list('Characters',s.characters.map(c=>c.name+' ('+c.role+', '+c.entity+'): '+c.look+' — '+c.personality+'. Goal: '+c.goal+(c.relationships?' · '+c.relationships:'')));
+ list('Locations',s.locations.map(l=>l.name+': '+l.description));
+ list('Arc (beat 1 is this game)',s.arc.map((b,i)=>(i+1)+'. '+b));
+ list('Canon — later levels must keep these',s.canon);
+ fig.append(box);cap.textContent='Story bible: the canon every later level is written from · '+a.name;}
  else if(a.mime==='application/json'&&/^game\/v\d+\/report\.json$/.test(a.name)){const r=await(await fetch('/api/artifacts/'+a.id)).json();const box=document.createElement('div');
  if(r.play){const play=document.createElement('a');play.href=r.play;play.target='_blank';play.rel='noopener';play.textContent='▶ Play this build in a new tab';box.append(play);}
  const ul=document.createElement('ul');const li=t=>{const x=document.createElement('li');x.textContent=t;ul.append(x);};
@@ -78,6 +88,7 @@ async function renderArtifact(a,container){
  for(const x of r.art)li('art '+x.entity+': '+x.source);
  for(const w of r.warnings||[])li('⚠ '+w);
  if(r.revision)li('Feedback applied: design «'+(r.revision.design_changes||'-')+'» · art '+(r.revision.art_changes.map(c=>c.entity).join(', ')||'-')+' · code «'+(r.revision.code_instructions||'-')+'»');
+ if(r.game_db)li('Game database (story, characters with their art, world, gameplay, art, levels): '+r.game_db.entries+' entries in '+r.game_db.path);
  li('Model calls: '+r.model_calls.chat+' Spark, '+r.model_calls.image+' Muse Image, about $'+r.model_calls.estimated_cost_usd);
  box.append(ul);if(r.art_review)box.append(artReview(r.art_review,container.id==='gate-artifacts'));if(r.qa)box.append(qaSection(r.qa));const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Full report.json';pre.textContent=JSON.stringify(r,null,2);details.append(summary,pre);box.append(details);fig.append(box);cap.textContent='Build and playtest report · '+a.name;}
  else if(a.mime==='text/x-python'){const link=document.createElement('a');link.href='/api/artifacts/'+a.id;link.download=a.name.split('/').pop();link.textContent='⬇ Download '+link.download+' (QA tests: pytest + Playwright; put it in the build’s tests/ folder)';fig.append(link);cap.textContent='Exported QA tests · '+a.name;}

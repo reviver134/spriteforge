@@ -263,7 +263,7 @@ def test_make_game_offline_end_to_end(tmp_path):
         "consistency", "readability", "perspective", "scale", "palette"}  # fmt: skip
     assert {"sheet.png", "sheet-4x.png", "shot-1.png", "shot-2.png", "shot-3.png"} <= {
         p.name for p in (out / "review").iterdir()}  # fmt: skip
-    assert result.report["model_calls"]["chat"] == 5  # design, QA tests, art plan, code, review
+    assert result.report["model_calls"]["chat"] == 6  # design, story, QA, art plan, code, review
     assert result.report["qa"]["failed"] == 0 and result.report["qa"]["passed"] >= 5
 
 
@@ -294,7 +294,7 @@ def test_repair_loop_feeds_failures_back(tmp_path, budget):
     scripted.chat = spy
     cfg = load_config()
     cfg.game.review = False  # scripted answers cover the Programmer only (review: test_art_review)
-    cfg.game.qa = False  # (QA tests: test_qa_tests)
+    cfg.game.qa = cfg.game.story = False  # (QA tests: test_qa_tests)
     result = make_game(
         "arena",
         tmp_path / "g",
@@ -329,7 +329,7 @@ def test_playtest_reports_missing_events(tmp_path, budget):
         ],
     )
     cfg = load_config()
-    cfg.game.max_repairs, cfg.game.review, cfg.game.qa = 1, False, False
+    cfg.game.max_repairs, cfg.game.review, cfg.game.qa, cfg.game.story = 1, False, False, False
     result = make_game(
         "arena", tmp_path / "g", cfg, mock=True, provider=scripted, record=False, log=lambda m: None
     )
@@ -360,8 +360,9 @@ def test_spark_schemas_are_strict():
 
     from spriteforge.game.qa import QATests
     from spriteforge.game.revision import Revision
+    from spriteforge.game.story import StoryBible
 
-    for schema in (GameDesign, ArtPlan, GameCode, QATests, Revision):
+    for schema in (GameDesign, ArtPlan, GameCode, QATests, Revision, StoryBible):
         assert problems(schema.model_json_schema()) == [], schema.__name__
 
 

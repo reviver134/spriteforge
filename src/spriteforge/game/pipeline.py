@@ -1,6 +1,7 @@
 """Prompt -> playable game: design, art (library first, else Muse Image), code, playtest, repair.
 
     design.json/.md     Game Designer (Muse Spark): rules, entities, checks
+    story.json/.md      Game Designer: the story bible (characters, world, arc, canon)
     art-plan.json       Art Director (Muse Spark): a library pick or a Muse request per entity
     art.json, art.png   what each entity actually got (library / tile set / Muse / placeholder)
     attempts/N/         each Programmer answer (files + notes) and its static/playtest report
@@ -13,6 +14,8 @@
                         their screenshots, build/tests/test_game_qa.py the Playwright export
     playtest.json       the final report; poster.png (+ demo.mp4 with ffmpeg)
     report.json         summary: who decided, sources, warnings, attempts, model calls and cost
+    db/                 the game database: the canon as OKF entries (story, characters with
+                        their art, world, gameplay, art, level 1) for later designs
     run.sqlite3         the budget ledger for this build (call caps and cost estimate)
 
 Used by `spriteforge game make` (no gates). Every model call goes through `Budget`; `--mock`
@@ -79,6 +82,7 @@ from .codegen import (
     static_check,
 )
 from .design import GameDesign, design_markdown, design_prompt, fallback_design
+from .gamedb import open_db, sync_build
 from .image_cache import ImageCache
 from .playtest import failure_summary, playtest, review_times
 from .qa import (
@@ -93,6 +97,14 @@ from .qa import (
     write_export,
 )
 from .record import record_game
+from .story import (
+    StoryBible,
+    fallback_story,
+    fit_story,
+    story_markdown,
+    story_prompt,
+    story_revision_prompt,
+)
 
 
 def role_prompt(role: str) -> str:
@@ -214,6 +226,26 @@ def write_design(models: Models, request: str) -> GameDesign:
     return models.ask(
         "Game Designer", design_prompt(request), GameDesign, fallback_design(request), "design"
     )
+
+
+def write_story(models: Models, design: GameDesign, request: str) -> tuple[StoryBible, list[str]]:
+    """The Game Designer's story bible for a design, fitted to it (notes on repairs)."""
+    if not models.cfg.game.story:
+        return fit_story(fallback_story(design), design)
+    story = models.ask("Game Designer", story_prompt(design, request), StoryBible,
+                       fallback_story(design), "story")  # fmt: skip
+    return fit_story(story, design)
+
+
+def revise_story(
+    models: Models, story: StoryBible, design: GameDesign, feedback: str
+) -> tuple[StoryBible, list[str]]:
+    """The story revised for a revised design (the offline stand-in keeps it as it was)."""
+    if not models.cfg.game.story:
+        return fit_story(story, design)
+    revised = models.ask("Game Designer", story_revision_prompt(story, design, feedback),
+                         StoryBible, story, "story")  # fmt: skip
+    return fit_story(revised, design)
 
 
 def write_qa_tests(models: Models, design: GameDesign) -> tuple[QATests, str]:
@@ -691,6 +723,11 @@ def make_game(
         f"  {design.title}: {len(design.entities)} entities, {len(design.checks)} checks, "
         f"{design.session_seconds} s session"
     )
+    log("story: Game Designer is writing the story bible")
+    story, story_notes = write_story(models, design, request)
+    save_json(out / "story.json", story.model_dump())
+    (out / "story.md").write_text(story_markdown(story), encoding="utf-8")
+    log(f"  {story.logline} ({len(story.characters)} characters)")
     qa_tests, qa_note = None, ""
     if cfg.game.qa:
         log("qa: QA Playtester is writing tests from the design")
@@ -735,6 +772,11 @@ def make_game(
         qa = save_qa(out, outcome, qa_tests.tests, cfg.game.playtest_fps, qa_note)
         log(f"  QA: {qa['passed']} of {qa['passed'] + qa['failed']} tests pass")
 
+    db = open_db(out / "db", store, run.id)
+    sync_build(db, story, design, art, 1, {**outcome.report, "qa": qa},
+               {"story": "story.json", "design": "design.json", "build": "report.json"})  # fmt: skip
+    game_db = {"path": str(db.root), "entries": len(db.scan()[0]), "notes": story_notes}
+
     recording = None
     if outcome.build and record:
         log("record: capturing the autoplay")
@@ -753,6 +795,7 @@ def make_game(
         "attempts": outcome.attempts,
         "art_review": review.report if review else None,
         "qa": qa,
+        "game_db": game_db,
         "recording": recording.summary if recording else None,
         "model_calls": call_summary(store, run.id),
     }

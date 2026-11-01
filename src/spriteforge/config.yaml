@@ -40,6 +40,9 @@ game:
   # key presses after the bot playtest; failures join the repairs; exported per build as
   # build/tests/test_game_qa.py (pytest + Playwright).
   qa: true
+  # Story bible (Game Designer, one Spark call per design version, shown at G2) and the game
+  # database: the game's canon as OKF entries, read by later level and menu design.
+  story: true
   max_code_kb: 200
   playtest_fps: 30
   record_seconds: 20
@@ -81,6 +84,7 @@ llm:
     review: max # Art Reviewer (vision): the strongest setting Spark accepts
     describe: low # Librarian describing library images (spriteforge library describe)
     qa: high # QA Playtester writing tests from the design
+    story: high # Game Designer writing the story bible
 budget:
   max_image_calls: 150
   max_calls_per_model: 200

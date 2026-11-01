@@ -775,3 +775,16 @@ Plan: `new_plan.md`; details and live results: `docs/milestone-10-art-and-qa.md`
   feedback can drop one ("ignore the restart test"). Each build exports them as
   `build/tests/test_game_qa.py`: `pytest build/tests` (pytest + Playwright). `game.qa: false`
   turns them off.
+
+# Milestone 11: the game database (canon for levels and menus)
+
+Plan and results: `docs/milestone-11-game-database.md`. The Game Designer writes a story bible
+with each design (characters tied to the design's entities, world, arc, canon), shown at G2.
+Every game keeps its canon in its own OKF corpus, `runs/<id>/game/db/` (`out/db/` for `game
+make`): story, characters with their locked art (PNG), world, gameplay, art and levels, written
+from the artifacts and promoted to human-reviewed when you approve a gate. Later level and menu
+design reads a short context pack from it instead of the code:
+
+```bash
+python -m spriteforge game db workspace/runs/<id> --focus "level 2 in the ice caves"
+```

@@ -3,7 +3,7 @@
 import hashlib
 import re
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import yaml
 from pydantic import ValidationError
@@ -27,11 +27,36 @@ CATEGORIES = {
     "user-prefs",
     "catalog",  # asset packs, tile sets and actors mirrored by `memory sync-catalog`
 }
+# Binary files a corpus may hold next to its entries (a game database's character images).
+RESOURCE_SUFFIXES = {".png"}
+
+
+def check_resource(name: str) -> str:
+    path = PurePosixPath(name)
+    if (
+        not name
+        or "\\" in name
+        or path.is_absolute()
+        or str(path) != name
+        or any(p in {".", ".."} or p.startswith(".") for p in path.parts)
+        or path.suffix.lower() not in RESOURCE_SUFFIXES
+    ):
+        raise ValueError(f"Resource must be a safe relative .png path: {name!r}")
+    return name
 
 
 class KnowledgeStore:
-    def __init__(self, root: Path, events: EventStore | None = None, run_id: str | None = None):
+    def __init__(
+        self,
+        root: Path,
+        events: EventStore | None = None,
+        run_id: str | None = None,
+        categories: set[str] | None = None,
+    ):
+        """`categories`: the top-level folders indexes always list (a game database has its
+        own: story, characters, ...)."""
         self.root = root.expanduser().resolve()
+        self.categories = set(CATEGORIES if categories is None else categories)
         git.init(self.root)
         self.events = events or EventStore(self.root.parent / "state.sqlite3")
         if run_id is None:
@@ -182,7 +207,7 @@ class KnowledgeStore:
             check_id(directory + "/_entry")
         entries, _ = self.scan()
         visible = [e for e in entries if self.permitted(e, scopes)]
-        dirs = CATEGORIES - ({"user-prefs"} if "private" not in scopes else set())
+        dirs = self.categories - ({"user-prefs"} if "private" not in scopes else set())
         text = indexes(visible, dirs).get((directory + "/" if directory else "") + "index.md", "")
         self._log("index", directory, scopes, [])
         return text
@@ -195,7 +220,10 @@ class KnowledgeStore:
         actor: str = "spriteforge/0.1",
         verified_by: str | None = None,
         preserve_generation: bool = False,
+        files: dict[str, bytes] | None = None,
     ) -> None:
+        """Write entries (and `files`, binary resources such as images, by relative path) in one
+        validated git commit; on any failure nothing changes."""
         with git.write_lock(self.root.parent / ".memory.lock"), git.rollback_git(self.root):
             self._write_batch(
                 entries,
@@ -203,6 +231,7 @@ class KnowledgeStore:
                 actor=actor,
                 verified_by=verified_by,
                 preserve_generation=preserve_generation,
+                files=files or {},
             )
 
     def _write_batch(
@@ -213,8 +242,11 @@ class KnowledgeStore:
         actor: str,
         verified_by: str | None,
         preserve_generation: bool,
+        files: dict[str, bytes],
     ) -> None:
         ensure_no_secrets(message)
+        for name in files:
+            check_resource(name)
         if verified_by is not None and not verified_by.startswith("human:"):
             raise ValueError("Human promotion requires a human: verifier")
         existing, errors = self.scan()
@@ -250,7 +282,7 @@ class KnowledgeStore:
             )
             planned[entry.id + ".md"] = serialize(replacement)
             current[entry.id] = replacement
-        planned.update(indexes(list(current.values()), CATEGORIES))
+        planned.update(indexes(list(current.values()), self.categories))
         old_log = (
             (self.root / "log.md").read_text(encoding="utf-8")
             if (self.root / "log.md").exists()
@@ -263,11 +295,13 @@ class KnowledgeStore:
         planned[".gitignore"] = ".env*\n*.sqlite3*\n__pycache__/\n"
         for content in planned.values():
             ensure_no_secrets(content)
-        if any(not (self.root / name).resolve().is_relative_to(self.root) for name in planned):
+        if any(
+            not (self.root / name).resolve().is_relative_to(self.root) for name in [*planned, *files]
+        ):
             raise ValueError("Write target escapes corpus")
         backups = {
             name: (self.root / name).read_bytes() if (self.root / name).exists() else None
-            for name in planned
+            for name in [*planned, *files]
         }
         try:
             for name, content in planned.items():
@@ -276,11 +310,15 @@ class KnowledgeStore:
                     raise ValueError("Index path escapes corpus")
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content, encoding="utf-8")
+            for name, data in files.items():
+                target = self.root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
             from .validate import validate
 
             if validate(self).errors:
                 raise ValueError("Write batch failed corpus validation")
-            git.commit(self.root, list(planned), message)
+            git.commit(self.root, [*planned, *files], message)
         except BaseException:
             for name, content in backups.items():
                 target = self.root / name
@@ -326,7 +364,7 @@ class KnowledgeStore:
             raise ValueError("Validate corpus before export")
         public = [entry for entry in entries if not entry.private]
         files = {entry.id + ".md": serialize(entry) for entry in public}
-        files.update(indexes(public, CATEGORIES - {"user-prefs"}))
+        files.update(indexes(public, self.categories - {"user-prefs"}))
         for name, content in files.items():
             target = destination / name
             target.parent.mkdir(parents=True, exist_ok=True)

@@ -88,6 +88,9 @@ class GameConfig(Schema):
     # QA tests (M10.4): the QA Playtester writes tests from each design version; every build runs
     # them (and earlier versions' tests) with real key presses after the bot playtest.
     qa: bool = True
+    # Story bible and game database (M11.1): the Game Designer writes the story with each design
+    # version; every game keeps its canon in an OKF corpus (runs/<id>/game/db).
+    story: bool = True
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)

@@ -39,6 +39,28 @@ def make(
         raise typer.Exit(1)
 
 
+@app.command("db")
+def db_cmd(
+    path: Annotated[
+        Path, typer.Argument(help="A `game make` folder, a run folder or a db folder.")
+    ],
+    focus: Annotated[str, typer.Option(help="What the designer is working on.")] = "",
+    budget: Annotated[int, typer.Option(help="About this many tokens.")] = 2000,
+):
+    """Print the game database's context pack: the canon a level or menu designer reads."""
+    from spriteforge.core.state import Store
+
+    from .gamedb import context_pack, open_db
+
+    root = next((p for p in (path / "db", path / "game" / "db", path) if (p / "index.md").is_file()),
+                None)  # fmt: skip
+    if root is None:
+        raise typer.BadParameter(f"no game database under {path}")
+    store = Store(root.parent / "db-reads.sqlite3")
+    run = store.create_run({"workflow": "game-db-read"})
+    typer.echo(context_pack(open_db(root, store, run.id), focus, budget))
+
+
 @app.command("playtest")
 def playtest_cmd(out: Path):
     """Re-run the playtest of a `game make` folder (uses its design.json and build/)."""

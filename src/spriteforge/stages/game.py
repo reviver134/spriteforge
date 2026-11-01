@@ -2,6 +2,11 @@
 
 After the G1 questions:
   game/design/vK.json/.md    Game Designer: rules, entities, progression, difficulty, checks
+  game/design/vK-story.json/.md  Game Designer: the story bible (characters tied to entities,
+                             world, arc, canon), shown at G2 and revised with the design
+  game/db/                   the game database: the canon as OKF entries (story, characters with
+                             their locked art, world, gameplay, art, levels), written from the
+                             artifacts; approvals promote it to human-reviewed
   gate "design"              text -> design v(K+1); empty -> build v1 from the approved design
   game/vN/art-plan.json      Art Director: library first, Muse Image for whatever is missing
   game/vN/art/<id>.*         each entity's art (+ Muse raw and request, so art stays locked)
@@ -28,6 +33,7 @@ After the G1 questions:
 The playable build is runs/<id>/game/vN/build, served at /api/runs/<id>/play/vN/index.html.
 """
 
+import re
 from pathlib import Path
 
 from spriteforge.config import BudgetConfig, Config
@@ -36,6 +42,7 @@ from spriteforge.core.gates import Gates, new_gate
 from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.design import GameDesign, design_markdown, revision_prompt
+from spriteforge.game.gamedb import open_db, promote_all, sync_build, sync_story
 from spriteforge.game.pipeline import (
     Models,
     art_sources,
@@ -46,14 +53,17 @@ from spriteforge.game.pipeline import (
     produce_art,
     qa_report,
     review_art,
+    revise_story,
     write_code,
     write_design,
     write_qa_tests,
+    write_story,
 )
 from spriteforge.game.qa import QASuite, QATests, merge_suite, screenshot_files, write_export
 from spriteforge.game.record import record_game
 from spriteforge.game.revision import ArtChange, Revision, fallback_revision
 from spriteforge.game.revision import revision_prompt as director_prompt
+from spriteforge.game.story import StoryBible, story_markdown
 
 from .asset_store import ProductionStore
 from .intake import GameBrief
@@ -71,6 +81,11 @@ class GameContext(ProductionStore):
         cache = Path(store.path).parent / "cache" / "muse-image"
         self.models = Models(self.cfg, budget, self.run.config["mock"], cache_dir=cache)
         self.brief = GameBrief.model_validate(self.read("brief.json"))
+
+    @property
+    def db(self):
+        """The game database (OKF corpus) next to the run's artifacts."""
+        return open_db(self.root / "game" / "db", self.store, self.run_id)
 
     def once(self, name: str, schema, make, role: str):
         """Ask a model at most once per artifact name (re-entry after a crash reuses it)."""
@@ -102,7 +117,8 @@ def request_text(brief: GameBrief) -> str:
 
 
 def design_versions(ctx: GameContext) -> int:
-    return sum(1 for n in ctx.artifacts if n.startswith("game/design/v") and n.endswith(".json"))
+    """Design versions only (not the vK-story.json or vK-qa-tests.json beside them)."""
+    return sum(1 for n in ctx.artifacts if re.fullmatch(r"game/design/v\d+\.json", n))
 
 
 def load_design(ctx: GameContext, version: int) -> GameDesign:
@@ -117,13 +133,38 @@ def save_design(ctx: GameContext, version: int, design: GameDesign) -> None:
         ctx.save(f"{name}.md", design_markdown(design).encode(), "Game Designer", "text/markdown")
 
 
+def save_story(ctx: GameContext, version: int, story: StoryBible, notes: list[str]) -> None:
+    name = f"game/design/v{version}-story"
+    if f"{name}.json" not in ctx.artifacts:
+        ctx.save(f"{name}.json", story.model_dump(), "Game Designer")
+    if f"{name}.md" not in ctx.artifacts:
+        text = story_markdown(story) + "".join(f"\n> repaired: {n}" for n in notes)
+        ctx.save(f"{name}.md", text.encode(), "Game Designer", "text/markdown")
+
+
+def story_for(ctx: GameContext, version: int, design: GameDesign) -> StoryBible:
+    """Design vK's story bible (written now for runs from before stories existed)."""
+    name = f"game/design/v{version}-story.json"
+    if name not in ctx.artifacts:
+        story, notes = write_story(ctx.models, design, request_text(ctx.brief))
+        save_story(ctx, version, story, notes)
+    return StoryBible.model_validate(ctx.read(name))
+
+
+def sync_story_db(ctx: GameContext, version: int, design: GameDesign) -> None:
+    story = story_for(ctx, version, design)
+    sync_story(ctx.db, story, design, f"game/design/v{version}-story.json",
+               f"game/design/v{version}.json")  # fmt: skip
+
+
 def open_design_gate(ctx: GameContext, version: int) -> None:
     design = load_design(ctx, version)
     title = (
         f"G2 Game design v{version}: {design.title}. Read the rules, entities and checks; type "
         "what to change, or leave feedback empty and submit to approve and build the game"
     )
-    names = [f"game/design/v{version}.json"]
+    names = [f"game/design/v{version}.json", f"game/design/v{version}-story.json"]
+    names = [n for n in names if n in ctx.artifacts]
     Gates(ctx.store).open(
         ctx.run_id,
         new_gate(
@@ -203,6 +244,7 @@ def build_version(
     instruction: str,
     revision: Revision | None = None,
     suite: QASuite | None = None,
+    story: StoryBible | None = None,
 ) -> list[str]:
     """Art, code, playtest, repair and recording for one build; returns gate artifact names."""
     prefix = f"game/v{version}"
@@ -286,6 +328,13 @@ def build_version(
             "qa": qa,
             "model_calls": call_summary(ctx.store, ctx.run_id),
         }
+        story = story or story_for(ctx, design_version, design)
+        db = ctx.db
+        sync_build(db, story, design, art, version, report,
+                   {"story": f"game/design/v{design_version}-story.json",
+                    "design": f"game/design/v{design_version}.json",
+                    "build": f"{prefix}/report.json"})  # fmt: skip
+        report["game_db"] = {"path": str(db.root), "entries": len(db.scan()[0])}
         ctx.save(f"{prefix}/report.json", report, "Director")
         ctx.store.append_event(
             ctx.run_id,
@@ -418,6 +467,7 @@ def game_step(store, run_id) -> bool:
             },
             "Director",
         )
+        promote_all(ctx.db, f"G4 approved: build v{version}")
         store.advance(run_id, ctx.run.cursor, "G4 approved; game build locked", final=True)
         return False
 
@@ -437,12 +487,20 @@ def game_step(store, run_id) -> bool:
             "Game Designer",
         )
         save_design(ctx, version, design)
+        if f"game/design/v{version}-story.json" not in ctx.artifacts:
+            old_story = story_for(ctx, version - 1, previous)
+            story, notes = revise_story(ctx.models, old_story, design,
+                                        feedback or "Try a different take.")  # fmt: skip
+            save_story(ctx, version, story, notes)
+        sync_story_db(ctx, version, design)
         open_design_gate(ctx, version)
         return False
 
     if last.stage == "design" and last.status == "approved":
         version = design_versions(ctx)
         design = load_design(ctx, version)
+        sync_story_db(ctx, version, design)
+        promote_all(ctx.db, f"G2 approved: design v{version} and its story")
         plan = ctx.once(
             "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design), "Art Director"
         )
@@ -493,6 +551,10 @@ def game_step(store, run_id) -> bool:
                 "Game Designer",
             )
             save_design(ctx, design_version, design)
+            if f"game/design/v{design_version}-story.json" not in ctx.artifacts:
+                old_story = story_for(ctx, previous["design_version"], old)
+                story, notes = revise_story(ctx.models, old_story, design, revision.design_changes)
+                save_story(ctx, design_version, story, notes)
         base_plan = (
             ctx.once(
                 f"game/v{version}/art-plan-new.json",
@@ -530,5 +592,6 @@ def game_step(store, run_id) -> bool:
         "Game Designer",
     )
     save_design(ctx, 1, design)
+    sync_story_db(ctx, 1, design)  # writes the story bible (once) and the database entries
     open_design_gate(ctx, 1)
     return False
