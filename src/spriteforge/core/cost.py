@@ -79,6 +79,12 @@ class Budget:
     def __init__(self, store: Store, run_id: str, config: BudgetConfig):
         self.store, self.run_id, self.config = store, run_id, config
 
+    def spent(self) -> float:
+        """Estimated cost of the calls so far, pending ones included (failed ones are free)."""
+        with self.store.connect() as db:
+            rows = ledger(db, self.run_id).values()
+        return sum(r.estimated_cost for r in rows if r.status != "failed")
+
     def reserve(self, provider: str, model: str, image: bool = False) -> str:
         usage = Usage(
             attempt_id=uuid4().hex,

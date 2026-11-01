@@ -327,9 +327,19 @@ def ai_allowed(pick: ArtPick, camera: str) -> bool:
     return pack in packs and packs[pack].ai_allowed
 
 
-def plan_fixes(issues: list[Issue], design: GameDesign, art: ArtResult, cap: int) -> list[str]:
+def fix_cap(max_fixes: int, cost_cap: float, review_cost: float, image_cost: float) -> int:
+    """How many fixes fit: at most `max_fixes`, and the review call plus one image call per
+    fix within `cost_cap`."""
+    if image_cost <= 0:
+        return max_fixes
+    return max(0, min(max_fixes, math.floor((cost_cap - review_cost) / image_cost + 1e-9)))
+
+
+def plan_fixes(
+    issues: list[Issue], design: GameDesign, art: ArtResult, cap: int, why: str = ""
+) -> list[str]:
     """Entities to fix, in priority order (player first), at most `cap`; marks the status of
-    every blocking issue that is not fixed."""
+    every blocking issue that is not fixed (`why`: what set the cap)."""
     role = {e.id: e.role for e in design.entities}
     blocking = sorted(
         (i for i in issues if i.severity == "blocking"),
@@ -342,7 +352,7 @@ def plan_fixes(issues: list[Issue], design: GameDesign, art: ArtResult, cap: int
         elif i.entity in chosen:
             continue
         elif len(chosen) >= cap:
-            i.status = f"not fixed: fix cap ({cap}) reached"
+            i.status = f"not fixed: {why or f'fix cap ({cap}) reached'}"
         else:
             chosen.append(i.entity)
     return chosen

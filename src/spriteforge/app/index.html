@@ -89,7 +89,7 @@ async function renderArtifact(a,container){
 // gate each suggestion has Apply, which submits it as feedback (a targeted art rebuild).
 function artReview(rv,canApply){const box=document.createElement('section');box.className='art-review';
  const h=document.createElement('h4');h.textContent='Art review · '+rv.reviewed_by;box.append(h);
- const scores=document.createElement('p');scores.textContent=Object.entries(rv.scores).map(([k,v])=>k+' '+v+'/5').join(' · ');box.append(scores);
+ const scores=document.createElement('p');scores.textContent=Object.entries(rv.scores).map(([k,v])=>k+' '+v+'/5').join(' · ')+(rv.cost?' · cost $'+(rv.cost.review+rv.cost.fixes).toFixed(3)+' of $'+rv.cost.cap.toFixed(2)+' (review $'+rv.cost.review.toFixed(3)+', fixes $'+rv.cost.fixes.toFixed(3)+')':'');box.append(scores);
  const pic=name=>{const img=document.createElement('img');img.src='/api/artifacts/'+artifactIds[name];img.alt=name;img.style.cssText='width:auto;height:64px;vertical-align:middle';return img;};
  for(const f of rv.fixes){const p=document.createElement('p');p.textContent=(f.fixed?'✔ Fixed ':'✖ Not fixed ')+f.entity+' ('+f.mode+')'+(f.notes.length?': '+f.notes.join('; '):'');
   if(f.before&&artifactIds[f.before]&&artifactIds[f.after])p.append(' ',pic(f.before),' → ',pic(f.after));box.append(p);}

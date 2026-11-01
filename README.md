@@ -760,5 +760,6 @@ Plan: `new_plan.md`; details and live results: `docs/milestone-10-art-and-qa.md`
   at screenshots of the running game: scores, a blind naming test and issues. Up to 4 blocking
   issues are fixed once with Muse Image edits before G4 (never sending `ai_allowed: false`
   art), the game is played again with the fixed art, and every other issue is a suggestion
-  on the G4 report with an **Apply** button (a targeted rebuild). `game.review: false` turns
-  it off.
+  on the G4 report with an **Apply** button (a targeted rebuild). The review and its fixes
+  stay within `game.review_cost_cap` ($0.08): a costlier review leaves room for fewer fixes.
+  `game.review: false` turns it off.

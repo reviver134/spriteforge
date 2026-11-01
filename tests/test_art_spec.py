@@ -334,3 +334,68 @@ def test_failed_call_is_sent_again_unchanged(budget):
     assert second.prompt == first.prompt and second.reasoning_strength == "low"
     assert art.filled["hero"].source == "muse"
     assert any("Muse Image failed" in w for w in art.warnings)
+
+
+# --- colours, coarse grids, seams (after the M10.3 live run) --------------------------------
+
+
+def test_named_colours_win_over_the_reference_palette():
+    from spriteforge.game.art import look_palette
+
+    tan = Image.new("RGBA", (32, 32), (200, 160, 120, 255))
+    tan.paste((120, 80, 50, 255), (0, 0, 16, 32))
+    slime = ent("slime", "enemy", "a red slime with white eyes")
+    spec = art_spec(slime, fallback_design("x"), (16, 16), 16, SIZES, tan)
+    assert spec.palette_from == "look" and spec.palette[:2] == ["#C83232", "#F0F0F0"]
+    prompt = muse_prompt(spec, muse_pick("slime", slime.look), has_ref=True)
+    assert "do not use its colours" in prompt and "use only these colours" not in prompt
+    # No colour named: the style example's palette keeps the set consistent.
+    plain = art_spec(ent("blob", "enemy", "a blob"), fallback_design("x"), (16, 16), 16, SIZES, tan)
+    assert plain.palette_from == "reference" and "#C8A078" in plain.palette
+    assert "use only these colours" in muse_prompt(plain, muse_pick("blob", "a blob"), True)
+    # "dark" darkens; a colour after "remove" in its clause is left out.
+    fix = "Dark purple-grey tile. Fix: near-black base, remove tan stone pattern, keep size"
+    assert look_palette(fix) == ["#3A1D56", "#808088", "#141418"]
+
+
+def test_coarse_grid_on_a_background_is_fitted_not_read():
+    rng = np.random.default_rng(3)
+    blocks = Image.fromarray(rng.integers(0, 255, (10, 18, 3), dtype=np.uint8))
+    raw = png(blocks.resize((1800, 1000), Image.Resampling.NEAREST))
+    sky = art_spec(ent("sky", "background", "a sky"), fallback_design("x"), (320, 180), 16, SIZES)
+    frame, info = muse_frame(sky, raw)
+    assert frame.size == (320, 180) and info["mode"] == "fit" and "too coarse" in info["note"]
+    # The same blocks as a 16x16 tile's grid are the tile's pixels.
+    tile = art_spec(ent("floor", "tile", "-"), fallback_design("x"), (16, 16), 16, SIZES)
+    _, info = muse_frame(tile, png(blocks.resize((1600, 1600), Image.Resampling.NEAREST)))
+    assert info["mode"].startswith("native")
+
+
+def test_tile_that_does_not_repeat_is_blended(budget):
+    from spriteforge.game.art import ArtPlan, make_tileable, seams_match
+
+    ramp = np.zeros((16, 16, 3), dtype=np.uint8)
+    ramp[..., 0] = np.arange(16) * 15  # dark on the left, bright on the right
+    ramp[..., 2] = 60
+    tile = Image.fromarray(ramp)
+    assert not seams_match(tile)
+    fixed = make_tileable(tile)
+    assert seams_match(fixed)
+    assert np.array_equal(np.asarray(fixed)[6:10, 6:10, :3], ramp[6:10, 6:10])  # middle kept
+    d = fallback_design("arena")
+    d.entities = [e for e in d.entities if e.role in {"player", "tile"}]
+    plan = ArtPlan(variant="normal", picks=[muse_pick("floor", "a red stone floor")])
+    raw = png(tile.resize((1024, 1024), Image.Resampling.NEAREST))
+    mock, asked = MockImageProvider(budget), []
+
+    def generate(request, edit):  # the ramp for the tile; the hero gets the mock's art
+        if "seamless square game tile" not in request.prompt:
+            return mock.generate(request).data
+        asked.append(request)
+        return raw
+
+    floor = make_art(d, plan, generate=generate).filled["floor"]
+    assert floor.source == "muse" and len(asked) == 2  # retried once, then blended
+    assert "edges blended by code: the drawn tile did not repeat" in floor.reasons
+    assert floor.record["problems"] == []
+    assert seams_match(Image.open(io.BytesIO(floor.png)))

@@ -635,14 +635,37 @@ class ArtSpec(Contract):
     light: str
     outline: str
     palette: list[str] = Field(max_length=16)
+    # "look": the colours the request names (the reference gives technique only);
+    # "reference": the style example's colours (the request names none).
+    palette_from: str = ""
     request_size: tuple[int, int]
     look: str = ""  # the design's art direction, for text-only requests
 
 
+# Words that cancel the colour words after them in the same clause ("remove tan stone").
+NEGATIONS = {"no", "not", "without", "remove", "removing", "instead", "never"}
+
+
+def shade(hex_code: str, word: str) -> str:
+    """`hex_code` darkened after "dark"/"deep", lightened after "light"/"pale"."""
+    rgb = [int(hex_code[i : i + 2], 16) for i in (1, 3, 5)]
+    if word in {"dark", "darker", "deep"}:
+        rgb = [round(c * 0.45) for c in rgb]
+    elif word in {"light", "lighter", "pale"}:
+        rgb = [round(c + (255 - c) * 0.5) for c in rgb]
+    return "#" + "".join(f"{c:02X}" for c in rgb)
+
+
 def look_palette(text: str) -> list[str]:
-    """Hex codes and colour words named in the design's look, in order (<= 16)."""
+    """Hex codes and colour words named in `text`, in order (<= 16). "dark purple" is a dark
+    purple; a colour after a negation in its clause ("remove tan stone") is left out."""
     found = [m.upper() for m in re.findall(r"#[0-9a-fA-F]{6}\b", text)]
-    found += [COLOR_HEX[w] for w in re.findall(r"[a-z]+", text.lower()) if w in COLOR_HEX]
+    for clause in re.split(r"[,;.:]", text.lower()):
+        words, negated = re.findall(r"[a-z]+", clause), False
+        for i, w in enumerate(words):
+            negated = negated or w in NEGATIONS
+            if w in COLOR_HEX and not negated:
+                found.append(shade(COLOR_HEX[w], words[i - 1] if i else ""))
     return list(dict.fromkeys(found))[:16]
 
 
@@ -677,7 +700,11 @@ def art_spec(
     hero_px: int,
     sizes: list[tuple[int, int]],
     reference: Image.Image | None = None,
+    text: str = "",
 ) -> ArtSpec:
+    """`text` is what is asked for (the pick's prompt, else the entity's look). Colours it
+    names win over the style example's: the example's own palette turned a red slime orange
+    and a purple bat brown (live, 2026-11-01). The example then gives technique only."""
     sprite = e.role not in {"tile", "background"}
     anchor = {
         "tile": "fills the whole grid edge to edge (full bleed) and repeats without seams",
@@ -685,11 +712,12 @@ def art_spec(
         "pickup": "centred in the grid",
         "projectile": "centred in the grid",
     }.get(e.role, "feet (or base) at the bottom centre of the grid")
-    palette = (
-        extract_palette(reference, 16).colors
-        if reference is not None
-        else look_palette(design.look)
-    )
+    if own := look_palette(text or e.look):
+        palette, palette_from = own, "look"
+    elif reference is not None:
+        palette, palette_from = extract_palette(reference, 16).colors, "reference"
+    else:
+        palette, palette_from = look_palette(design.look), "look"
     return ArtSpec(
         role=e.role,
         view=VIEWS[design.camera],
@@ -700,6 +728,7 @@ def art_spec(
         light=LIGHT[design.camera],
         outline="a 1 px dark outline around the subject" if sprite else "no outline",
         palette=palette,
+        palette_from=palette_from,
         request_size=request_size(grid, sizes),
         look=design.look,
     )
@@ -739,13 +768,23 @@ def spec_details(spec: ArtSpec, has_ref: bool) -> str:
         f"Facing: {spec.facing}." if spec.facing else "",
         f"Lighting: {spec.light}.",
         f"Outline: {spec.outline}.",
-        f"Palette: use only these colours: {', '.join(spec.palette)}." if spec.palette else "",
-        "Match the reference image's pixel-art style exactly: outline weight, shading, palette "
-        "and level of detail. The reference is a style example only; do not copy its subject."
+        palette_line(spec),
+        "Copy only the reference image's pixel-art technique: outline weight, shading and "
+        "level of detail. It is from another game: do not draw its subject, objects or layout"
+        + (", and do not use its colours." if spec.palette_from == "look" else ".")
         if has_ref
         else f"Crisp retro pixel art, hard pixel edges. Look: {spec.look}.",
     ]
     return " ".join(d for d in details if d)
+
+
+def palette_line(spec: ArtSpec) -> str:
+    if not spec.palette:
+        return ""
+    colours = ", ".join(spec.palette)
+    if spec.palette_from == "reference":
+        return f"Palette: use only these colours: {colours}."
+    return f"Colours: {colours}, as described, with darker and lighter shades of them."
 
 
 def sheet_prompt(
@@ -814,9 +853,18 @@ def muse_frame(spec: ArtSpec, raw: bytes, grid_confidence: float = 0.6, adapt: b
     if grid:
         info.update(cell=round(grid.pitch, 1), confidence=round(grid.confidence, 2))
     if grid and grid.confidence >= grid_confidence:
-        image = sample_cells(image, grid)
-        info["logical"] = list(image.size)
-        info["mode"] = "native" if image.size == tuple(size) else "native-resized"
+        cells = sample_cells(image, grid)
+        if cells.width * 2 >= size[0] and cells.height * 2 >= size[1]:
+            image = cells
+            info["logical"] = list(image.size)
+            info["mode"] = "native" if image.size == tuple(size) else "native-resized"
+        else:
+            # Live 2026-11-01: a void's faint grid lines, 106 px apart, read as an 18x11 grid
+            # for a 320x180 scene; blown up, the lines vanished into a flat black image.
+            info["note"] = (
+                f"a {cells.width}x{cells.height} grid is too coarse for {size[0]}x{size[1]} "
+                "(drawn lines, not pixels); fitted instead"
+            )
     if spec.role == "tile":
         return fit_tile(image, size), info
     return mode_resize(image, size).convert("RGBA"), info
@@ -970,6 +1018,24 @@ def seams_match(tile: Image.Image) -> bool:
     return True
 
 
+def make_tileable(tile: Image.Image) -> Image.Image:
+    """Opposite edges made to line up: each edge band is blended into the tile shifted by
+    half, whose edges were neighbours inside the tile. The middle stays as drawn."""
+    rgb = np.asarray(tile.convert("RGB"), dtype=float)
+    for axis in (0, 1):
+        n = rgb.shape[axis]
+        edge = np.minimum(np.arange(n), np.arange(n)[::-1])  # distance to the nearest edge
+        weight = np.clip(1 - edge / max(1, n // 4), 0, 1)
+        shape = [1, 1, 1]
+        shape[axis] = n
+        weight = weight.reshape(shape)
+        rgb = (1 - weight) * rgb + weight * np.roll(rgb, n // 2, axis=axis)
+    return Image.fromarray(np.round(rgb).astype(np.uint8)).convert("RGBA")
+
+
+SEAM_PROBLEM = "the tile does not repeat: its left/right or top/bottom edges do not line up"
+
+
 def check_frame(spec: ArtSpec, frame: Image.Image, info: dict, aspect: bool = True) -> list[str]:
     """What is wrong with a processed Muse frame, as sentences for the retry prompt. With
     `aspect` off (the frame took the art's shape) the subject's aspect is not checked."""
@@ -978,9 +1044,7 @@ def check_frame(spec: ArtSpec, frame: Image.Image, info: dict, aspect: bool = Tr
         return ["no subject: nothing usable was drawn on the magenta background"]
     problems = []
     if spec.role == "tile" and not seams_match(frame):
-        problems.append(
-            "the tile does not repeat: its left/right or top/bottom edges do not line up"
-        )
+        problems.append(SEAM_PROBLEM)
     if spec.role in {"tile", "background"}:
         return problems
     sw, sh = info.get("subject") or frame.getchannel("A").getbbox()[2:]
@@ -1262,7 +1326,8 @@ class Muse:
         old = self.previous(e.id)
         n, rows = self.options.sheet_frames, self.rows(e)
         ref = reference_image(p.reference) if p.reference else None
-        spec = art_spec(e, design, tuple(size), self.hero_px, self.options.sizes, ref)
+        spec = art_spec(e, design, tuple(size), self.hero_px, self.options.sizes, ref,
+                        p.prompt.strip() or e.look)  # fmt: skip
         if rows:
             layout = (size[0] * n, size[1] * len(rows))
             spec = spec.model_copy(
@@ -1357,6 +1422,10 @@ class Muse:
         if best is None:
             return self.greybox(e, size, "no usable Muse image")
         raw, frames, infos, request, problems, cached = best  # the kept frames' own problems
+        blended = spec.role == "tile" and SEAM_PROBLEM in problems
+        if blended:  # models propose, code enforces: a tile that does not repeat is blended
+            frames = [make_tileable(frames[0]), *frames[1:]]
+            problems = [p for p in problems if p != SEAM_PROBLEM]
         if problems:
             self.warnings.append(f"{e.id}: accepted with problems: {'; '.join(problems)}")
         info = infos[0]
@@ -1380,6 +1449,8 @@ class Muse:
             reasons.append("identical earlier request: image from the cache, no call")
         if len(history) > 1:
             reasons.append(f"retried at high reasoning strength: {'; '.join(history[0])}")
+        if blended:
+            reasons.append("edges blended by code: the drawn tile did not repeat")
         if job.edit_of:
             reasons.append(f"edited from v{job.edit_of} per feedback")
         record = {

@@ -52,6 +52,7 @@ from .art_review import (
     ArtReview,
     entity_issues,
     fallback_review,
+    fix_cap,
     fix_requests,
     plan_fixes,
     review_prompt,
@@ -432,7 +433,7 @@ def review_art(
     images = {"sheet.png": sheet, "sheet-4x.png": zoomed}
     images |= {f"shot-{i + 1}.png": data for i, data in enumerate(shots)}
     offline = fallback_review(slots, findings, design)
-    failed = None
+    failed, start = None, models.budget.spent()
     try:
         answer = models.ask(
             "Art Reviewer",
@@ -447,9 +448,16 @@ def review_art(
         log(f"  the vision review failed ({failed}); using the pre-checks alone")
         answer = offline
     issues, named, notes = entity_issues(answer, slots, design, art)
-    fixes = fix_requests(
-        plan_fixes(issues, design, art, cfg.game.review_max_fixes), issues, design, art
+    review_cost = models.budget.spent() - start
+    g = cfg.game
+    cap = fix_cap(g.review_max_fixes, g.review_cost_cap, review_cost, cfg.budget.image_cost)
+    why = (
+        f"fix cap ({cap}) reached"
+        if cap == g.review_max_fixes
+        else f"review cost cap reached (${g.review_cost_cap:.2f}; the review cost "
+        f"${review_cost:.3f}, {cap} fix(es) fit)"
     )
+    fixes = fix_requests(plan_fixes(issues, design, art, cap, why), issues, design, art)
     if fixes:
         log(f"  fixing {len(fixes)} blocking issue(s): {', '.join(f.entity for f in fixes)}")
         generate, close = models.image_generator()
@@ -459,6 +467,7 @@ def review_art(
                                cache=models.image_cache(), version=version)  # fmt: skip
         finally:
             close()
+    fix_cost = models.budget.spent() - start - review_cost
     kept = [fx for fx in fixes if fx.after is not None]
     fixed_art, replayed = art, None
     if kept:
@@ -514,6 +523,11 @@ def review_art(
             for fx in fixes
         ],
         "replay": replayed,
+        "cost": {
+            "review": round(review_cost, 4),
+            "fixes": round(fix_cost, 4),
+            "cap": g.review_cost_cap,
+        },
         "notes": notes,
         "images": sorted(images),
     }

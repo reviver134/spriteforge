@@ -448,7 +448,7 @@ targeted rebuild. Checked in a browser on a mock run: clicking Apply #2 built v2
 entity redrawn and the review-fixed sprite locked from v1.
 
 Config: `game.review: true`, `game.review_max_fixes: 4`, `game.review_image_reasoning: high`,
-`llm.reasoning.review: max`.
+`game.review_cost_cap: 0.08`, `llm.reasoning.review: max`.
 
 ### Live (survival prompt through the gates, 2026-11-01, `workspace/m10-3-stage`)
 
@@ -479,4 +479,52 @@ again). 7 Spark + 11 image calls, about $0.28 for the whole run.
   background "isometric arcade room interior") were all issues already.
 * The G4 page was opened in a browser on this run: scores, the 3 fixes with before/after
   pictures, the replay, 8 issues with Apply on the 5 suggestions, and no page errors.
-* Not re-run live after the sheet-row change above.
+* Not re-run live after the sheet-row change above (see the follow-up below).
+
+### Follow-up: the four gaps of the first live run
+
+* **Colours came from the style example.** The art spec's palette line ("use only these
+  colours") was the style example's palette whenever there was one. The rogue body sheet's
+  tans and browns made the red crawler orange and the purple bat brown (2 of the 8 issues),
+  and the void was told to use only a floor tileset's tans and greens. Now the colours the
+  request names win (`art_spec(text=...)`, `look_palette`: "dark purple" is darkened, a colour
+  after "remove", "no", "instead" ... in its clause is left out), as "Colours: ..., with
+  darker and lighter shades", and the reference gives technique only ("do not draw its
+  subject, objects or layout, and do not use its colours"). With no colour named, the
+  example's palette still keeps the set together (`palette_from: reference`).
+* **The background fix came out flat black.** Not the fix itself: its faint grid lines, 106 px
+  apart, were read back as the pixel grid (18x11 cells for a 320x180 scene) and blown up.
+  A tile or background grid read under half the asked size in either direction is now
+  treated as drawn lines and the image is fitted instead (`info.note` says so).
+* **A fixed tile that does not repeat** is now blended by code (`make_tileable`: each edge
+  band fades into the tile shifted by half, the middle stays as drawn), for any Muse tile
+  still failing the seam check after its retries, so fixes (no retry) are covered too.
+  Reason: "edges blended by code: the drawn tile did not repeat".
+* **Cost at the full fix cap.** `game.review_cost_cap: 0.08`: what the review call cost
+  decides how many of `review_max_fixes` fit at `budget.image_cost` each (`fix_cap`); the
+  reasoning stays `max`. Blocking issues past it stay suggestions ("not fixed: review cost
+  cap reached ..."). At the first run's $0.045 review, 3 fixes fit, not 4. The report's
+  `art_review.cost` (review, fixes, cap) is on the G4 page.
+
+Live again (survival prompt, 2026-11-01, `workspace/m10-3-followup`): "Corner Siege:
+10-Minute Survival", passed on the second attempt (the first missed its `win` event; the
+repair came back as edits). The library gave the hero (rogue), the floor and the wall; 7
+entities went to Muse. 8 Spark + 9 image calls, $0.275 in all, no failed calls.
+
+* The Muse sprites now have the design's colours: the reviewer named a "bright green slime
+  blob", a "tiny red horned imp", a "purple horned brute monster" and a "small cyan diamond
+  gem", and the void came out dark blue-black (it still shows stone blocks seen at 3/4: the
+  request asked for "near-black stone" and the background spec asks for a 3/4 view; hidden
+  behind the arena in play, and the reviewer raised nothing on it).
+* **Review**: consistency 2, readability 3, perspective 2, scale 4, palette 2; 4 issues (2
+  blocking, 2 major) against 8 (3 blocking); 1 naming miss against 4. One run each with
+  different designs and non-deterministic Muse art, so this is a sign, not a measurement.
+* **Fixes**: the runner (drawn in side profile; the edit asked for a 3/4 view, and at 11x9 px
+  the change is hard to judge) and the flat library wall (now a brown block with a grey top
+  and a dark outline; its edges passed the seam check, so it was not blended). The replay
+  passed. **Review $0.037 + fixes $0.02 = $0.057** of the $0.08 cap.
+* **Suggestions at G4**: the library floor is tan, not the grey stone the Art Director read
+  into its name, and the recoloured library hero is a dark speck at game size. Both are
+  library art, which the palette change does not touch.
+* The 4x sheet with rows is 704x388: sprites at a readable size, the background on its own
+  row.

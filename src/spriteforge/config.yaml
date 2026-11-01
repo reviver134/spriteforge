@@ -32,6 +32,10 @@ game:
   review: true
   review_max_fixes: 4
   review_image_reasoning: high
+  # USD cap on the review call plus its fixes; what the review cost decides how many of the
+  # review_max_fixes fixes fit (each costs budget.image_cost). Blocking issues past it stay
+  # G4 suggestions.
+  review_cost_cap: 0.08
   max_code_kb: 200
   playtest_fps: 30
   record_seconds: 20

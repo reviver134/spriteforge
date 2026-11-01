@@ -83,6 +83,8 @@ class GameConfig(Schema):
     review: bool = True
     review_max_fixes: int = Field(default=4, ge=0, le=8)
     review_image_reasoning: Literal["low", "high"] = "high"
+    # Review call plus fixes stay within this estimate: fewer fixes when the review costs more.
+    review_cost_cap: float = Field(default=0.08, ge=0)
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)

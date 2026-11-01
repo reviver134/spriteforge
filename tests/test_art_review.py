@@ -363,3 +363,27 @@ def test_playtest_captures_screenshots(tmp_path, budget):
         assert image.size == (320, 180) and len(image.getcolors(1 << 16)) > 8  # drawn, not blank
     # Drawing a frame does not change the game: same events as a logic-only run.
     assert report["events"] == plain["events"] and "screenshots" not in plain
+
+
+def test_fix_cap_follows_the_review_cost():
+    from spriteforge.game.art_review import fix_cap
+
+    assert fix_cap(4, 0.08, 0.0, 0.01) == 4
+    assert fix_cap(4, 0.08, 0.045, 0.01) == 3  # the live review: 3 fixes fit, not 4
+    assert fix_cap(4, 0.08, 0.09, 0.01) == 0
+    assert fix_cap(4, 0.08, 0.5, 0.0) == 4  # free images: only the count cap
+
+
+def test_review_cost_cap_leaves_the_rest_as_suggestions(tmp_path, budget):
+    design, plan, art, images = fallback_art(budget)
+    reply = answer((SLIME, "a", "blocking"), (GEM, "b", "blocking"), (FLOOR, "c", "blocking"))
+    outcome = mock_build(tmp_path, design, art, budget)
+    cfg = load_config()
+    cfg.game.review_cost_cap = 0.02  # two image calls at budget.image_cost 0.01
+    reviewed = review_art(models(budget, Reviewer(budget, reply), images), design, plan, art,
+                          outcome, cfg, tmp_path / "out", lambda m: None)  # fmt: skip
+    assert len(images.calls) == 2
+    status = {i["entity"]: i["status"] for i in reviewed.report["issues"]}
+    assert status["slime"] == status["gem"] == "fixed"
+    assert status["floor"].startswith("not fixed: review cost cap reached ($0.02")
+    assert reviewed.report["cost"] == {"review": 0.0, "fixes": 0.02, "cap": 0.02}
