@@ -36,6 +36,10 @@ game:
   # review_max_fixes fixes fit (each costs budget.image_cost). Blocking issues past it stay
   # G4 suggestions.
   review_cost_cap: 0.08
+  # QA Playtester: tests written from each design version (one Spark call), played with real
+  # key presses after the bot playtest; failures join the repairs; exported per build as
+  # build/tests/test_game_qa.py (pytest + Playwright).
+  qa: true
   max_code_kb: 200
   playtest_fps: 30
   record_seconds: 20
@@ -76,6 +80,7 @@ llm:
     code: high # Programmer: new game, repairs, changes
     review: max # Art Reviewer (vision): the strongest setting Spark accepts
     describe: low # Librarian describing library images (spriteforge library describe)
+    qa: high # QA Playtester writing tests from the design
 budget:
   max_image_calls: 150
   max_calls_per_model: 200

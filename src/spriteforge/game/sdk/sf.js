@@ -1,8 +1,10 @@
 /* SpriteForge game SDK: generic helpers that generated Phaser 3 games are written against.
    It is not a game: it boots Phaser, loads the build's art, reads input (keyboard or the game's
    own autoplay bot), and exposes the hooks the harness uses to test and record a build:
-   window.sf.{ready, errors, events, counts, state}, window.sfCapture(frames, fps),
-   window.sfRun(seconds, fps) and window.sfShot(fps). The model-facing reference is API.md. */
+   window.sf.{ready, errors, events, counts, state, menu}, window.sfCapture(frames, fps),
+   window.sfRun(seconds, fps, keepGoing) and window.sfShot(fps). QA tests press real keys while
+   the harness steps frames (tools/probe_keys.py: Playwright key presses reach sf.input and
+   sf.choose). The model-facing reference is API.md. */
 (function () {
   'use strict';
   const params = new URLSearchParams(location.search);
@@ -13,7 +15,7 @@
     god: params.has('god'),           // playtest: the player may be hurt but must not die
   };
   const sf = (window.sf = {
-    ready: false, errors: [], events: [], counts: {}, state: {}, flags,
+    ready: false, errors: [], events: [], counts: {}, state: {}, flags, menu: null,
     assets: {screen: [320, 180], scale: 1, background: '#0b0c14', sprites: {}, images: {}},
     game: null, clock: {now: 0},
   });
@@ -135,6 +137,9 @@
     const items = options.map((label, i) =>
       sf.text(scene, w / 2, top + 18 * s + i * lineH, (i + 1) + '  ' + label, {originX: 0.5, depth: depth + 1}));
     parts.push(...items);
+    // QA tests see the open menu (and its 'menu' event) and pick from it with real keys.
+    sf.menu = {title: String(title), options: options.map(String)};
+    sf.event('menu', {title: String(title)});
     let index = 0, done = false;
     const highlight = () => items.forEach((t, i) => t.setColor(i === index ? '#f4d35e' : '#e8e8f0'));
     const kb = scene.input && scene.input.keyboard;
@@ -151,6 +156,7 @@
       done = true;
       if (kb) kb.off('keydown', onKey);
       parts.forEach(p => p.destroy());
+      sf.menu = null;
       sf.event('choice', {index: i, option: String(options[i])});
       onPick(i);
     }
@@ -187,7 +193,14 @@
       }
       const next = this.scene.manager.scenes.find(s => s !== this);
       if (!next) { sf.errors.push('sf.start needs at least one scene'); return; }
-      next.events.once('create', () => {
+      let booted = false;
+      next.events.on('create', () => {
+        if (booted) {  // scene.restart(): a new run (QA tests check restart after win/lose)
+          sf.menu = null;
+          sf.event('restart');
+          return;
+        }
+        booted = true;
         sf.clock.now = 0;
         if (flags.capture || flags.headless) sf.game.loop.stop();  // the harness steps frames
         sf.ready = true;
@@ -267,11 +280,12 @@
     return sf.game.canvas.toDataURL('image/png');
   };
   // Playtest: advance `seconds` of game time; stops early on win, lose or an error flood.
-  window.sfRun = function (seconds, fps) {
+  // `keepGoing` (QA tests) steps on after win or lose, so a test can restart the game.
+  window.sfRun = function (seconds, fps, keepGoing) {
     const dt = 1000 / fps, n = Math.round(seconds * fps);
     for (let i = 0; i < n; i++) {
       step(dt);
-      if (sf.counts.win || sf.counts.lose || sf.errors.length > 20) break;
+      if (sf.errors.length > 20 || (!keepGoing && (sf.counts.win || sf.counts.lose))) break;
     }
     return {t: sf.clock.now, errors: sf.errors.length};
   };

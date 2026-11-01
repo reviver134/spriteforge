@@ -7,7 +7,7 @@ code (the Programmer edits the working game). Untouched parts are reused as they
 
 import re
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from spriteforge.agents.models import Contract
 
@@ -27,32 +27,83 @@ class Revision(Contract):
     code_instructions: str = Field(
         description="behaviour, controls, feel or UI changes for the programmer; ''"
     )
+    drop_qa_tests: list[str] = Field(
+        description="names of QA tests the human wants dropped ('ignore the restart test'); []"
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def older(cls, data):
+        """Revisions saved before QA tests existed have no drop list."""
+        if isinstance(data, dict) and "drop_qa_tests" not in data:
+            data = {**data, "drop_qa_tests": []}
+        return data
 
 
-def revision_prompt(design: GameDesign, art: dict[str, str], feedback: str) -> str:
+def revision_prompt(
+    design: GameDesign, art: dict[str, str], feedback: str, qa: dict[str, bool] | None = None
+) -> str:
+    """`qa`: the build's QA tests by name -> passed."""
     sources = "\n".join(f"* {eid}: {src}" for eid, src in art.items())
+    tests = "\n".join(
+        f"* {name}: {'passed' if ok else 'FAILED'}" for name, ok in (qa or {}).items()
+    )
     return (
         "A human played this build and wrote the feedback below. Split it into what must be "
         "redone: design_changes (new or changed rules, entities, upgrades, difficulty), "
-        "art_changes (only entities whose look they want different, with the new look), and "
-        "code_instructions (how the game should behave or feel). Leave a part empty when the "
-        "feedback does not touch it; do not invent changes.\n\n"
+        "art_changes (only entities whose look they want different, with the new look), "
+        "code_instructions (how the game should behave or feel), and drop_qa_tests (exact names "
+        "of QA tests they want ignored or dropped, e.g. a test they judge wrong). Leave a part "
+        "empty when the feedback does not touch it; do not invent changes.\n\n"
         f"Feedback:\n{feedback.strip()}\n\nDesign:\n{design.model_dump_json()}\n\n"
         f"Current art sources:\n{sources}"
+        + (f"\n\nQA tests of this build:\n{tests}" if tests else "")
     )
 
 
-def fallback_revision(design: GameDesign, feedback: str) -> Revision:
+DROP_VERBS = {"ignore", "drop", "remove", "skip", "delete", "disable"}
+FILLER = {"the", "a", "an", "this", "that", "those", "these", "qa", "failing", "broken", "wrong",
+          "bad", "please", "also", "too", "it", "one", "you", "can", "we", "just", "flaky"}  # fmt: skip
+
+
+def dropped_tests(feedback: str, names: list[str]) -> list[str]:
+    """QA tests the feedback asks to drop: "ignore the restart test" drops the tests whose name
+    has every word said before "test" ("restarts after losing"). Only a part with a drop verb
+    counts, or one that carries it on with "and" ("remove the idle test and the restart test");
+    "the restart test is fine, drop the menu test" drops only the menu test."""
+    out, carried = [], False
+    for clause in re.split(r"[,;.!?]", feedback.lower()):
+        parts = re.split(r"\band\b", clause)
+        if not re.match(r"\s*(and|also)\b", clause):
+            carried = False
+        for part in parts:
+            carried = carried or any(re.search(rf"\b{v}\b", part) for v in DROP_VERBS)
+            match = re.search(r"([a-z0-9 -]*?)\btests?\b", part) if carried else None
+            if not match:
+                continue
+            said = [w for w in re.findall(r"[a-z0-9]+", match.group(1))
+                    if w not in FILLER | DROP_VERBS]  # fmt: skip
+            for name in names:
+                words = set(re.findall(r"[a-z0-9]+", name.lower()))
+                stems = {w.rstrip("s") for w in words} | {w[:-2] for w in words if w.endswith("ed")}
+                if said and all(w in words or w.rstrip("s") in stems for w in said):
+                    out.append(name)
+    return list(dict.fromkeys(out))
+
+
+def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = ()) -> Revision:
     """Offline Director: entities named in the feedback are redrawn with it appended to their
-    look; everything else in the feedback goes to the programmer."""
+    look; QA tests it asks to ignore are dropped; everything else goes to the programmer."""
     text = feedback.lower()
     changes = [
         ArtChange(entity=e.id, prompt=f"{e.look}; {feedback.strip()}")
         for e in design.entities
         if re.search(rf"\b{re.escape(e.id.replace('_', ' '))}s?\b", text.replace("_", " "))
     ]
+    drops = dropped_tests(feedback, list(qa_names))
     return Revision(
         design_changes="",
         art_changes=changes,
-        code_instructions="" if changes else feedback.strip(),
+        code_instructions="" if changes or drops else feedback.strip(),
+        drop_qa_tests=drops,
     )

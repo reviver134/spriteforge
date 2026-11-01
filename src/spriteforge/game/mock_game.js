@@ -1,6 +1,7 @@
 /* Offline fixture: what the mock Programmer returns for `fallback_design` (mock runs and tests).
    A small arena game written against the SDK exactly like generated code: assets by id,
-   sf.input for controls (so the bot can play), sf.event for every design check. */
+   sf.input for controls (so the bot can play), sf.event for every design check, sf.state with
+   hp, x, y, time and score, and Enter to restart after win or lose (what QA tests check). */
 class Arena extends Phaser.Scene {
   constructor() { super('arena'); }
 
@@ -14,6 +15,8 @@ class Arena extends Phaser.Scene {
     this.gems = this.physics.add.group();
     this.hp = 5; this.gemCount = 0; this.over = false;
     this.nextSpawn = 0.5; this.spawnEvery = 2.0; this.lastAttack = -1;
+    this.t0 = undefined;  // set on the first update: a restart starts the clock over
+    this.enter = this.input.keyboard.addKey('ENTER');
     this.hpText = sf.text(this, 4 * s, 4 * s, '');
     this.timeText = sf.text(this, w - 4 * s, 4 * s, '', {originX: 1});
     this.physics.add.overlap(this.hero, this.gems, (hero, gem) => {
@@ -49,8 +52,12 @@ class Arena extends Phaser.Scene {
   }
 
   update() {
-    if (this.over) return;
-    const now = sf.clock.now, s = this.s, inp = sf.input(this);
+    if (this.over) {
+      if (Phaser.Input.Keyboard.JustDown(this.enter)) this.scene.restart();
+      return;
+    }
+    if (this.t0 === undefined) this.t0 = sf.clock.now;
+    const now = sf.clock.now - this.t0, s = this.s, inp = sf.input(this);
     this.hero.setVelocity(inp.x * 70 * s, inp.y * 70 * s);
     if (inp.x) this.hero.setFlipX(inp.x < 0);
     sf.play(this.hero, inp.x || inp.y ? 'walk' : 'idle');
@@ -76,7 +83,8 @@ class Arena extends Phaser.Scene {
     const left = Math.max(0, 45 - now);
     this.hpText.setText('HP ' + this.hp + '  GEMS ' + this.gemCount);
     this.timeText.setText(left.toFixed(0) + 's');
-    sf.state = {hp: this.hp, gems: this.gemCount, time: +now.toFixed(1)};
+    sf.state = {hp: this.hp, x: Math.round(this.hero.x), y: Math.round(this.hero.y),
+                time: +now.toFixed(1), score: this.gemCount, gems: this.gemCount};
     if (left <= 0) this.finish(true);
   }
 }

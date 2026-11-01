@@ -127,6 +127,38 @@ def test_g4_apply_suggestion_makes_targeted_rebuild(tmp_path, monkeypatch):
     assert set(sources.values()) == {"muse (locked, from v1)"}
 
 
+def test_qa_regression_across_versions(tmp_path):
+    """Every build runs its QA suite with real key presses; v1's tests rerun on v2, and feedback
+    can drop a test."""
+    store, ident = to_design_gate(tmp_path)
+    submit(store, ident)  # approve the design: build v1
+    gate = Gates(store).pending(ident)
+    qa = read(store, ident, "game/v1/report.json")["qa"]
+    names = [t["name"] for t in qa["tests"]]
+    assert qa["failed"] == 0 and qa["passed"] == len(names) >= 5
+    assert {"loses when idle", "restarts after losing"} <= set(names)
+    assert f"QA {len(names)}/{len(names)} tests pass" in gate.title
+    artifacts = {a.name for a in store.artifacts(ident)}
+    assert {"game/design/v1-qa-tests.json", "game/v1/qa-tests.json", "game/v1/qa.json",
+            "game/v1/test_game_qa.py", "game/v1/qa/loses-when-idle-lost.png"} <= artifacts  # fmt: skip
+    assert qa["export_url"] == f"/api/runs/{ident}/play/v1/tests/test_game_qa.py"
+    build = tmp_path / "runs" / ident / "game" / "v1" / "build"
+    assert (build / "tests" / "test_game_qa.py").is_file()
+
+    # "ignore the restart test": dropped from v2; the other v1 tests rerun (no new QA call, the
+    # design is the same) and the code is not touched.
+    submit(store, ident, "ignore the restart test")
+    revision = read(store, ident, "game/v2/revision.json")
+    assert revision["drop_qa_tests"] == ["restarts after losing"]
+    assert revision["code_instructions"] == "" and revision["art_changes"] == []
+    qa2 = read(store, ident, "game/v2/report.json")["qa"]
+    assert [t["name"] for t in qa2["tests"]] == [n for n in names if n != "restarts after losing"]
+    assert {t["since"] for t in qa2["tests"]} == {1} and qa2["dropped"] == ["restarts after losing"]
+    assert qa2["failed"] == 0
+    assert "game/design/v2-qa-tests.json" not in {a.name for a in store.artifacts(ident)}
+    assert read(store, ident, "game/v2/code.json") == read(store, ident, "game/v1/code.json")
+
+
 def test_identical_requests_come_from_the_cache_and_still_lock(tmp_path):
     """A second run in the same workspace makes the same Muse requests: every image comes
     from <workspace>/cache/muse-image with no call, and a rebuild locks it like any art."""

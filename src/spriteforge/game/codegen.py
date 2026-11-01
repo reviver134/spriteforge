@@ -226,6 +226,10 @@ def requirements(design: GameDesign) -> str:
   mode (sf.flags.god: the player can be hurt but HP never drops below 1). The policy must play
   well enough that every event above happens in time.
 * Use only the asset ids listed above; characters, enemies, pickups and tiles must use them.
+* sf.state always holds hp, x, y (player position) and time (seconds since this run started;
+  a restart resets it), plus level and score when the design has them: QA tests read them.
+* After 'win' or 'lose', Enter restarts the run with this.scene.restart() and everything starts
+  over: QA tests press real keys (arrows/WASD, Space, Enter, digits for sf.choose menus).
 * No network, no modules, no eval, no URLs, no Date.now/performance.now."""
 
 

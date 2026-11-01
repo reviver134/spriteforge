@@ -311,6 +311,39 @@ def test_fixes_are_reverted_when_the_game_breaks(tmp_path, budget, monkeypatch):
     assert reviewed.report["issues"][0]["status"].startswith("not fixed: reverted")
 
 
+def test_fixes_are_reverted_when_a_qa_test_breaks(tmp_path, budget, monkeypatch):
+    """Art sets hitboxes: a QA test that passed with the old art and fails with the fixed art
+    reverts the fixes, like a broken bot playtest does."""
+    from dataclasses import replace
+
+    from spriteforge.game import pipeline
+    from spriteforge.game.qa import QATest, blank_step
+
+    design, plan, art, images = fallback_art(budget)
+    outcome = mock_build(tmp_path, design, art, budget)
+    qa = [QATest(name="loses when idle", purpose="p", god=False,
+                 steps=[blank_step(do="expect_no_errors")])]  # fmt: skip
+    outcome = replace(outcome, qa=[{"name": "loses when idle", "passed": True}])
+    calls = []
+
+    def rerun(build, tests, fps=30):
+        calls.append([t.name for t in tests])
+        return [{"name": "loses when idle", "passed": False, "failure": "no lose",
+                 "screenshots": []}]  # fmt: skip
+
+    monkeypatch.setattr(pipeline, "run_qa", rerun)
+    reviewed = review_art(models(budget, Reviewer(budget, answer((SLIME, "x", "blocking"))),
+                                 images), design, plan, art, outcome, load_config(),
+                          tmp_path / "out", lambda m: None, qa=qa)  # fmt: skip
+    assert calls == [["loses when idle"]]
+    assert reviewed.report["replay"] == {"passed": True, "reverted": True,
+                                         "qa": {"passed": 0, "failed": 1}}  # fmt: skip
+    assert (
+        "reverted: QA tests failed with the new art: 'loses when idle'" in reviewed.report["notes"]
+    )
+    assert reviewed.art is art and reviewed.outcome.qa == outcome.qa
+
+
 def strip(path: Path, frames: int, size: int, color) -> None:
     img = Image.new("RGBA", (frames * size, size))
     for n in range(frames):

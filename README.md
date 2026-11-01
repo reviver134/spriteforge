@@ -769,3 +769,9 @@ Plan: `new_plan.md`; details and live results: `docs/milestone-10-art-and-qa.md`
   MCP tools and `catalog/` show them; code recolours a library tile or sprite whose colour is
   far from the one the design names, sends a flat tile to Muse when the design asks for
   bricks or moss, and draws backgrounds flat, from text only, unless a real backdrop exists.
+* M10.4: the QA Playtester writes tests from the design (movement with real keys, the level-up
+  menu, losing, restarting after a loss, the HUD changing). They run after the bot playtest
+  with real key presses, failures join the repairs, later versions rerun earlier tests, and
+  feedback can drop one ("ignore the restart test"). Each build exports them as
+  `build/tests/test_game_qa.py`: `pytest build/tests` (pytest + Playwright). `game.qa: false`
+  turns them off.

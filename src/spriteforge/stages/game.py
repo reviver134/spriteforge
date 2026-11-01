@@ -12,11 +12,18 @@ After the G1 questions:
                              review/ holds its inputs and before/after pictures of fixed art;
                              art-plan-reviewed.json the plan with the fixes (the next version
                              starts from it, so fixed art stays locked)
+  game/design/vK-qa-tests.json  QA Playtester: tests written from design vK (once per version)
+  game/vN/qa-tests.json      the suite build vN runs: its design's tests plus earlier versions'
+                             (a regression suite), minus tests feedback dropped
+  game/vN/qa.json            QA results (real key presses after the bot playtest); qa/ their
+                             screenshots; test_game_qa.py the Playwright export (also in
+                             build/tests/, so the play route serves it)
   game/vN/poster.png         (+ demo.mp4 with ffmpeg)
   game/vN/report.json        what was built and by whom, art sources, warnings, attempts, play link
   gate "playtest"            text -> Director splits it into design/art/code changes -> v(N+1);
                              Apply on an art-review suggestion (form apply_suggestion=n) -> that
                              entity is redrawn as the suggestion says (no Director call);
+                             "ignore the restart test" -> that QA test is dropped (Revision);
                              empty -> approval.json, run complete
 The playable build is runs/<id>/game/vN/build, served at /api/runs/<id>/play/vN/index.html.
 """
@@ -37,10 +44,13 @@ from spriteforge.game.pipeline import (
     call_summary,
     plan_art,
     produce_art,
+    qa_report,
     review_art,
     write_code,
     write_design,
+    write_qa_tests,
 )
+from spriteforge.game.qa import QASuite, QATests, merge_suite, screenshot_files, write_export
 from spriteforge.game.record import record_game
 from spriteforge.game.revision import ArtChange, Revision, fallback_revision
 from spriteforge.game.revision import revision_prompt as director_prompt
@@ -135,6 +145,54 @@ def previous_art(ctx: GameContext, version: int):
     return lookup
 
 
+def qa_suite(
+    ctx: GameContext, version: int, design: GameDesign, design_version: int, drop=()
+) -> QASuite | None:
+    """The QA tests build vN runs: the previous build's suite minus `drop`, plus the QA
+    Playtester's tests for this design version (written once per design version)."""
+    if not ctx.cfg.game.qa:
+        return None
+    name = f"game/v{version}/qa-tests.json"
+    if name in ctx.artifacts:
+        return QASuite.model_validate(ctx.read(name))
+    before = f"game/v{version - 1}/qa-tests.json"
+    previous = QASuite.model_validate(ctx.read(before)) if before in ctx.artifacts else None
+    old_design = (
+        ctx.read(f"game/v{version - 1}/report.json")["design_version"] if version > 1 else None
+    )
+    new, notes = None, []
+    if previous is None or design_version != old_design:
+        written = f"game/design/v{design_version}-qa-tests.json"
+        if written not in ctx.artifacts:
+            tests, note = write_qa_tests(ctx.models, design)
+            ctx.save(written, tests.model_dump(), "QA Playtester")
+            notes += [note] if note else []
+        new = QATests.model_validate(ctx.read(written))
+    suite = merge_suite(previous, new, version, list(drop), notes)
+    ctx.save(name, suite.model_dump(), "QA Playtester")
+    return suite
+
+
+def save_qa(ctx: GameContext, prefix: str, outcome, suite: QASuite) -> dict:
+    """QA results, screenshots and the Playwright export as artifacts; report.json "qa"."""
+    pictures = screenshot_files(outcome.qa)
+    for name, data in pictures.items():
+        ctx.save(f"{prefix}/qa/{name}", data, "QA Playtester", "image/png")
+    report = qa_report(outcome.qa, suite.tests, "; ".join(suite.notes))
+    for test in report["tests"]:
+        test["screenshots"] = [f"{prefix}/qa/{n}" for n in test["screenshots"]]
+        test["since"] = suite.since(test["name"])
+    report["dropped"] = suite.dropped
+    if outcome.build:
+        path = write_export(outcome.build, suite.tests, ctx.cfg.game.playtest_fps)
+        ctx.save(f"{prefix}/test_game_qa.py", path.read_bytes(), "QA Playtester", "text/x-python")
+        report["export"] = f"{prefix}/test_game_qa.py"
+        report["export_url"] = f"/api/runs/{ctx.run_id}/play/{prefix.split('/')[-1]}/tests/" \
+                               "test_game_qa.py"  # fmt: skip
+    ctx.save(f"{prefix}/qa.json", report, "QA Playtester")
+    return report
+
+
 def build_version(
     ctx: GameContext,
     version: int,
@@ -144,6 +202,7 @@ def build_version(
     base: GameCode | None,
     instruction: str,
     revision: Revision | None = None,
+    suite: QASuite | None = None,
 ) -> list[str]:
     """Art, code, playtest, repair and recording for one build; returns gate artifact names."""
     prefix = f"game/v{version}"
@@ -156,13 +215,16 @@ def build_version(
             code = write_code(ctx.models, design, art.manifest(), base, instruction, log)
         else:
             code = base  # feedback touched only the art: same code, new assets
-        outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log)
+        outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log,
+                                 suite.tests if suite else None)  # fmt: skip
         review = None
         if ctx.cfg.game.review and outcome.build:
             log(f"build v{version}: the Art Reviewer is looking at the art in the running game")
             review = review_art(ctx.models, design, plan, art, outcome, ctx.cfg,
-                                ctx.root / prefix, log, version)  # fmt: skip
+                                ctx.root / prefix, log, version,
+                                suite.tests if suite else None)  # fmt: skip
             art, outcome = review.art, review.outcome
+        qa = save_qa(ctx, prefix, outcome, suite) if suite else None  # after the review's replay
         recording = None
         if outcome.build:
             log(f"build v{version}: recording the autoplay")
@@ -221,6 +283,7 @@ def build_version(
             "attempts": outcome.attempts,
             "revision": revision.model_dump() if revision else None,
             "art_review": review_report(review.report, prefix) if review else None,
+            "qa": qa,
             "model_calls": call_summary(ctx.store, ctx.run_id),
         }
         ctx.save(f"{prefix}/report.json", report, "Director")
@@ -237,7 +300,7 @@ def build_version(
             },
         )
     names = [n for n in (f"{prefix}/demo.mp4", f"{prefix}/poster.png") if n in ctx.artifacts][:1]
-    names += [n for n in (f"{prefix}/art.png",) if n in ctx.artifacts]
+    names += [n for n in (f"{prefix}/art.png", f"{prefix}/test_game_qa.py") if n in ctx.artifacts]
     return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
 
 
@@ -264,7 +327,8 @@ def suggestion_revision(report: dict, design: GameDesign, n) -> Revision | None:
     change = ArtChange(
         entity=issue["entity"], prompt=f"{looks[issue['entity']]}; {issue['fix_prompt']}"
     )
-    return Revision(design_changes="", art_changes=[change], code_instructions="")
+    return Revision(design_changes="", art_changes=[change], code_instructions="",
+                    drop_qa_tests=[])  # fmt: skip
 
 
 def last_plan(ctx: GameContext, version: int) -> ArtPlan:
@@ -277,6 +341,11 @@ def last_plan(ctx: GameContext, version: int) -> ArtPlan:
 def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None:
     report = ctx.read(f"game/v{version}/report.json")
     verdict = "all checks passed" if report["passed"] else "SOME CHECKS FAILED (see the report)"
+    if qa := report.get("qa"):
+        total = qa["passed"] + qa["failed"]
+        verdict += f"; QA {qa['passed']}/{total} tests pass" + (
+            f" ({qa['failed']} failing: test or game bug?)" if qa["failed"] else ""
+        )
     title = (
         f"G4 Playtest v{version}: {report['title']}, {verdict}. Watch the autoplay or play it; "
         "type what to change, or leave feedback empty and submit to approve"
@@ -377,7 +446,9 @@ def game_step(store, run_id) -> bool:
         plan = ctx.once(
             "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design), "Art Director"
         )
-        open_playtest_gate(ctx, 1, build_version(ctx, 1, design, version, plan, None, ""))
+        suite = qa_suite(ctx, 1, design, version)
+        open_playtest_gate(ctx, 1, build_version(ctx, 1, design, version, plan, None, "",
+                                                 suite=suite))  # fmt: skip
         return False
 
     if last.stage == "playtest" and last.status == "changes_requested":
@@ -387,6 +458,7 @@ def game_step(store, run_id) -> bool:
         design = load_design(ctx, design_version)
         feedback = feedback or "Try a different take."
         applied = suggestion_revision(previous, design, last.response.form.get("apply_suggestion"))
+        tests = {t["name"]: t["passed"] for t in (previous.get("qa") or {}).get("tests", [])}
         revision = ctx.once(
             f"game/v{version}/revision.json",
             Revision,
@@ -395,10 +467,10 @@ def game_step(store, run_id) -> bool:
                 or ctx.models.ask(
                     "Director",
                     director_prompt(
-                        design, {a["entity"]: a["source"] for a in previous["art"]}, feedback
+                        design, {a["entity"]: a["source"] for a in previous["art"]}, feedback, tests
                     ),
                     Revision,
-                    fallback_revision(design, feedback),
+                    fallback_revision(design, feedback, list(tests)),
                     "revision",
                 )
             ),
@@ -443,8 +515,9 @@ def game_step(store, run_id) -> bool:
             if part
         )
         base = GameCode.model_validate(ctx.read(f"game/v{version - 1}/code.json"))
+        suite = qa_suite(ctx, version, design, design_version, revision.drop_qa_tests)
         names = build_version(
-            ctx, version, design, design_version, plan, base, instruction, revision
+            ctx, version, design, design_version, plan, base, instruction, revision, suite
         )
         open_playtest_gate(ctx, version, names)
         return False

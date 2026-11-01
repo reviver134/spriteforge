@@ -620,3 +620,136 @@ images described again; failed sheets and the budget leave measured entries; off
 measured only; the far tile recoloured with its cracks kept; flat tiles not used for detailed
 looks or by library first; accent colours ignored; lift-only recolour; background view and
 style example; the Art Director's list).
+
+## M10.4: QA tests written from the design, played with real key presses
+
+The bot playtest proves the design's events happen when the game's own autoplay plays, but the
+bot never presses a key, opens a menu by hand or restarts. The QA Playtester writes tests from
+the design alone (never the code), the harness plays them with real key presses, and each
+build exports them as a Playwright file the user can run.
+
+### Probe (`tools/probe_keys.py`, no model calls)
+
+A fixture game opened like the playtest (`?headless=1`, the game loop stopped, `sfRun`
+stepping fixed frames) but without autoplay. Playwright `keyboard.down/up` reaches `sf.input`
+across `sfRun` calls: holding ArrowRight moved the hero (x 160 -> 186), releasing stopped it,
+"2" picked option 2 of an `sf.choose` menu (its Phaser keydown listener), Enter restarted the
+scene and keys still moved the hero afterwards. So no `sf.inject` was needed. A press made
+between two steps is not seen (games poll `isDown` once a frame), so a `press` holds the key
+for 3 frames.
+
+### SDK contract (`sdk/sf.js`, `API.md`, the Programmer's requirements)
+
+* `sf.state` always holds `hp`, `x`, `y` (player position) and `time` (seconds since this run
+  began; a restart resets it), plus `level` and `score` when the design has them.
+* After `win` or `lose`, Enter restarts the run (`this.scene.restart()`); the SDK emits
+  `restart` when the first game scene is created again.
+* `sf.choose` sets `sf.menu` (title, options) while open and emits `menu`; `choice` as before.
+* `sfRun(seconds, fps, keepGoing)`: QA tests keep stepping after win or lose.
+
+The mock game follows it (Enter restarts, its clock starts over, `hp/x/y/time/score`).
+
+### Tests as data (`game/qa.py`, `game/qa_runtime.py`)
+
+`QATests {tests: [QATest {name, purpose, god, steps}]}`. Strict JSON schema mode wants every
+field required, so a `Step` is one flat record: `do` (hold, press, wait, choose, expect_event,
+expect_state, expect_no_errors, screenshot) and the fields it uses (`buttons`, `seconds`,
+`index`, `event`, `min_count`, `within_seconds`, `path`, `op`, `value`, `label`); unused fields
+are cleared on validation. Limits checked by code: 12 tests, 40 steps and 120 game seconds per
+test, keys from a whitelist (arrows, WASD, Space, Z, X, J, K, Shift, Enter, Escape, 1-9), event
+names and state paths by pattern, unique names. `value: "@start"` compares with the value
+when the test began (movement: `x > @start`). The key field is `buttons`, not `keys`: the
+artifact store blanks any JSON key that looks like a secret ("keys"), and the regression suite
+keeps its versions as a list for the same reason (test names like "moves with the arrow keys").
+
+`qa_runtime.run_test` plays one test in a fresh page: hold/press send Playwright key events,
+game time advances with `sfRun(.., keepGoing)`, `expect_event` waits up to `within_seconds`
+(counts since the test began), `choose` waits up to 3 s for `sf.menu` and presses the digit.
+A step fails on its own check, on any new runtime error, or past 120 game seconds; the result
+has the failing step (1-based), the reason, every step's outcome, `sf.state`, events, errors
+and screenshots (one at the failing step). No test text is executed. The runtime imports only
+the standard library and Playwright.
+
+**QA Playtester** (role updated, `llm.reasoning.qa: high`, one Spark call per design version):
+the prompt lists the steps, the keys, the contract and the design, and asks for 5-8 tests
+including movement with real input, the level-up menu (when the design has one), the lose
+path (`god: false`), restart after losing and the HUD changing. An answer that breaks the
+limits gets one corrective retry (`chat_json`); if it still fails, or the call fails, the
+offline tests run instead and the report says so. Offline (`fallback_qa`): moves with the
+arrow keys, plays without errors, the HUD clock advances, the first timed check in time,
+loses when idle, restarts after losing.
+
+**Exporter**: `build/tests/test_game_qa.py` is the runtime copied unchanged, then
+`DATA_JSON = <repr of the tests' JSON>` and fixed pytest glue (serve the build folder, one
+Chromium, a test per QA test). Model text appears only inside that one string literal.
+
+### Pipeline and gates
+
+* `make_game`: design -> QA tests -> art -> code -> build -> bot playtest -> QA tests. QA
+  failures join the repair prompt ("QA test 'restarts after losing' (...) failed at step 3 of
+  7 (expect event restart >= 1 within 3 s): ..., Steps: ..., sf.state then: ..."). An attempt
+  passes when both pass; `report.passed` stays the bot playtest's verdict and `report.qa`
+  counts the QA tests. `qa-tests.json`, `qa.json`, `qa/` and the export are saved.
+* Stage: the tests are written once per design version (`game/design/vK-qa-tests.json`); build
+  vN runs a suite (`game/vN/qa-tests.json`): the previous build's suite minus what feedback
+  dropped, plus the new design's tests when the design changed, at most 24. `Revision` gained
+  `drop_qa_tests`: the Director sees the build's QA tests with pass/fail; offline,
+  "ignore the restart test" or "remove the idle test and the restart test" drop by name
+  words, and a drop alone touches neither code nor art.
+* G4: the gate title adds "QA 5/6 tests pass (1 failing: test or game bug?)"; the report shows
+  each test with its purpose, the version it came from, its steps (pass/fail), the failing step
+  and screenshots, the tests dropped by feedback, and a download link for `test_game_qa.py`
+  (also served from the build at `/api/runs/<id>/play/vN/tests/test_game_qa.py`). Checked in a
+  browser on a mock run: 6/6 tests, steps, the link answered 200 `text/x-python`, no page
+  errors.
+
+### Tests: `tests/test_qa_tests.py` + `tests/test_game_stage.py`
+
+Schema limits (unknown step, a key outside the whitelist, 200 s, 50 steps, 180 s in one
+test, bad event or path, 13 tests); runner pass and fail on the mock game (the failing step
+index, its screenshot, the repair text); the lose path passes without god and fails with it;
+a menu chosen with a digit key, `choose` with no menu fails, and every offline test passes on
+the mock game; the export compiles, a test named `"; import os; os.system("x") #` stays one
+string constant, and the exported file passes under `pytest` in a subprocess; QA failures
+reach the Programmer's repair prompt; test drops and the suite merge. Stage: v1's tests rerun
+on v2 (`since` 1), "ignore the restart test" drops it, no new QA call for the same design,
+code unchanged. `test_spark_schemas_are_strict` covers `QATests` and `Revision`.
+
+### Live (survival prompt through the gates, 2026-11-01)
+
+**Run 1** (`workspace/m10-4-qa`): "Cornered: 10-Minute Survival" passed on the first attempt
+with 6/6 QA tests from the QA Playtester: move with WASD, auto-fire kills and gems, the
+level-up menu (four holds of 5 s, `menu` within 85 s, option 1 chosen, `choice`), the lose path
+(`god: false`, walking into the swarm), restart after losing (Enter, `restart`, `time < 5`,
+move, no errors) and the HUD timer. 8 Spark + 15 image calls, $0.396.
+
+But the exported `test_game_qa.py`, run with pytest on the final build, failed 2 of 6 (the
+lose path and restart: no `lose` in 48 s). The QA tests had run before the Art Reviewer fixed
+the player and two enemies; art sets hitboxes, and the review replayed only the bot. **Fixed:**
+when fixes are kept, the review also reruns the QA tests on the fixed build; a test that passed
+before and fails now reverts the fixes (like a broken bot replay), so the export always matches
+the build the harness last tested (`test_fixes_are_reverted_when_a_qa_test_breaks`).
+
+**Run 2** (`workspace/m10-4-qa2`): "Corner Siege: 10 Minute Survival".
+
+* Attempt 1: the bot playtest passed, the QA tests did not (5/7): "lose when overwhelmed" and
+  "restart after losing" saw no `lose` in 95 s with the player idle (`hp` 100, 46 kills). The
+  game auto-fired at the nearest enemy even with no input, so an idle player killed everything
+  and could never lose, although the design says it "auto-fires toward aim when aiming". The bot
+  always plays, so the bot playtest could not see it.
+* The repair (edits, from the QA failure text) fires only while the player moves or aims;
+  attempt 2 passed the bot playtest and all 7 QA tests (the idle player now loses at about 12 s).
+* The Art Reviewer fixed the player, the runner and the gem; the QA rerun passed 7/7, so the
+  fixes were kept.
+* The tests: move with WASD (`x`, `y` against `@start`), aim and auto-fire (`player_shot` >= 5
+  while holding an arrow), kill and collect gems, level up and choose an upgrade (the menu opened
+  after about 90 s of real play; option 1; `choice`, `upgrade_chosen`, `leveled_up`), lose when
+  overwhelmed, restart after losing, the survival timer.
+* `pytest build/tests` on the final build: **7 passed in 3.1 s**.
+* 9 Spark + 13 image calls (2 failed image calls, not charged), $0.35. The QA call costs about
+  $0.05 at `reasoning: high` (3.7-4.0k tokens in, 10-11.5k out of which 7.6-8.6k reasoning).
+
+Acceptance: at least 5 QA tests including lose and restart, an export that passes when run by
+hand, and a bug class the bot cannot reach (an unlosable idle player; restart and menu input
+exercised) - met in run 2. Full pytest: 308 passed; the 3 known asset-production failures
+remain (out of scope). The suite takes about 70 s longer: mock builds now run their QA tests.

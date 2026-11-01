@@ -37,6 +37,16 @@ event names of the design's checks (e.g. `enemy_spawn`, `gem_collect`, `level_up
 session (a 10 minute game is simulated for 10 game minutes) and fails any check whose event is
 missing, too rare, or too late.
 
+## What QA tests read (keep these exact)
+QA tests play the build with real key presses and read `sf.state` and the events:
+* `sf.state` always holds `hp` (player health), `x`, `y` (player position in pixels) and `time`
+  (seconds since this run started; a restart resets it), plus `level` and `score` when the
+  design has levels or score/gems/kills. Update it every frame.
+* After `win` or `lose`, pressing Enter restarts the run with `this.scene.restart()`; every
+  value starts over (the SDK emits `restart`).
+* `sf.choose` emits `menu` when it opens and `choice` when an option is picked (the SDK does
+  both).
+
 ## God mode (tests)
 If `sf.flags.god` is true the player still takes hits (emit the hurt event) but HP never drops
 below 1, so the bot can reach the end of the session. Never skip any other rule in god mode.
@@ -66,7 +76,7 @@ speeds and distances you tune in pixels by it. Use only the ids listed in the as
 * Keep entity counts bounded (destroy what leaves the world; cap live enemies ~150).
 * Camera: `this.cameras.main.startFollow(player, true, 0.2, 0.2)` for worlds larger than the
   screen; set `this.physics.world.setBounds(...)` to the world size.
-* On lose, show a message and let the player restart with `this.scene.restart()`.
+* On win or lose, show a message; Enter restarts with `this.scene.restart()`.
 * Physics groups: `this.physics.add.group()` then `group.add(sprite)` keeps a velocity set
   before the add (the SDK guards this); input keeps working after `this.scene.restart()`.
 * Keep each file under ~600 lines; split helpers into extra files if needed.

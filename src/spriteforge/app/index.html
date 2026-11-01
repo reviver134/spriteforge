@@ -79,7 +79,8 @@ async function renderArtifact(a,container){
  for(const w of r.warnings||[])li('⚠ '+w);
  if(r.revision)li('Feedback applied: design «'+(r.revision.design_changes||'-')+'» · art '+(r.revision.art_changes.map(c=>c.entity).join(', ')||'-')+' · code «'+(r.revision.code_instructions||'-')+'»');
  li('Model calls: '+r.model_calls.chat+' Spark, '+r.model_calls.image+' Muse Image, about $'+r.model_calls.estimated_cost_usd);
- box.append(ul);if(r.art_review)box.append(artReview(r.art_review,container.id==='gate-artifacts'));const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Full report.json';pre.textContent=JSON.stringify(r,null,2);details.append(summary,pre);box.append(details);fig.append(box);cap.textContent='Build and playtest report · '+a.name;}
+ box.append(ul);if(r.art_review)box.append(artReview(r.art_review,container.id==='gate-artifacts'));if(r.qa)box.append(qaSection(r.qa));const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Full report.json';pre.textContent=JSON.stringify(r,null,2);details.append(summary,pre);box.append(details);fig.append(box);cap.textContent='Build and playtest report · '+a.name;}
+ else if(a.mime==='text/x-python'){const link=document.createElement('a');link.href='/api/artifacts/'+a.id;link.download=a.name.split('/').pop();link.textContent='⬇ Download '+link.download+' (QA tests: pytest + Playwright; put it in the build’s tests/ folder)';fig.append(link);cap.textContent='Exported QA tests · '+a.name;}
  else if(a.mime==='application/json'){const pre=document.createElement('pre');
  pre.textContent=JSON.stringify(await(await fetch('/api/artifacts/'+a.id)).json(),null,2);
  if(a.name.endsWith('/readability.json')){fig.className='preview-checks';const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Asset validation and readability report';details.append(summary,pre);fig.append(details);}else fig.append(pre);}
@@ -93,7 +94,7 @@ function artReview(rv,canApply){const box=document.createElement('section');box.
  const pic=name=>{const img=document.createElement('img');img.src='/api/artifacts/'+artifactIds[name];img.alt=name;img.style.cssText='width:auto;height:64px;vertical-align:middle';return img;};
  for(const f of rv.fixes){const p=document.createElement('p');p.textContent=(f.fixed?'✔ Fixed ':'✖ Not fixed ')+f.entity+' ('+f.mode+')'+(f.notes.length?': '+f.notes.join('; '):'');
   if(f.before&&artifactIds[f.before]&&artifactIds[f.after])p.append(' ',pic(f.before),' → ',pic(f.after));box.append(p);}
- if(rv.replay)box.append(Object.assign(document.createElement('p'),{textContent:'Replayed with the fixed art: '+(rv.replay.passed?'checks passed':'checks failed')+(rv.replay.reverted?' — fixes reverted':'')}));
+ if(rv.replay)box.append(Object.assign(document.createElement('p'),{textContent:'Replayed with the fixed art: '+(rv.replay.passed?'checks passed':'checks failed')+(rv.replay.qa?' · QA '+rv.replay.qa.passed+'/'+(rv.replay.qa.passed+rv.replay.qa.failed):'')+(rv.replay.reverted?' — fixes reverted':'')}));
  const ul=document.createElement('ul');
  for(const i of rv.issues){const li=document.createElement('li');li.textContent='#'+i.n+' ['+i.severity+'] '+i.entity+': '+i.problem+' — fix: '+i.fix_prompt+' · '+i.status+' ('+i.from+')';
   if(canApply&&i.status!=='fixed'){const b=document.createElement('button');b.type='button';b.textContent='Apply #'+i.n;b.onclick=()=>applySuggestion(i,b);li.append(' ',b);}ul.append(li);}
@@ -101,6 +102,24 @@ function artReview(rv,canApply){const box=document.createElement('section');box.
  const missed=rv.named.filter(n=>!n.ok);if(missed.length)box.append(Object.assign(document.createElement('p'),{textContent:'Naming test misses: '+missed.map(n=>n.entity+' seen as “'+n.seen_as+'”').join('; ')}));
  const seen=rv.images.filter(n=>/\/(sheet-4x|shot-\d+)\.png$/.test(n)&&artifactIds[n]);
  if(seen.length){const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='What the reviewer saw';details.append(summary);for(const n of seen){const img=pic(n);img.style.height='180px';details.append(img);}box.append(details);}
+ return box;}
+// QA tests on the G4 report: each test with pass/fail, its steps, the failing step and its
+// screenshots, and the exported Playwright file.
+function qaSection(qa){const box=document.createElement('section');box.className='qa-tests';
+ const total=qa.passed+qa.failed,h=document.createElement('h4');
+ h.textContent='QA tests (real key presses) · '+qa.passed+'/'+total+' pass';box.append(h);
+ if(qa.failed)box.append(Object.assign(document.createElement('p'),{textContent:'A failing test is a game bug or a wrong test (they are written from the design, not the code). If the test is wrong, drop it with feedback such as “ignore the restart test”.'}));
+ if(qa.note)box.append(Object.assign(document.createElement('p'),{textContent:'⚠ '+qa.note}));
+ if(qa.export_url){const a=document.createElement('a');a.href=qa.export_url;a.download='test_game_qa.py';a.textContent='⬇ test_game_qa.py: run these tests yourself (pytest + Playwright)';box.append(a);}
+ const ul=document.createElement('ul');
+ for(const t of qa.tests){const li=document.createElement('li');
+  li.textContent=(t.passed?'✔ ':'✖ ')+t.name+(t.god?'':' (the player can die)')+' — '+t.purpose+(t.since?' · since v'+t.since:'')+(t.passed?'':' · failed at step '+t.failed_step+': '+t.failure);
+  const d=document.createElement('details'),sm=document.createElement('summary');sm.textContent='steps';d.append(sm);
+  const ol=document.createElement('ol');for(const st of t.steps){ol.append(Object.assign(document.createElement('li'),{textContent:(st.ok?'✔ ':'✖ ')+st.step+(st.detail?' — '+st.detail:'')}));}d.append(ol);
+  for(const n of t.screenshots||[])if(artifactIds[n]){const img=document.createElement('img');img.src='/api/artifacts/'+artifactIds[n];img.alt=n;img.style.cssText='width:auto;height:120px;image-rendering:pixelated;margin:2px';d.append(img);}
+  li.append(d);ul.append(li);}
+ box.append(ul);
+ if(qa.dropped&&qa.dropped.length)box.append(Object.assign(document.createElement('p'),{textContent:'Dropped by feedback: '+qa.dropped.join(', ')}));
  return box;}
 async function applySuggestion(i,button){const gate=renderedGate;if(!gate)return;button.disabled=true;
  const body={action:'submit',tags:['art'],text:'Apply art review suggestion #'+i.n+' ('+i.entity+'): '+i.fix_prompt,form:{apply_suggestion:i.n}};

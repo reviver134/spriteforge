@@ -8,6 +8,9 @@
                         number; review/ holds its inputs (sheets, screenshots) and before/after
                         pictures of fixed art; art-plan-reviewed.json the plan with the fixes
     build/              the playable game (open build/index.html)
+    qa-tests.json       QA Playtester (Muse Spark): tests written from the design, played with
+                        real key presses after the bot playtest; qa.json their results, qa/
+                        their screenshots, build/tests/test_game_qa.py the Playwright export
     playtest.json       the final report; poster.png (+ demo.mp4 with ffmpeg)
     report.json         summary: who decided, sources, warnings, attempts, model calls and cost
     run.sqlite3         the budget ledger for this build (call caps and cost estimate)
@@ -78,6 +81,17 @@ from .codegen import (
 from .design import GameDesign, design_markdown, design_prompt, fallback_design
 from .image_cache import ImageCache
 from .playtest import failure_summary, playtest, review_times
+from .qa import (
+    QATest,
+    QATests,
+    fallback_qa,
+    qa_failures,
+    qa_prompt,
+    run_qa,
+    screenshot_files,
+    without_pictures,
+    write_export,
+)
 from .record import record_game
 
 
@@ -202,6 +216,21 @@ def write_design(models: Models, request: str) -> GameDesign:
     )
 
 
+def write_qa_tests(models: Models, design: GameDesign) -> tuple[QATests, str]:
+    """The QA Playtester's tests for a design, and a note when the offline tests stood in (an
+    answer that broke the limits twice, or a failed call: QA is a check, the build goes on)."""
+    fallback = fallback_qa(design)
+    try:
+        return models.ask("QA Playtester", qa_prompt(design), QATests, fallback, "qa"), ""
+    except Exception as exc:  # noqa: BLE001
+        first = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
+        note = (
+            f"the QA Playtester's tests could not be used ({type(exc).__name__}: {first}); "
+            "the offline tests ran instead"
+        )
+        return fallback, note
+
+
 def plan_art(models: Models, design: GameDesign) -> ArtPlan:
     prompt = art_prompt(design, library_context(design.camera, design))
     return models.ask("Art Director", prompt, ArtPlan, keyword_plan(design), "art_plan")
@@ -312,6 +341,8 @@ class BuildOutcome:
     attempts: list[dict]
     # The last playtest's screenshots for the art review: [{"t", "png"}]
     screenshots: list[dict] = field(default_factory=list)
+    # The last attempt's QA results (run_qa: screenshots as PNG bytes); [] without QA tests
+    qa: list[dict] = field(default_factory=list)
 
 
 def build_and_test(
@@ -322,11 +353,13 @@ def build_and_test(
     cfg: Config,
     out: Path,
     log: Callable[[str], None] = print,
+    qa: list[QATest] | None = None,
 ) -> BuildOutcome:
-    """Static checks, build, playtest; failures go back to the Programmer (bounded)."""
+    """Static checks, build, playtest with the bot, then the QA tests (real key presses);
+    failures of either go back to the Programmer (bounded)."""
     manifest = art.manifest()
     asset_ids = set(manifest["sprites"]) | set(manifest["images"])
-    attempts, report, build_dir, shots = [], {}, None, []
+    attempts, report, build_dir, shots, qa_results = [], {}, None, [], []
     capture = review_times(design.session_seconds) if cfg.game.review else []
     for n in range(cfg.game.max_repairs + 1):
         folder = out / "attempts" / str(n + 1)
@@ -357,19 +390,31 @@ def build_and_test(
             )
             shots = result.pop("screenshots", [])
             report = {"stage": "playtest", **result}
-            failures = failure_summary(report)
+            failures = failure_summary(report) if not report["passed"] else ""
+            qa_results = []
+            if qa and report["ended"] != "no-boot":
+                qa_results = run_qa(build_dir, qa, cfg.game.playtest_fps)
+                failed = sum(not r["passed"] for r in qa_results)
+                report["qa"] = {"passed": len(qa_results) - failed, "failed": failed,
+                                "results": without_pictures(qa_results)}  # fmt: skip
+                if failed:
+                    failures = "\n".join(p for p in (failures, qa_failures(qa_results)) if p)
+        qa_ok = all(r["passed"] for r in qa_results)
+        ok = report["passed"] and qa_ok
         save_json(folder / "report.json", report)
         attempts.append(
             {
                 "attempt": n + 1,
-                "passed": report["passed"],
-                "stage": report["stage"],
-                "summary": "all checks passed" if report["passed"] else failures,
+                "passed": ok,
+                "stage": report["stage"] if not report["passed"] or qa_ok else "qa",
+                "summary": "all checks passed" if ok else failures,
             }
         )
-        status = "passed" if report["passed"] else f"failed at {report['stage']}"
+        if report.get("qa"):
+            attempts[-1]["qa"] = {k: report["qa"][k] for k in ("passed", "failed")}
+        status = "passed" if ok else f"failed at {attempts[-1]['stage']}"
         log(f"  attempt {n + 1}: {status}")
-        if report["passed"] or n == cfg.game.max_repairs:
+        if ok or n == cfg.game.max_repairs:
             break
         log("  Programmer is repairing the game")
         fixed, how = edit_code(
@@ -384,7 +429,7 @@ def build_and_test(
         code = fixed
     if report["stage"] == "static":
         build_dir, shots = None, []  # the last answer never passed static checks: no build
-    return BuildOutcome(code, report, build_dir, attempts, shots)
+    return BuildOutcome(code, report, build_dir, attempts, shots, qa_results)
 
 
 def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out: Path):
@@ -422,9 +467,12 @@ def review_art(
     out: Path,
     log: Callable[[str], None] = print,
     version: int = 1,
+    qa: list[QATest] | None = None,
 ) -> Reviewed:
     """The Art Reviewer looks at all the art together and in the running game, blocking
-    issues are fixed once (capped), and the same code is played again with the fixed art. If
+    issues are fixed once (capped), and the same code is played again with the fixed art (and
+    the QA tests run again: art sets hitboxes, so a fix can change play). If a QA test that
+    passed fails with the fixed art, the fixes are reverted too. If
     a game that passed fails with it, the fixes are reverted. No second review."""
     slots = review_slots(art)
     findings = precheck(design, art)
@@ -479,17 +527,35 @@ def review_art(
         log("  playing the game again with the fixed art")
         build_dir, report = replay(design, fixed_art, outcome.code, cfg, out)
         replayed = {"passed": report["passed"], "reverted": False}
-        if outcome.report["passed"] and not report["passed"]:
+        new_qa = (
+            run_qa(build_dir, qa, cfg.game.playtest_fps)
+            if qa and outcome.qa and report["ended"] != "no-boot"
+            else []
+        )
+        # QA tests that passed with the old art and fail with the new (live 2026-11-01: fixed
+        # player and enemy sprites changed the hitboxes, and the lose path no longer happened).
+        broke = [new["name"] for new, old in zip(new_qa, outcome.qa, strict=False)
+                 if old["passed"] and not new["passed"]]  # fmt: skip
+        if new_qa:
+            failed = sum(not r["passed"] for r in new_qa)
+            replayed["qa"] = {"passed": len(new_qa) - failed, "failed": failed}
+        if (outcome.report["passed"] and not report["passed"]) or broke:
             replay(design, art, outcome.code, cfg, out)  # back to the art that passed
             replayed["reverted"] = True
-            why = "reverted: the game failed its playtest with the new art"
-            notes.append(f"{why} ({failure_summary(report).splitlines()[0]})")
+            if outcome.report["passed"] and not report["passed"]:
+                why = "reverted: the game failed its playtest with the new art"
+                notes.append(f"{why} ({failure_summary(report).splitlines()[0]})")
+            else:
+                why = "reverted: QA tests failed with the new art"
+                notes.append(f"{why}: " + ", ".join(f"'{n}'" for n in broke))
             for fx in kept:
                 fx.notes.append(why)
                 fx.after = None
             kept, fixed_art = [], art
         else:
-            outcome = replace(outcome, report=report, build=build_dir)
+            if new_qa:
+                report["qa"] = {**replayed["qa"], "results": without_pictures(new_qa)}
+            outcome = replace(outcome, report=report, build=build_dir, qa=new_qa or outcome.qa)
     for fx in fixes:
         for i in issues:
             if i.n in fx.issues:
@@ -532,6 +598,45 @@ def review_art(
         "images": sorted(images),
     }
     return Reviewed(fixed_art, outcome, reviewed_plan(plan, kept), answer, report, images)
+
+
+def qa_report(results: list[dict], tests: list[QATest], note: str = "") -> dict:
+    """report.json "qa": every test with its purpose, steps, result and screenshot files
+    (`screenshot_files` names them first)."""
+    return {
+        "passed": sum(r["passed"] for r in results),
+        "failed": sum(not r["passed"] for r in results),
+        "note": note,
+        "tests": [
+            {
+                "name": r["name"],
+                "purpose": r.get("purpose", ""),
+                "god": r.get("god", False),
+                "passed": r["passed"],
+                "failed_step": r["failed_step"],
+                "failure": r["failure"],
+                "steps": r["steps"],
+                "state": r["state"],
+                "game_seconds": r["game_seconds"],
+                "screenshots": [s["file"] for s in r["screenshots"] if "file" in s],
+            }
+            for r in results
+        ],
+        "count": len(tests),
+    }
+
+
+def save_qa(out: Path, outcome: BuildOutcome, tests: list[QATest], fps: int, note: str) -> dict:
+    """qa.json, qa/<test>-<label>.png and build/tests/test_game_qa.py; returns the report."""
+    pictures = screenshot_files(outcome.qa)
+    for name, data in pictures.items():
+        (out / "qa").mkdir(exist_ok=True)
+        (out / "qa" / name).write_bytes(data)
+    report = qa_report(outcome.qa, tests, note)
+    save_json(out / "qa.json", report)
+    if outcome.build:
+        report["export"] = str(write_export(outcome.build, tests, fps))
+    return report
 
 
 def save_art(out: Path, art: ArtResult) -> None:
@@ -586,6 +691,12 @@ def make_game(
         f"  {design.title}: {len(design.entities)} entities, {len(design.checks)} checks, "
         f"{design.session_seconds} s session"
     )
+    qa_tests, qa_note = None, ""
+    if cfg.game.qa:
+        log("qa: QA Playtester is writing tests from the design")
+        qa_tests, qa_note = write_qa_tests(models, design)
+        save_json(out / "qa-tests.json", qa_tests.model_dump())
+        log(f"  {len(qa_tests.tests)} QA tests" + (f" ({qa_note})" if qa_note else ""))
 
     log("art: Art Director is choosing library art (Muse Image for anything missing)")
     plan = plan_art(models, design)
@@ -600,11 +711,13 @@ def make_game(
 
     log("code: Programmer is writing the game")
     code = write_code(models, design, art.manifest())
-    outcome = build_and_test(models, design, art, code, cfg, out, log)
+    outcome = build_and_test(models, design, art, code, cfg, out, log,
+                             qa_tests.tests if qa_tests else None)  # fmt: skip
     review = None
     if cfg.game.review and outcome.build:
         log("review: Art Reviewer is looking at the art in the running game")
-        review = review_art(models, design, plan, art, outcome, cfg, out, log)
+        review = review_art(models, design, plan, art, outcome, cfg, out, log,
+                            qa=qa_tests.tests if qa_tests else None)  # fmt: skip
         art, outcome = review.art, review.outcome
         save_json(out / "art-review.json", review.answer.model_dump())
         for name, data in review.images.items():
@@ -617,6 +730,10 @@ def make_game(
         log(f"  scores {scores}; {len(review.report['issues'])} issue(s), "
             f"{sum(f['fixed'] for f in review.report['fixes'])} fixed")  # fmt: skip
     save_json(out / "playtest.json", outcome.report)
+    qa = None
+    if qa_tests:
+        qa = save_qa(out, outcome, qa_tests.tests, cfg.game.playtest_fps, qa_note)
+        log(f"  QA: {qa['passed']} of {qa['passed'] + qa['failed']} tests pass")
 
     recording = None
     if outcome.build and record:
@@ -635,6 +752,7 @@ def make_game(
         "warnings": art.warnings,
         "attempts": outcome.attempts,
         "art_review": review.report if review else None,
+        "qa": qa,
         "recording": recording.summary if recording else None,
         "model_calls": call_summary(store, run.id),
     }

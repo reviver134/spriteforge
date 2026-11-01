@@ -85,6 +85,9 @@ class GameConfig(Schema):
     review_image_reasoning: Literal["low", "high"] = "high"
     # Review call plus fixes stay within this estimate: fewer fixes when the review costs more.
     review_cost_cap: float = Field(default=0.08, ge=0)
+    # QA tests (M10.4): the QA Playtester writes tests from each design version; every build runs
+    # them (and earlier versions' tests) with real key presses after the bot playtest.
+    qa: bool = True
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)
