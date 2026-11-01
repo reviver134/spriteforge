@@ -42,7 +42,7 @@ from spriteforge.core.gates import Gates, new_gate
 from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.design import GameDesign, design_markdown, revision_prompt
-from spriteforge.game.gamedb import open_db, promote_all, sync_build, sync_story
+from spriteforge.game.gamedb import open_db, promote_all, sync_record
 from spriteforge.game.pipeline import (
     Models,
     art_sources,
@@ -66,9 +66,32 @@ from spriteforge.game.revision import revision_prompt as director_prompt
 from spriteforge.game.story import StoryBible, story_markdown
 
 from .asset_store import ProductionStore
+from .game_record import (
+    REPORT,
+    next_story_name,
+    run_record,
+    shown,
+    story_for_trigger,
+    story_names,
+)
 from .intake import GameBrief
 
 STAGES = {"design", "playtest"}
+ADD_STORY = "Add a story"
+# G2 and G4 offer a story while the game has none (named characters, a world, an arc).
+STORY_FORM = {
+    "type": "object",
+    "properties": {
+        "story": {
+            "type": "string",
+            "title": "Story",
+            "description": "The game has no story. Add one: named characters, a world and a "
+            "story arc, written from the design (one Spark call).",
+            "enum": ["No story", ADD_STORY],
+            "default": "No story",
+        }
+    },
+}
 
 
 class GameContext(ProductionStore):
@@ -133,43 +156,59 @@ def save_design(ctx: GameContext, version: int, design: GameDesign) -> None:
         ctx.save(f"{name}.md", design_markdown(design).encode(), "Game Designer", "text/markdown")
 
 
-def save_story(ctx: GameContext, version: int, story: StoryBible, notes: list[str]) -> None:
-    name = f"game/design/v{version}-story"
-    if f"{name}.json" not in ctx.artifacts:
-        ctx.save(f"{name}.json", story.model_dump(), "Game Designer")
-    if f"{name}.md" not in ctx.artifacts:
-        text = story_markdown(story) + "".join(f"\n> repaired: {n}" for n in notes)
-        ctx.save(f"{name}.md", text.encode(), "Game Designer", "text/markdown")
+def latest_story(ctx: GameContext) -> StoryBible | None:
+    names = story_names(ctx.artifacts)
+    return StoryBible.model_validate(ctx.read(names[-1])) if names else None
 
 
-def story_for(ctx: GameContext, version: int, design: GameDesign) -> StoryBible:
-    """Design vK's story bible (written now for runs from before stories existed)."""
-    name = f"game/design/v{version}-story.json"
-    if name not in ctx.artifacts:
-        story, notes = write_story(ctx.models, design, request_text(ctx.brief))
-        save_story(ctx, version, story, notes)
-    return StoryBible.model_validate(ctx.read(name))
+def ensure_story(ctx: GameContext, trigger: str, design: GameDesign, ask: str = "") -> str:
+    """The story for `trigger` (`design-v2`, `gate-5`), written once: the latest story revised
+    for `design` and `ask`, or a new one when the game has none. Only ever called when the
+    human asked for a story (G1 "Yes", "Add a story", feedback asking for one)."""
+    if name := story_for_trigger(ctx.artifacts, trigger):
+        return name
+    old = latest_story(ctx)
+    log = ctx.log("Game Designer")
+    if old is None:
+        log("writing the story bible (the human asked for a story)")
+        request = request_text(ctx.brief) + (f"\nWhat they asked for the story: {ask}" if ask else "")
+        story, notes = write_story(ctx.models, design, request)
+    else:
+        log("revising the story bible")
+        story, notes = revise_story(ctx.models, old, design,
+                                    ask or "Keep the story; fit it to the revised design.")  # fmt: skip
+    name = next_story_name(ctx.artifacts, trigger)
+    ctx.save(name, story.model_dump(), "Game Designer")
+    text = story_markdown(story) + "".join(f"\n> repaired: {n}" for n in notes)
+    ctx.save(name.removesuffix(".json") + ".md", text.encode(), "Game Designer", "text/markdown")
+    return name
 
 
-def sync_story_db(ctx: GameContext, version: int, design: GameDesign) -> None:
-    story = story_for(ctx, version, design)
-    sync_story(ctx.db, story, design, f"game/design/v{version}-story.json",
-               f"game/design/v{version}.json")  # fmt: skip
+def sync_db(ctx: GameContext, why: str, pending: tuple[int, dict] | None = None) -> dict:
+    """Rewrite the game's OKF bundle from the run (only what changed)."""
+    db = ctx.db
+    counts = sync_record(db, run_record(ctx, pending), f"Game record: {why}")
+    return {"path": str(db.root), "concepts": len(db.scan()[0]), **counts}
+
+
+def story_names_shown(ctx: GameContext) -> list[str]:
+    names = story_names(ctx.artifacts)
+    return names[-1:]
 
 
 def open_design_gate(ctx: GameContext, version: int) -> None:
     design = load_design(ctx, version)
+    story = "" if latest_story(ctx) else " (no story: choose Add a story to get one)"
     title = (
-        f"G2 Game design v{version}: {design.title}. Read the rules, entities and checks; type "
-        "what to change, or leave feedback empty and submit to approve and build the game"
+        f"G2 Game design v{version}: {design.title}{story}. Read the rules, entities and checks; "
+        "type what to change, or leave feedback empty and submit to approve and build the game"
     )
-    names = [f"game/design/v{version}.json", f"game/design/v{version}-story.json"]
-    names = [n for n in names if n in ctx.artifacts]
+    names = [f"game/design/v{version}.json", *story_names_shown(ctx)]
+    extra = {} if latest_story(ctx) else {"form_schema": STORY_FORM}
     Gates(ctx.store).open(
         ctx.run_id,
-        new_gate(
-            "design", title, [ctx.artifacts[n].id for n in names], empty_feedback_approves=True
-        ),
+        new_gate("design", title, [ctx.artifacts[n].id for n in names],
+                 empty_feedback_approves=True, **extra),
     )
 
 
@@ -244,7 +283,6 @@ def build_version(
     instruction: str,
     revision: Revision | None = None,
     suite: QASuite | None = None,
-    story: StoryBible | None = None,
 ) -> list[str]:
     """Art, code, playtest, repair and recording for one build; returns gate artifact names."""
     prefix = f"game/v{version}"
@@ -328,13 +366,7 @@ def build_version(
             "qa": qa,
             "model_calls": call_summary(ctx.store, ctx.run_id),
         }
-        story = story or story_for(ctx, design_version, design)
-        db = ctx.db
-        sync_build(db, story, design, art, version, report,
-                   {"story": f"game/design/v{design_version}-story.json",
-                    "design": f"game/design/v{design_version}.json",
-                    "build": f"{prefix}/report.json"})  # fmt: skip
-        report["game_db"] = {"path": str(db.root), "entries": len(db.scan()[0])}
+        report["game_db"] = sync_db(ctx, f"build v{version}", (version, report))
         ctx.save(f"{prefix}/report.json", report, "Director")
         ctx.store.append_event(
             ctx.run_id,
@@ -348,9 +380,7 @@ def build_version(
                 "warnings": art.warnings,
             },
         )
-    names = [n for n in (f"{prefix}/demo.mp4", f"{prefix}/poster.png") if n in ctx.artifacts][:1]
-    names += [n for n in (f"{prefix}/art.png", f"{prefix}/test_game_qa.py") if n in ctx.artifacts]
-    return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
+    return gate_names(ctx, version)
 
 
 def review_report(report: dict, prefix: str) -> dict:
@@ -395,16 +425,29 @@ def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None
         verdict += f"; QA {qa['passed']}/{total} tests pass" + (
             f" ({qa['failed']} failing: test or game bug?)" if qa["failed"] else ""
         )
+    story = latest_story(ctx)
     title = (
         f"G4 Playtest v{version}: {report['title']}, {verdict}. Watch the autoplay or play it; "
         "type what to change, or leave feedback empty and submit to approve"
+        + ("" if story else " (no story: choose Add a story to get one)")
     )
+    names = [*names, *(n for n in story_names_shown(ctx) if n not in names)]
+    extra = {} if story else {"form_schema": STORY_FORM}
     Gates(ctx.store).open(
         ctx.run_id,
-        new_gate(
-            "playtest", title, [ctx.artifacts[n].id for n in names], empty_feedback_approves=True
-        ),
+        new_gate("playtest", title, [ctx.artifacts[n].id for n in names],
+                 empty_feedback_approves=True, **extra),
     )
+
+
+def gate_names(ctx: GameContext, version: int) -> list[str]:
+    """What G4 shows for build vN: the video or poster, the art sheet, the QA export, the
+    report and the design it was built from."""
+    prefix = f"game/v{version}"
+    design_version = ctx.read(f"{prefix}/report.json")["design_version"]
+    names = [n for n in (f"{prefix}/demo.mp4", f"{prefix}/poster.png") if n in ctx.artifacts][:1]
+    names += [n for n in (f"{prefix}/art.png", f"{prefix}/test_game_qa.py") if n in ctx.artifacts]
+    return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
 
 
 def apply_art_changes(plan: ArtPlan, design: GameDesign, revision: Revision) -> ArtPlan:
@@ -443,15 +486,27 @@ def apply_art_changes(plan: ArtPlan, design: GameDesign, revision: Revision) -> 
     return plan.model_copy(update={"picks": picks})
 
 
+def asks_story(gate) -> bool:
+    """The human chose Add a story on the gate's form."""
+    return bool(gate.response) and gate.response.form.get("story") == ADD_STORY
+
+
 def game_step(store, run_id) -> bool:
     ctx = GameContext(store, run_id)
     history = Gates(store).all(run_id)
-    last = history[-1]
-    builds = [g for g in history if g.stage == "playtest"]
+    last, n = history[-1], len(history)  # n: this gate's number (story and revision keys)
     feedback = ((last.response.text if last.response else "") or "").strip()
+    has_story = latest_story(ctx) is not None
 
     if last.stage == "playtest" and last.status == "approved":
-        version = len(builds)
+        version = shown(ctx, last, REPORT)
+        if asks_story(last) and not has_story:
+            # Approved, but they want a story first: write it and show the same build again.
+            design = load_design(ctx, ctx.read(f"game/v{version}/report.json")["design_version"])
+            ensure_story(ctx, f"gate-{n}", design)
+            sync_db(ctx, f"story added at G4 (build v{version})")
+            open_playtest_gate(ctx, version, gate_names(ctx, version))
+            return False
         report = ctx.read(f"game/v{version}/report.json")
         ctx.save(
             "approval.json",
@@ -467,6 +522,7 @@ def game_step(store, run_id) -> bool:
             },
             "Director",
         )
+        sync_db(ctx, f"G4 approved build v{version}")
         promote_all(ctx.db, f"G4 approved: build v{version}")
         store.advance(run_id, ctx.run.cursor, "G4 approved; game build locked", final=True)
         return False
@@ -487,20 +543,23 @@ def game_step(store, run_id) -> bool:
             "Game Designer",
         )
         save_design(ctx, version, design)
-        if f"game/design/v{version}-story.json" not in ctx.artifacts:
-            old_story = story_for(ctx, version - 1, previous)
-            story, notes = revise_story(ctx.models, old_story, design,
-                                        feedback or "Try a different take.")  # fmt: skip
-            save_story(ctx, version, story, notes)
-        sync_story_db(ctx, version, design)
+        if has_story or asks_story(last):  # a story follows the design; one starts on request
+            ensure_story(ctx, f"design-v{version}", design, feedback)
+        sync_db(ctx, f"design v{version}")
         open_design_gate(ctx, version)
         return False
 
     if last.stage == "design" and last.status == "approved":
         version = design_versions(ctx)
         design = load_design(ctx, version)
-        sync_story_db(ctx, version, design)
-        promote_all(ctx.db, f"G2 approved: design v{version} and its story")
+        if asks_story(last) and not has_story:
+            # "Add a story" with no other feedback: write it and show the design again.
+            ensure_story(ctx, f"gate-{n}", design)
+            sync_db(ctx, f"story added at G2 (design v{version})")
+            open_design_gate(ctx, version)
+            return False
+        sync_db(ctx, f"G2 approved design v{version}")
+        promote_all(ctx.db, f"G2 approved: design v{version}" + (" and its story" if has_story else ""))
         plan = ctx.once(
             "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design), "Art Director"
         )
@@ -510,30 +569,39 @@ def game_step(store, run_id) -> bool:
         return False
 
     if last.stage == "playtest" and last.status == "changes_requested":
-        version = len(builds) + 1
-        previous = ctx.read(f"game/v{version - 1}/report.json")
+        shown_version = shown(ctx, last, REPORT)
+        version = shown_version + 1
+        previous = ctx.read(f"game/v{shown_version}/report.json")
         design_version = previous["design_version"]
         design = load_design(ctx, design_version)
         feedback = feedback or "Try a different take."
         applied = suggestion_revision(previous, design, last.response.form.get("apply_suggestion"))
         tests = {t["name"]: t["passed"] for t in (previous.get("qa") or {}).get("tests", [])}
-        revision = ctx.once(
-            f"game/v{version}/revision.json",
-            Revision,
-            lambda: (
-                applied
-                or ctx.models.ask(
-                    "Director",
-                    director_prompt(
-                        design, {a["entity"]: a["source"] for a in previous["art"]}, feedback, tests
-                    ),
-                    Revision,
-                    fallback_revision(design, feedback, list(tests)),
-                    "revision",
-                )
-            ),
-            "Art Reviewer" if applied else "Director",
-        )
+
+        def director() -> Revision:
+            answer = applied or ctx.models.ask(
+                "Director",
+                director_prompt(
+                    design, {a["entity"]: a["source"] for a in previous["art"]}, feedback, tests
+                ),
+                Revision,
+                fallback_revision(design, feedback, list(tests)),
+                "revision",
+            )
+            if asks_story(last) and not answer.story_changes.strip():
+                answer = answer.model_copy(update={"story_changes": "Add a story"})
+            return answer
+
+        role = "Art Reviewer" if applied else "Director"
+        revision = ctx.once(f"game/feedback/gate-{n}-revision.json", Revision, director, role)
+        if revision.story_only:
+            # Only the story changes: write it and show the same build again (no rebuild).
+            ensure_story(ctx, f"gate-{n}", design, revision.story_changes)
+            sync_db(ctx, f"story at G4 (build v{shown_version})")
+            open_playtest_gate(ctx, shown_version, gate_names(ctx, shown_version))
+            return False
+        if f"game/v{version}/revision.json" not in ctx.artifacts:
+            ctx.save(f"game/v{version}/revision.json", revision.model_dump(), role)
         changed = bool(revision.design_changes.strip())
         if changed:
             old = design
@@ -551,10 +619,11 @@ def game_step(store, run_id) -> bool:
                 "Game Designer",
             )
             save_design(ctx, design_version, design)
-            if f"game/design/v{design_version}-story.json" not in ctx.artifacts:
-                old_story = story_for(ctx, previous["design_version"], old)
-                story, notes = revise_story(ctx.models, old_story, design, revision.design_changes)
-                save_story(ctx, design_version, story, notes)
+        if changed and (has_story or revision.story_changes.strip()):
+            ask = "\n".join(p for p in (revision.design_changes, revision.story_changes) if p.strip())
+            ensure_story(ctx, f"design-v{design_version}", design, ask)
+        elif revision.story_changes.strip():
+            ensure_story(ctx, f"gate-{n}", design, revision.story_changes)
         base_plan = (
             ctx.once(
                 f"game/v{version}/art-plan-new.json",
@@ -584,7 +653,8 @@ def game_step(store, run_id) -> bool:
         open_playtest_gate(ctx, version, names)
         return False
 
-    # Entering from the G1 follow-ups: write design v1 and ask the human to approve it.
+    # Entering from the G1 follow-ups: write design v1 (and the story, only when the brief asks
+    # for one) and ask the human to approve it.
     design = ctx.once(
         "game/design/v1.json",
         GameDesign,
@@ -592,6 +662,8 @@ def game_step(store, run_id) -> bool:
         "Game Designer",
     )
     save_design(ctx, 1, design)
-    sync_story_db(ctx, 1, design)  # writes the story bible (once) and the database entries
+    if ctx.brief.wants_story:
+        ensure_story(ctx, "design-v1", design)
+    sync_db(ctx, "design v1")
     open_design_gate(ctx, 1)
     return False

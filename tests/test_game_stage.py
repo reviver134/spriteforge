@@ -26,12 +26,13 @@ def read(store, ident, name):
     return json.loads(next(a for a in store.artifacts(ident) if a.name == name).data)
 
 
-def to_design_gate(tmp_path):
+def to_design_gate(tmp_path, story=None):
     store = Store(tmp_path / "state.sqlite3")
     run = start_run(store, load_config(), mock=True, goal="survive a slime arena, collect gems")
     workflow_step(store, run.id)
     answer(store, run.id, form={"genre": "genres/top-down-dungeon-crawler"})
-    answer(store, run.id, form={"environment": "A slime cave"})
+    form = {"environment": "A slime cave"} | ({"story": story} if story else {})
+    answer(store, run.id, form=form)
     answer(store, run.id)  # follow-up questions
     return store, run.id
 
@@ -159,37 +160,123 @@ def test_qa_regression_across_versions(tmp_path):
     assert read(store, ident, "game/v2/code.json") == read(store, ident, "game/v1/code.json")
 
 
-def test_story_bible_and_game_database_through_the_gates(tmp_path):
-    """G2 shows the story bible with the design; the game database holds the canon, the human's
-    approvals promote it, and builds add the characters' locked art."""
+def bundle_of(store, ident, tmp_path):
     from spriteforge.game.gamedb import open_db
 
+    return open_db(tmp_path / "runs" / ident / "game" / "db", store, ident)
+
+
+def test_no_story_unless_asked_and_the_game_record(tmp_path, monkeypatch):
+    """Without a story there is no story call and no story concept; the bundle holds the
+    design, entities with art, code modules, QA, builds and decisions; feedback asking for a
+    story at G4 writes it without a rebuild; `game db sync` rebuilds the same bundle."""
+    import shutil
+    import stat
+    from pathlib import Path
+
+    from typer.testing import CliRunner
+
+    from spriteforge.game import pipeline
+    from spriteforge.game.cli import app as game_cli
+    from spriteforge.memory.okf.validate import validate
+
+    def no_story_call(*args):
+        raise AssertionError("the story was written without being asked for")
+
+    monkeypatch.setattr(pipeline, "story_prompt", no_story_call)
     store, ident = to_design_gate(tmp_path)
-    ids = lambda: {a.name: a.id for a in store.artifacts(ident)}
+    names = lambda: {a.name for a in store.artifacts(ident)}
     gate = Gates(store).pending(ident)
-    assert ids()["game/design/v1-story.json"] in gate.artifacts_to_show
-    story = read(store, ident, "game/design/v1-story.json")
-    assert [c["entity"] for c in story["characters"]][:1] == ["hero"] and story["canon"]
-    root = tmp_path / "runs" / ident / "game" / "db"
-    assert (root / "story" / "overview.md").is_file() and (
-        root / "characters" / "hero.md"
-    ).is_file()
+    assert read(store, ident, "brief.json")["story"] == "No story"
+    assert gate.form_schema["properties"]["story"]["enum"] == ["No story", "Add a story"]
+    assert not any("story" in n for n in names())
+    db = bundle_of(store, ident, tmp_path)
+    ids = {e.id for e in db.scan()[0]}
+    assert {"game", "design/rules", "design/events", "entities/hero", "decisions/1"} <= ids
+    assert not any(i.split("/")[0] in {"story", "characters", "world"} for i in ids)
 
-    submit(store, ident, "Make the session shorter")  # design v2 brings story v2
-    gate = Gates(store).pending(ident)
-    assert ids()["game/design/v2-story.json"] in gate.artifacts_to_show
-
-    submit(store, ident)  # approve: the database is promoted, then build v1 adds the art
-    db = open_db(root, store, ident)
+    submit(store, ident)  # approve G2: promoted, then build v1 adds art, code, QA, the build
     tiers = {e.id: e.metadata.trust_tier for e in db.scan()[0]}
-    assert tiers["story/overview"] == tiers["story/canon"] == "human-reviewed"
-    assert tiers["characters/hero"] == tiers["levels/level-1"] == "unverified"
-    assert (root / "characters" / "hero.png").is_file()
+    assert tiers["design/rules"] == tiers["decisions/1"] == "human-reviewed"
+    # New, or changed since the human saw it (the hero's entity now shows its art): unverified.
+    assert tiers["code/modules/game"] == tiers["builds/v1"] == tiers["entities/hero"] == "unverified"
+    assert {"art/assets/hero", "code/overview", "qa/suite", "qa/tests/loses-when-idle"} <= set(tiers)
     report = read(store, ident, "game/v1/report.json")
-    assert report["game_db"]["entries"] == len(tiers) >= 9
+    assert report["game_db"]["concepts"] == len(tiers)
+    root = db.root
+    built = tmp_path / "runs" / ident / "game/v1/build/game.js"  # (text: the build has CRLF)
+    assert (root / "references/code/game.js").read_text("utf-8") == built.read_text("utf-8")
+    assert validate(db, external=False).errors == []
 
-    submit(store, ident)  # approve G4: everything the human saw is human-reviewed
-    assert {e.metadata.trust_tier for e in db.scan()[0]} == {"human-reviewed"}
+    # Feedback that asks for a story: the story is written, no new build, G4 shows v1 again.
+    monkeypatch.undo()
+    submit(store, ident, "add a story: the slime is a lost prince")
+    gate = Gates(store).pending(ident)
+    assert gate.stage == "playtest" and gate.title.startswith("G4 Playtest v1")
+    assert not any(n.startswith("game/v2/") for n in names())
+    story = [n for n in names() if n.startswith("game/story/") and n.endswith(".json")]
+    assert story == ["game/story/v1-gate-5.json"]
+    assert {a.id for a in store.artifacts(ident) if a.name == story[0]} <= set(gate.artifacts_to_show)
+    assert "properties" not in gate.form_schema or "story" not in gate.form_schema["properties"]
+    ids = {e.id for e in db.scan()[0]}
+    assert {"story/overview", "story/canon", "characters/hero", "decisions/3"} <= ids
+    assert "story changed" in next(e for e in db.scan()[0] if e.id == "decisions/3").body
+
+    submit(store, ident)  # approve G4: the whole record is human-reviewed
+    assert store.get_run(ident).status == "completed"
+    stable = [e for e in db.scan()[0] if e.metadata.status == "stable"]
+    assert {e.metadata.trust_tier for e in stable} == {"human-reviewed"}
+    assert validate(db, external=False).errors == []
+
+    # `game db sync` rebuilds the same bundle from the run's artifacts.
+    before = {e.id: (e.body, e.metadata.resource) for e in db.scan()[0]}
+    shutil.rmtree(root, onexc=lambda f, p, e: (Path(p).chmod(stat.S_IWRITE), f(p)))
+    out = CliRunner().invoke(game_cli, ["db", "sync", str(tmp_path / "runs" / ident)])
+    assert out.exit_code == 0, out.output
+    db = bundle_of(store, ident, tmp_path)
+    assert {e.id: (e.body, e.metadata.resource) for e in db.scan()[0]} == before
+
+
+def test_story_when_the_brief_asks_and_add_a_story_at_g2(tmp_path):
+    """G1 "Yes" writes the story with design v1; "Add a story" at G2 writes it there and shows
+    the same design again; later design versions revise it."""
+    from spriteforge.stages.intake import YES_STORY
+
+    store, ident = to_design_gate(tmp_path, story=YES_STORY)
+    names = lambda: {a.name: a.id for a in store.artifacts(ident)}
+    gate = Gates(store).pending(ident)
+    assert names()["game/story/v1-design-v1.json"] in gate.artifacts_to_show
+    assert "story" not in gate.form_schema.get("properties", {})
+    db = bundle_of(store, ident, tmp_path / "")
+    assert {"story/overview", "characters/hero", "world/arena"} <= {e.id for e in db.scan()[0]}
+    submit(store, ident, "Make the session shorter")  # design v2: its story is revised
+    assert names()["game/story/v2-design-v2.json"] in Gates(store).pending(ident).artifacts_to_show
+
+    # The draft never suggests a story the human did not ask for; "Add a story" at G2 does.
+    other = tmp_path / "other"
+    other.mkdir()
+    store2, ident2 = to_design_gate(other)
+    gate = Gates(store2).pending(ident2)
+    ScriptedHuman([Feedback(action="submit", text="", form={"story": "Add a story"})]).answer(
+        Gates(store2), ident2)  # fmt: skip
+    workflow_step(store2, ident2)
+    gate = Gates(store2).pending(ident2)
+    assert gate.stage == "design" and gate.title.startswith("G2 Game design v1")
+    assert "game/story/v1-gate-4.json" in {a.name for a in store2.artifacts(ident2)}
+    assert not any(a.name.startswith("game/v1/") for a in store2.artifacts(ident2))
+
+
+def test_brief_suggests_a_story_only_when_the_human_asks():
+    from spriteforge.stages.intake import NO_STORY, YES_STORY, BriefDraft, fit_draft
+
+    draft = BriefDraft(perspective="side-scroll", environment="caves", mood="dark",
+                       character="a slime", core_loop="jump", difficulty="Balanced",
+                       session_length="5 minutes", controls="keyboard", references="none",
+                       story=YES_STORY)  # fmt: skip
+    assert fit_draft(draft, "a slime platformer with crates").story == NO_STORY
+    assert fit_draft(draft, "a slime platformer with a story about a lost prince").story == YES_STORY
+    assert BriefDraft.model_validate({k: v for k, v in draft.model_dump().items()
+                                      if k != "story"}).story == NO_STORY  # fmt: skip
 
 
 def test_identical_requests_come_from_the_cache_and_still_lock(tmp_path):

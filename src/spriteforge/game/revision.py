@@ -30,14 +30,28 @@ class Revision(Contract):
     drop_qa_tests: list[str] = Field(
         description="names of QA tests the human wants dropped ('ignore the restart test'); []"
     )
+    story_changes: str = Field(
+        description="only when the human asks for a story or changes to it (named characters, "
+        "plot, lore): what they want; ''"
+    )
 
     @model_validator(mode="before")
     @classmethod
     def older(cls, data):
-        """Revisions saved before QA tests existed have no drop list."""
-        if isinstance(data, dict) and "drop_qa_tests" not in data:
-            data = {**data, "drop_qa_tests": []}
+        """Revisions saved before QA tests or stories existed lack those fields."""
+        if isinstance(data, dict):
+            data = {"drop_qa_tests": [], "story_changes": "", **data}
         return data
+
+    @property
+    def story_only(self) -> bool:
+        """Only the story changes: nothing to rebuild."""
+        return bool(self.story_changes.strip()) and not (
+            self.design_changes.strip()
+            or self.art_changes
+            or self.code_instructions.strip()
+            or self.drop_qa_tests
+        )
 
 
 def revision_prompt(
@@ -52,9 +66,11 @@ def revision_prompt(
         "A human played this build and wrote the feedback below. Split it into what must be "
         "redone: design_changes (new or changed rules, entities, upgrades, difficulty), "
         "art_changes (only entities whose look they want different, with the new look), "
-        "code_instructions (how the game should behave or feel), and drop_qa_tests (exact names "
-        "of QA tests they want ignored or dropped, e.g. a test they judge wrong). Leave a part "
-        "empty when the feedback does not touch it; do not invent changes.\n\n"
+        "code_instructions (how the game should behave or feel), drop_qa_tests (exact names "
+        "of QA tests they want ignored or dropped, e.g. a test they judge wrong), and "
+        "story_changes (only when they ask for a story, named characters, a plot or lore, or "
+        "for changes to the story: their words). Leave a part empty when the feedback does not "
+        "touch it; do not invent changes.\n\n"
         f"Feedback:\n{feedback.strip()}\n\nDesign:\n{design.model_dump_json()}\n\n"
         f"Current art sources:\n{sources}"
         + (f"\n\nQA tests of this build:\n{tests}" if tests else "")
@@ -93,8 +109,12 @@ def dropped_tests(feedback: str, names: list[str]) -> list[str]:
 
 def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = ()) -> Revision:
     """Offline Director: entities named in the feedback are redrawn with it appended to their
-    look; QA tests it asks to ignore are dropped; everything else goes to the programmer."""
+    look; QA tests it asks to ignore are dropped; a request for a story goes to the story;
+    everything else goes to the programmer."""
     text = feedback.lower()
+    if STORY_ASK.search(text):
+        return Revision(design_changes="", art_changes=[], code_instructions="",
+                        drop_qa_tests=[], story_changes=feedback.strip())  # fmt: skip
     changes = [
         ArtChange(entity=e.id, prompt=f"{e.look}; {feedback.strip()}")
         for e in design.entities
@@ -106,4 +126,9 @@ def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = (
         art_changes=changes,
         code_instructions="" if changes or drops else feedback.strip(),
         drop_qa_tests=drops,
+        story_changes="",
     )
+
+
+# "add a story", "give it a plot", "the story should ...": the offline Director's story cue.
+STORY_ASK = re.compile(r"\b(stor(y|ies|yline)|plot|lore|backstor(y|ies)|narrative)\b")

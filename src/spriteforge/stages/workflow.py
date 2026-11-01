@@ -32,6 +32,7 @@ from .intake import (
     default_draft,
     default_options,
     field,
+    fit_draft,
     followups,
     genre_form,
     genre_prompt,
@@ -49,11 +50,14 @@ GENRE_NOTE = (
 )
 
 
-def brief_defaults(artifacts, genre):
-    """Brief defaults saved at the genre step; runs from before drafting use the genre's."""
+def brief_defaults(artifacts, genre, words=""):
+    """Brief defaults saved at the genre step; runs from before drafting use the genre's.
+    `words`: what the human wrote (a story is suggested only when they ask for one)."""
     if "brief-defaults.json" in artifacts:
-        return BriefDraft.model_validate_json(artifacts["brief-defaults.json"].data)
-    return default_draft(genre["body"])
+        draft = BriefDraft.model_validate_json(artifacts["brief-defaults.json"].data)
+    else:
+        draft = default_draft(genre["body"])
+    return fit_draft(draft, words)
 
 
 def start_run(store, cfg, mock=True, assets=False, gameplay_preview=True, legacy=False, goal=""):
@@ -225,11 +229,13 @@ def _step(store, run_id):
             draft,
             "brief-defaults.json",
         )
+        draft = fit_draft(draft, "\n".join(intake_notes))
         open_gate("brief", "G1 Game brief", form_schema=brief_form(genre["body"], draft))
         return False
     if last.stage == "brief":
         genre = read("genre.json")
-        properties = brief_form(genre["body"], brief_defaults(artifacts, genre))["properties"]
+        draft = brief_defaults(artifacts, genre, "\n".join(intake_notes))
+        properties = brief_form(genre["body"], draft)["properties"]
         values = {
             k: last.response.form.get(k) or v.get("default", "") for k, v in properties.items()
         }

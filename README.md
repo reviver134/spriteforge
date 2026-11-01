@@ -788,3 +788,24 @@ design reads a short context pack from it instead of the code:
 ```bash
 python -m spriteforge game db workspace/runs/<id> --focus "level 2 in the ice caves"
 ```
+
+The `game db` command above became `game db context` in L2.1 (below).
+
+# Level 2 / L2.1: story only on request; the whole game as an OKF bundle
+
+Plan: `level_2.md`; what was built and live results: `docs/level-2.md`. A story is written only
+when you ask: G1 asks "Story?" (default "No story"), G2 and G4 offer **Add a story**, G4
+feedback such as "add a story about ..." writes it without a rebuild, and `game make` takes
+`--story`. Without a story there is no story call and no story, character or world concepts.
+
+Every game's full record is an OKF v0.2 bundle, `runs/<id>/game/db/` (`out/db/` for `game
+make`): the game, design rules, the event and state contract, entities, art (with images),
+code modules (read off the code), QA tests, builds and your decisions at each gate, plus the
+story when there is one. Files sit under `references/`; links are absolute. Agents read it
+through read-only MCP tools instead of the code:
+
+```bash
+python -m spriteforge game db context workspace/runs/<id> --focus "level 2: a harder cave"
+python -m spriteforge game db mcp workspace/runs/<id>    # game_index, game_search, game_show, game_context
+python -m spriteforge game db sync workspace/runs/<id>   # rebuild a bundle from a run's artifacts
+```

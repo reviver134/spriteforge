@@ -27,11 +27,13 @@ CATEGORIES = {
     "user-prefs",
     "catalog",  # asset packs, tile sets and actors mirrored by `memory sync-catalog`
 }
-# Binary files a corpus may hold next to its entries (a game database's character images).
+# Files a corpus may hold next to its entries (a game database's images, code and tests).
 RESOURCE_SUFFIXES = {".png"}
+# Resource files that are text: secret-checked like the entries before they are written.
+TEXT_SUFFIXES = {".js", ".py", ".json", ".txt"}
 
 
-def check_resource(name: str) -> str:
+def check_resource(name: str, suffixes: set[str] = RESOURCE_SUFFIXES) -> str:
     path = PurePosixPath(name)
     if (
         not name
@@ -39,9 +41,11 @@ def check_resource(name: str) -> str:
         or path.is_absolute()
         or str(path) != name
         or any(p in {".", ".."} or p.startswith(".") for p in path.parts)
-        or path.suffix.lower() not in RESOURCE_SUFFIXES
+        or path.suffix.lower() not in suffixes
+        or path.suffix.lower() == ".md"
     ):
-        raise ValueError(f"Resource must be a safe relative .png path: {name!r}")
+        allowed = ", ".join(sorted(suffixes))
+        raise ValueError(f"Resource must be a safe relative path ({allowed}): {name!r}")
     return name
 
 
@@ -52,11 +56,21 @@ class KnowledgeStore:
         events: EventStore | None = None,
         run_id: str | None = None,
         categories: set[str] | None = None,
+        *,
+        bundle: bool = False,
+        resources: set[str] | None = None,
+        title: str = "SpriteForge knowledge",
     ):
         """`categories`: the top-level folders indexes always list (a game database has its
-        own: story, characters, ...)."""
+        own: design, entities, ...). `bundle`: a self-contained OKF bundle (a game's record):
+        indexes link absolutely (`/entities/hero.md`), and validation requires every link to
+        be absolute and to resolve and every `resource` path to exist. `resources`: the file
+        types `write_batch` may write next to the entries (default: .png)."""
         self.root = root.expanduser().resolve()
         self.categories = set(CATEGORIES if categories is None else categories)
+        self.bundle = bundle
+        self.title = title  # the root index's heading
+        self.resources = set(RESOURCE_SUFFIXES if resources is None else resources)
         git.init(self.root)
         self.events = events or EventStore(self.root.parent / "state.sqlite3")
         if run_id is None:
@@ -208,7 +222,9 @@ class KnowledgeStore:
         entries, _ = self.scan()
         visible = [e for e in entries if self.permitted(e, scopes)]
         dirs = self.categories - ({"user-prefs"} if "private" not in scopes else set())
-        text = indexes(visible, dirs).get((directory + "/" if directory else "") + "index.md", "")
+        text = indexes(visible, dirs, absolute=self.bundle, title=self.title).get(
+            (directory + "/" if directory else "") + "index.md", ""
+        )
         self._log("index", directory, scopes, [])
         return text
 
@@ -245,8 +261,10 @@ class KnowledgeStore:
         files: dict[str, bytes],
     ) -> None:
         ensure_no_secrets(message)
-        for name in files:
-            check_resource(name)
+        for name, data in files.items():
+            check_resource(name, self.resources)
+            if PurePosixPath(name).suffix.lower() in TEXT_SUFFIXES:
+                ensure_no_secrets(data.decode("utf-8"))
         if verified_by is not None and not verified_by.startswith("human:"):
             raise ValueError("Human promotion requires a human: verifier")
         existing, errors = self.scan()
@@ -267,6 +285,8 @@ class KnowledgeStore:
                 if entry.id in current
                 else {}
             )
+            if self.bundle:  # a bundle's concepts are written whole: a field left out is gone
+                metadata = {k: v for k, v in metadata.items() if k == "generated"}
             metadata.update(
                 entry.metadata.model_dump(mode="json", by_alias=True, exclude_unset=True)
             )
@@ -282,7 +302,9 @@ class KnowledgeStore:
             )
             planned[entry.id + ".md"] = serialize(replacement)
             current[entry.id] = replacement
-        planned.update(indexes(list(current.values()), self.categories))
+        planned.update(
+            indexes(list(current.values()), self.categories, absolute=self.bundle, title=self.title)
+        )
         old_log = (
             (self.root / "log.md").read_text(encoding="utf-8")
             if (self.root / "log.md").exists()
@@ -296,7 +318,8 @@ class KnowledgeStore:
         for content in planned.values():
             ensure_no_secrets(content)
         if any(
-            not (self.root / name).resolve().is_relative_to(self.root) for name in [*planned, *files]
+            not (self.root / name).resolve().is_relative_to(self.root)
+            for name in [*planned, *files]
         ):
             raise ValueError("Write target escapes corpus")
         backups = {
@@ -364,7 +387,11 @@ class KnowledgeStore:
             raise ValueError("Validate corpus before export")
         public = [entry for entry in entries if not entry.private]
         files = {entry.id + ".md": serialize(entry) for entry in public}
-        files.update(indexes(public, self.categories - {"user-prefs"}))
+        files.update(
+            indexes(
+                public, self.categories - {"user-prefs"}, absolute=self.bundle, title=self.title
+            )
+        )
         for name, content in files.items():
             target = destination / name
             target.parent.mkdir(parents=True, exist_ok=True)

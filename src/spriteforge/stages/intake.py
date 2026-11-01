@@ -3,12 +3,31 @@
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from spriteforge.agents.models import Contract
 from spriteforge.agents.roles import load_roles
 from spriteforge.pixel.schemas import hex_color
 from spriteforge.providers.base import ChatRequest, Message, chat_json
+
+NO_STORY = "No story"
+YES_STORY = "Yes: named characters, a world and a story arc"
+STORY_CHOICES = [NO_STORY, YES_STORY]
+# Words with which a human asks for a story; the brief draft may suggest one only then.
+STORY_WORDS = re.compile(
+    r"\b(stor(y|ies|yline)|plot|narrative|lore|backstor(y|ies)|cutscenes?|dialogues?|"
+    r"quests?|tales?|sagas?|characters? (named|called)|named characters?)\b",
+    re.IGNORECASE,
+)
+
+
+def story_choice(value: str) -> str:
+    """'yes', 'Yes: ...', 'Add a story' -> YES_STORY; anything else -> NO_STORY."""
+    return YES_STORY if re.match(r"\s*(yes|add)\b", str(value), re.IGNORECASE) else NO_STORY
+
+
+def asks_for_story(text: str) -> bool:
+    return bool(STORY_WORDS.search(text or ""))
 
 
 class GameBrief(BaseModel):
@@ -23,9 +42,20 @@ class GameBrief(BaseModel):
     session_length: str = "5 minutes"
     controls: str = "keyboard"
     references: str = "No specific reference games"
+    # Only when the human asks: a story means named characters, a world and an arc.
+    story: str = NO_STORY
     answers: dict[str, str] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
     screen: tuple[Literal[320], Literal[180]] = (320, 180)
+
+    @field_validator("story", mode="before")
+    @classmethod
+    def normalise_story(cls, value):
+        return story_choice(value or NO_STORY)
+
+    @property
+    def wants_story(self) -> bool:
+        return self.story == YES_STORY
 
 
 class GenrePick(Contract):
@@ -47,6 +77,7 @@ BRIEF_FIELDS = (
     "session_length",
     "controls",
     "references",
+    "story",
 )
 
 
@@ -62,6 +93,18 @@ class BriefDraft(Contract):
     session_length: str
     controls: str
     references: str
+    story: str = Field(
+        description=f"'{NO_STORY}' unless the human's own words ask for a story (named "
+        f"characters, plot, lore): then '{YES_STORY}'"
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def older(cls, data):
+        """Drafts saved before the story question default to no story."""
+        if isinstance(data, dict) and "story" not in data:
+            data = {**data, "story": NO_STORY}
+        return data
 
 
 class Questions(Contract):
@@ -218,8 +261,18 @@ def brief_prompt(goal, genre_title, body):
         "Draft the G1 brief fields from the human's idea and the chosen genre. Keep every "
         "detail the idea states (camera, session length, enemies, pickups, upgrades, how it "
         "gets harder); fill only what it leaves open with the simplest choice for the genre. "
-        "Each field is one short line.\nIdea: " + goal + f"\nGenre: {genre_title}\n" + body
+        f"Each field is one short line. story: '{NO_STORY}' unless the idea itself asks for a "
+        f"story (named characters, a plot, lore, cutscenes): then '{YES_STORY}'. Never suggest "
+        "a story the human did not ask for.\nIdea: " + goal + f"\nGenre: {genre_title}\n" + body
     )
+
+
+def fit_draft(draft, words):
+    """The draft as code allows it: a story only when the human's own words ask for one."""
+    story = story_choice(draft.story)
+    if story == YES_STORY and not asks_for_story(words):
+        story = NO_STORY
+    return draft.model_copy(update={"story": story})
 
 
 def default_draft(body):
@@ -243,8 +296,17 @@ def brief_form(body, draft):
         "session_length": ["3 minutes", "5 minutes", "10 minutes", "15 minutes"],
         "references": ["No specific reference games"],
     }
+    properties["story"] = {
+        "type": "string",
+        "title": "Story?",
+        "description": "A story means named characters, a world and a story arc; without one "
+        "the game is described by its design alone.",
+        "enum": STORY_CHOICES,
+        "default": story_choice(draft.story),
+    }
     for name, rule in properties.items():
-        rule["suggestions"] = list(dict.fromkeys([rule["default"], *suggestions.get(name, [])]))
+        if "enum" not in rule:
+            rule["suggestions"] = list(dict.fromkeys([rule["default"], *suggestions.get(name, [])]))
     for i, question in enumerate(seeded_questions_from(body)):
         properties[f"seed_{i}"] = field(question)
     return {"type": "object", "properties": properties}

@@ -69,7 +69,7 @@ async function renderArtifact(a,container){
  list('Entities',d.entities.map(e=>e.id+' ('+e.role+', '+e.width+'x'+e.height+'): '+e.look+' — '+e.behaviour));
  list('Checks the playtest will verify',d.checks.map(c=>c.event+' ≥ '+c.min_count+(c.by_second?' by '+c.by_second+' s':'')+' — '+c.description));
  fig.append(box);cap.textContent='Game design doc · '+a.name;}
- else if(a.mime==='application/json'&&/^game\/design\/v\d+-story\.json$/.test(a.name)){const s=await(await fetch('/api/artifacts/'+a.id)).json();const box=document.createElement('div');
+ else if(a.mime==='application/json'&&/^game\/(design\/v\d+-story|story\/v\d+-[a-z0-9-]+)\.json$/.test(a.name)){const s=await(await fetch('/api/artifacts/'+a.id)).json();const box=document.createElement('div');
  const list=(title,items)=>{const t=document.createElement('h4');t.textContent=title;const ul=document.createElement('ul');for(const i of items){const li=document.createElement('li');li.textContent=i;ul.append(li);}box.append(t,ul);};
  const h=document.createElement('h3');h.textContent=s.title+' — story bible';box.append(h);
  box.append(Object.assign(document.createElement('p'),{textContent:s.logline}),Object.assign(document.createElement('p'),{textContent:s.premise}));
@@ -88,7 +88,7 @@ async function renderArtifact(a,container){
  for(const x of r.art)li('art '+x.entity+': '+x.source);
  for(const w of r.warnings||[])li('⚠ '+w);
  if(r.revision)li('Feedback applied: design «'+(r.revision.design_changes||'-')+'» · art '+(r.revision.art_changes.map(c=>c.entity).join(', ')||'-')+' · code «'+(r.revision.code_instructions||'-')+'»');
- if(r.game_db)li('Game database (story, characters with their art, world, gameplay, art, levels): '+r.game_db.entries+' entries in '+r.game_db.path);
+ if(r.game_db)li('Game record (OKF bundle: design, entities, art, code, QA, builds, decisions, and the story when asked for): '+(r.game_db.concepts??r.game_db.entries)+' concepts in '+r.game_db.path);
  li('Model calls: '+r.model_calls.chat+' Spark, '+r.model_calls.image+' Muse Image, about $'+r.model_calls.estimated_cost_usd);
  box.append(ul);if(r.art_review)box.append(artReview(r.art_review,container.id==='gate-artifacts'));if(r.qa)box.append(qaSection(r.qa));const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Full report.json';pre.textContent=JSON.stringify(r,null,2);details.append(summary,pre);box.append(details);fig.append(box);cap.textContent='Build and playtest report · '+a.name;}
  else if(a.mime==='text/x-python'){const link=document.createElement('a');link.href='/api/artifacts/'+a.id;link.download=a.name.split('/').pop();link.textContent='⬇ Download '+link.download+' (QA tests: pytest + Playwright; put it in the build’s tests/ folder)';fig.append(link);cap.textContent='Exported QA tests · '+a.name;}
@@ -161,7 +161,7 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  $('change-requests').append(p);}}
  $('request-changes').hidden=g.kind==='confirm_changes'||(d.run.config.workflow==='intake-concept-v1'&&!['concept','assets','gameplay','design','playtest'].includes(g.stage));$('tags').hidden=g.kind==='confirm_changes';
  const single=!!g.empty_feedback_approves;$('feedback-hint').hidden=!single;$('submit-feedback').hidden=!single;$('approve').hidden=single;if(single)$('request-changes').hidden=true;
- const label=()=>{$('submit-feedback').textContent=$('feedback-text').value.trim()?'Send feedback (make a new version)':'Approve (no feedback)';};$('feedback-text').oninput=label;label();
+ const label=()=>{const story=$('custom-fields').querySelector('[name="story"]');$('submit-feedback').textContent=$('feedback-text').value.trim()?'Send feedback (make a new version)':(story&&story.value==='Add a story'?'Add a story (then review it here)':'Approve (no feedback)');};$('feedback-text').oninput=label;label();
  $('custom-fields').replaceChildren();
  if(g.form_schema.title!=='Feedback')for(const [name,rule] of Object.entries(g.form_schema.properties||{})){
  const label=document.createElement('label');label.textContent=rule.title||name;
@@ -176,6 +176,7 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  const suggest=document.createElement('button');suggest.type='button';suggest.textContent="I'm not sure, suggest options";suggest.onclick=()=>{choices.hidden=false;choices.style.border='1px solid #9ae6b4';choices.querySelector('button')?.focus();};box.append(suggest);
  const skip=document.createElement('button');skip.type='button';skip.textContent='Skip / use default';skip.onclick=()=>{input.value=rule.default||'';};box.append(skip);}
  $('custom-fields').append(box);}
+ $('custom-fields').onchange=label;label();
  const optionsArtifact=d.artifacts.find(a=>a.name==='options.json');
  if(g.stage==='styles'&&optionsArtifact){const options=await(await fetch('/api/artifacts/'+optionsArtifact.id)).json();
  for(const option of options.options){const box=document.createElement('fieldset');const title=document.createElement('legend');title.textContent=option.name;box.append(title);const desc=document.createElement('p');desc.textContent=option.description;box.append(desc);
