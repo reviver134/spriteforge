@@ -38,6 +38,14 @@ def main():
     marker = root / "run.json"
     if marker.exists():
         run = store.get_run(json.loads(marker.read_text(encoding="utf-8"))["run_id"])
+        budget = run.config["budget"]
+        if args.max_cost > budget["max_estimated_cost"]:  # resuming with a higher cap
+            config = {**run.config, "budget": {**budget, "max_estimated_cost": args.max_cost}}
+            with store.connect() as db:
+                db.execute("UPDATE runs SET config=? WHERE id=?", (json.dumps(config), run.id))
+                store._event(db, run.id, "Human", "budget.raised",
+                             {"max_estimated_cost": args.max_cost})  # fmt: skip
+            run = store.get_run(run.id)
     else:
         cfg = load_config()
         cfg.workspace = root

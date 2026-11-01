@@ -78,6 +78,133 @@ what works and what doesn't, and a stop for the go-ahead.
 
 ---
 
+## Revised order after the L2.1 playtest (2026-11-01, awaiting go-ahead)
+
+The human played the L2.1 slime builds. Levels were flat with no challenge or logic to work
+out; the slime slid instead of moving like a slime; crates and walls vanished with no break
+animation; transforms showed no lasting change; floating slabs sat above the slime's jump. The
+Programmer had also put all three levels in one scene, so the bot cleared only the first. Root
+causes:
+* no agent researches how good games of the genre build challenge before designing;
+* nobody designs levels: the Programmer improvises them in code;
+* the art pipeline draws stills and walk rows but no motion design (squash and stretch, break,
+  transform) and no effect states;
+* nothing checks a level against the player's real movement (jump height and distance).
+
+New order: **L2.2 Research and game plan → L2.3 Level Designer and levels as data (old L2.4 +
+L2.5) → L2.4 Art and animation design → L2.5 Structure, flow and menus (old L2.2 + L2.3) →
+L2.6 The whole game.** The rest of this file keeps the old sections for reference; the three new
+sessions follow.
+
+Fixes that go first, inside L2.2 (found in the L2.1 live runs):
+* A design change re-planned all the art: the jump-height feedback redrew 8 locked sprites with
+  Muse. On a design change, entities that still exist keep their locked art; only new or
+  targeted entities are planned.
+* While a build runs the UI hides the last playable build: always show the latest build's Play.
+* "An idle player can lose" becomes a Programmer requirement (QA caught it again).
+
+### L2.2: Research and the game plan (the first agent gets web search)
+
+**Goal.** Before designing, the Game Designer studies how games of this kind work, with live
+web search, and writes a detailed, human-approved game plan from the human's requirements.
+The plan gives every later agent concrete numbers and challenge ideas, not adjectives.
+
+* **Web search, verified first.** Meta documents `{"type": "web_search"}` as a built-in,
+  server-side tool on the **Responses API** (`https://api.meta.ai/v1`, `responses.create`)
+  with inline citations. Our provider uses Chat Completions, where Meta does not mention the
+  tool. A live probe decides three things before any code: the path, the citation format,
+  and whether `json_schema` output and `web_search` work together in one call (if not: one
+  research call with search, then one structured call). Endpoint, model and caps go in
+  config.yaml. The probe also measures the per-search cost, which Meta's docs don't state.
+* **Research (G1 → G2, one or two Spark calls).** `Research`: 3-6 reference games of the genre
+  (title, URL, what to learn from each), the patterns that make the genre's levels interesting
+  (gating, teaching a mechanic safely, combining abilities, risk and reward, pacing), the feel
+  numbers players expect (jump height and air time in tiles, dash length, coyote time), common
+  pitfalls, and the sources. Rule: references teach patterns. The design is original and never
+  copies a specific game's levels, characters or art. Searches capped (`research.max_searches`,
+  default 8); offline stand-in from the genre seed.
+* **The game plan (`GamePlan`, strict, Game Designer).** The human's requirements, numbered and
+  kept word for word. Then:
+  - abilities with numbers (move speed, jump height in tiles, air time, dash distance and
+    cooldown) and the **kinematics** code derives from them (max jump height and gap width in
+    pixels), which later checks use;
+  - each mechanic and what it is for: dissolve, acid kills, metal breaks;
+  - a challenge vocabulary: obstacle kinds and how each tests the player;
+  - per level: a teaching goal, its new idea, its challenges, which abilities it needs and
+    how hard it is;
+  - feedback and feel: what the player sees and hears when something happens (kill, transform,
+    break, pick up, hurt);
+  - an animation list per entity (slime: idle, hop cycle with squash and stretch, jump, land,
+    dash, transform; crate: break; wall: crumble);
+  - risks.
+
+  Every human requirement must map to a part of the plan (checked by code), and the design is
+  written from the plan.
+* **G2 shows** the research (sources, patterns), the plan, then the design; feedback revises
+  the plan. The bundle gains `research/*` (references with URLs as sources) and `plan/*`.
+* **Tests:** the probe is recorded; the plan validator (every requirement covered,
+  kinematics consistent, every level has a teaching goal and a new idea); mock research
+  and plan; the art-lock fix; the Play link.
+* **Acceptance (live, the slime game):** research cites real sources; the plan has numbered
+  requirements, kinematics and three distinct levels; the art is not redrawn on a design
+  change. Cost about +$0.05-0.10 per run (plus searches).
+
+### L2.3: The Level Designer and levels as data (old L2.4 + L2.5, for platformers first)
+
+**Goal.** A Level Designer writes each level as data from the plan and the game's record; code
+proves each level can be played with the slime's real movement; the Programmer writes the
+mechanics once.
+
+* `LevelSpec` as in the old L2.4, plus platformer pieces: tile rows, one-way platforms,
+  crates (what each holds), breakable walls, spikes, gaps, enemies with patrol paths,
+  checkpoints and the exit.
+* **Reachability by kinematics** (`game/levels.py`): a search over tiles using the plan's jump
+  height, gap width and dash distance (and what each transform unlocks). It checks four things:
+  1. every platform the level needs can be reached;
+  2. the exit can be reached;
+  3. a wall that gates the exit has its metal crate reachable before it;
+  4. an enemy that blocks the way has acid available.
+
+  Unreachable slabs like the one in L2.1 are rejected and repaired, and code repairs what it
+  can (lowering a slab).
+* **Logic and challenge checks:** each level uses its planned new idea, has a challenge
+  between checkpoints, and gets harder than the last. A level preview is drawn by code.
+* SDK `sf.level` loads levels; the scenes are the SDK's; the bot plays one level at a time
+  (`?level=n`) along the path code found, so all three levels are played and checked.
+* G4 per level: play link, map preview, feedback changes that level only.
+* **Acceptance:** three slime levels that each teach something, every slab reachable (proved
+  by code and played by the bot), all three cleared in the playtest.
+
+### L2.4: Art and animation design (an Art Designer for motion and effects)
+
+**Goal.** Things move and react like what they are: the slime hops and squashes instead of
+sliding, crates and walls break, and transforms visibly change the slime for as long as they
+last.
+
+* **Art Designer** (the Art Director gains an animation brief): per entity, the animation rows
+  from the plan with frame counts and what each frame shows (hop: squash, stretch, airborne,
+  land), timing (fps, loop or once), and effect states.
+* **Muse Image draws the rows** as sheets (existing M10 pipeline), using the locked art as the
+  style reference. Transforms are their own rows (acid: green drip; metal: grey shine), or a
+  tint plus particles when a row fails its checks.
+* **Effects as data:** an `EffectSpec` (particles, flash, shake, squash) per event (kill,
+  transform, break, pickup, hurt). The SDK plays them with `sf.fx(event, x, y)`, so the
+  Programmer does not improvise them.
+* **Motion checks by code:** frames of a moving row must differ (no sliding still frame), keep
+  their size and ground line, and loop cleanly. Break rows end empty. The Art Reviewer sees
+  the rows animated.
+* **Acceptance:** the slime's hop cycle, crate break, wall crumble and both transform states,
+  checked by code and seen at G4.
+
+Then L2.5 (structure, flow and menus: the old L2.2 and L2.3) and L2.6 as written below.
+
+### Questions for the human
+1. This order (research first, then levels, then animation, then menus)?
+2. Web search spend: about 8 searches per research (cost measured by the probe). Research every
+   run, or only when you ask at G1 ("Research similar games?", default yes)?
+
+---
+
 ## L2.2: Game structure: screens, flow and progress (game design)
 
 **Goal.** A game is a title, a run of levels, results in between, game over and victory, with progress saved, designed at G2 and running on SDK screens. The level is still level 1; the structure is what is new.
