@@ -230,13 +230,18 @@ def fallback_qa(design: GameDesign) -> QATests:
     """Offline QA Playtester: tests every design can take (movement, no errors, the HUD clock,
     the first timed check, losing and restarting)."""
     s = blank_step
+    # A side view moves down by falling, not by a key: there, Space jumps (y gets smaller).
+    vertical = ([s(do="hold", buttons=["space"], seconds=0.25),
+                 s(do="expect_state", path="y", op="<", value="@start")]
+                if design.camera == "side-view" else
+                [s(do="hold", buttons=["down"], seconds=1),
+                 s(do="expect_state", path="y", op=">", value="@start")])  # fmt: skip
     tests = [
         QATest(name="moves with the arrow keys", god=True,
                purpose="Real key presses move the player.",
                steps=[s(do="hold", buttons=["right"], seconds=1.5),
                       s(do="expect_state", path="x", op=">", value="@start"),
-                      s(do="hold", buttons=["down"], seconds=1),
-                      s(do="expect_state", path="y", op=">", value="@start"),
+                      *vertical,
                       s(do="expect_no_errors")]),
         QATest(name="plays without errors", god=True,
                purpose="Moving in every direction and both action keys cause no errors.",

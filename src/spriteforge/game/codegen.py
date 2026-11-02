@@ -23,7 +23,9 @@ from spriteforge.agents.models import Contract
 from .design import GameDesign
 
 SDK_API = (Path(__file__).parent / "sdk" / "API.md").read_text(encoding="utf-8")
+LEVELS_API = (Path(__file__).parent / "sdk" / "LEVELS.md").read_text(encoding="utf-8")
 MOCK_GAME = Path(__file__).with_name("mock_game.js")
+MOCK_PLATFORMER = Path(__file__).with_name("mock_platformer.js")
 SKILL = Path(__file__).parents[1] / "skills" / "builtin" / "phaser-arcade-physics" / "SKILL.md"
 FILE_NAME = re.compile(r"^[a-z][a-z0-9_-]{0,40}\.js$")
 MAX_FILES = 8
@@ -188,8 +190,9 @@ def assets_summary(manifest: dict) -> str:
     return "\n".join(lines)
 
 
-def code_context(design: GameDesign, manifest: dict) -> str:
-    """The stable start of every Programmer prompt: API reference, design, assets. New-game,
+def code_context(design: GameDesign, manifest: dict, levels: str = "") -> str:
+    """The stable start of every Programmer prompt: API reference, design, assets (and, for a
+    game with levels as data, the level engine's reference and what the levels hold). New-game,
     repair and change prompts for one design share it word for word, so Spark's automatic
     prefix cache serves it (cached input costs about an eighth); the parts that change
     (code, failures, the instruction) come after it."""
@@ -201,16 +204,40 @@ Phaser notes:
 
 SDK reference:
 {SDK_API}
-
+""" + (f"\n{LEVELS_API}\n" if levels else "") + f"""
 Design (JSON):
 {design.model_dump_json(indent=1)}
 
 Assets:
 {assets_summary(manifest)}
-"""
+""" + (f"\nLevels:\n{levels}\n" if levels else "")
 
 
-def requirements(design: GameDesign) -> str:
+def level_requirements(design: GameDesign) -> str:
+    checks = "\n".join(f"* sf.event('{c.event}') - {c.description} (at least {c.min_count}, "
+                       "counted over all levels)" for c in design.checks)
+    return f"""Hard requirements (the harness checks them automatically):
+* game.js is loaded last and calls sf.start({{scenes}}) with one level scene that calls
+  sf.level.build(this, hooks) in create(). No autoplay, no player controller, no level geometry:
+  the SDK does them (see "Levels as data").
+* Mechanics in hooks.touch(thing, how) exactly as each thing's data says (needs, opened_by,
+  holds, gives): the SDK's bot plays every level on its own (god mode) along the route code found,
+  touching, dashing into and collecting what the route needs; it gets stuck when a thing does not
+  behave as its data says.
+* Emit these events exactly when they happen (the SDK already emits level_start,
+  level_complete, checkpoint, respawn, jump, dash and win):
+{checks}
+* Each level must make its listed events happen on the bot's way to the exit.
+* Use only the asset ids listed above. Time only through sf.clock.now or scene timers.
+* sf.state: the SDK sets level, x, y and time; add hp and score (when the design has them) with
+  Object.assign(sf.state, {{...}}) every frame. QA tests read them and press real keys
+  (arrows/WASD, Space jumps, X/Shift dashes, Enter after win restarts).
+* No network, no modules, no eval, no URLs, no Date.now/performance.now."""
+
+
+def requirements(design: GameDesign, levels: str = "") -> str:
+    if levels:
+        return level_requirements(design)
     checks = "\n".join(
         f"* sf.event('{c.event}') - {c.description} (at least {c.min_count}"
         + (f", by {c.by_second:g} s)" if c.by_second else ")")
@@ -246,13 +273,13 @@ def current_files(code: GameCode) -> str:
     return "\n\n".join(f"=== {f.path} ===\n{f.content}" for f in code.files)
 
 
-def programmer_prompt(design: GameDesign, manifest: dict) -> str:
-    return f"""{code_context(design, manifest)}
+def programmer_prompt(design: GameDesign, manifest: dict, levels: str = "") -> str:
+    return f"""{code_context(design, manifest, levels)}
 # Task
 Write the complete game described above. Implement every rule, the progression and the
 difficulty curve of the design exactly; do not add unrelated features.
 
-{requirements(design)}"""
+{requirements(design, levels)}"""
 
 
 def repair_prompt(
@@ -261,6 +288,7 @@ def repair_prompt(
     failures: str,
     manifest: dict,
     patch_error: str | None = None,
+    levels: str = "",
 ) -> str:
     """Repair as edits (`CodePatch`); with `patch_error` (the edits did not apply), as
     complete files (`GameCode`)."""
@@ -269,7 +297,7 @@ def repair_prompt(
         if patch_error is not None
         else EDITS
     )
-    return f"""{code_context(design, manifest)}
+    return f"""{code_context(design, manifest, levels)}
 # Current files
 {current_files(code)}
 
@@ -277,7 +305,7 @@ def repair_prompt(
 The game above was built and playtested by the harness and failed. Fix every problem
 listed, keep everything that works.
 
-{requirements(design)}
+{requirements(design, levels)}
 
 Problems:
 {failures}
@@ -291,6 +319,7 @@ def change_prompt(
     instruction: str,
     manifest: dict,
     patch_error: str | None = None,
+    levels: str = "",
 ) -> str:
     """A reviewer asked for a change: edit the working game, keep everything else. The design
     above is already updated if the change affected it."""
@@ -299,7 +328,7 @@ def change_prompt(
         if patch_error is not None
         else EDITS
     )
-    return f"""{code_context(design, manifest)}
+    return f"""{code_context(design, manifest, levels)}
 # Current files
 {current_files(code)}
 
@@ -309,7 +338,7 @@ it, keep every other behaviour and every sf.event that still applies, and keep t
 policy able to trigger all design checks (the design above is already updated if the
 change affected it).
 
-{requirements(design)}
+{requirements(design, levels)}
 
 Change requested:
 {instruction.strip()}
@@ -317,9 +346,37 @@ Change requested:
 {answer}"""
 
 
-def mock_code() -> GameCode:
-    """What the offline Programmer returns: the bundled fixture game."""
+def mock_code(levels: bool = False) -> GameCode:
+    """What the offline Programmer returns: the bundled fixture game (the platformer fixture
+    for a game with levels as data)."""
+    if levels:
+        return GameCode(
+            files=[CodeFile(path="game.js", content=MOCK_PLATFORMER.read_text(encoding="utf-8"))],
+            notes="Offline fixture platformer (mock mode): every kind of level thing from its data.",
+        )
     return GameCode(
         files=[CodeFile(path="game.js", content=MOCK_GAME.read_text(encoding="utf-8"))],
         notes="Offline fixture game (mock mode): an arena with spawning enemies and gems.",
     )
+
+
+def level_summary(levels: list) -> str:
+    """What the levels hold, for the Programmer: every kind of thing (from the legends), the
+    exclusive abilities and the events each level makes happen. `levels`: LevelRecords."""
+    kinds = {}
+    for r in levels:
+        for e in r.spec.legend:
+            if e.kind in {"solid", "one_way", "hazard", "start"}:
+                continue
+            opened = e.opened_by if e.kind in {"crate", "breakable", "enemy"} else ""
+            parts = (("needs", e.needs), ("opened by", opened), ("holds", e.holds), ("gives", e.gives))
+            line = f"* {e.kind} `{e.entity}`" + "".join(f"; {k} {v}" for k, v in parts if v)
+            kinds.setdefault(line, None)
+    exclusive = sorted({a for r in levels for a in r.spec.exclusive})
+    events = "\n".join(f"* level {r.spec.n} ({r.spec.name}): {', '.join(r.spec.events) or '-'}"
+                       for r in levels)  # fmt: skip
+    return (f"{len(levels)} levels (data the SDK loads). Things in them (touch() must handle "
+            "each as its data says):\n" + "\n".join(kinds) + "\n"
+            + (f"Exclusive abilities (taking one drops the others): {', '.join(exclusive)}\n"
+               if exclusive else "")
+            + f"Events each level makes happen on the bot's way to the exit:\n{events}")  # fmt: skip

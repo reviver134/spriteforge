@@ -196,6 +196,10 @@
       let booted = false;
       next.events.on('create', () => {
         if (booted) {  // scene.restart(): a new run (QA tests check restart after win/lose)
+          if (sf.level && sf.level.advancing) {  // the next level, not a new run
+            sf.level.advancing = false;
+            return;
+          }
           sf.menu = null;
           sf.event('restart');
           return;
@@ -285,7 +289,7 @@
     const dt = 1000 / fps, n = Math.round(seconds * fps);
     for (let i = 0; i < n; i++) {
       step(dt);
-      if (sf.errors.length > 20 || (!keepGoing && (sf.counts.win || sf.counts.lose))) break;
+      if (sf.errors.length > 20 || (!keepGoing && (sf.counts.win || sf.counts.lose || sf.halted))) break;
     }
     return {t: sf.clock.now, errors: sf.errors.length};
   };

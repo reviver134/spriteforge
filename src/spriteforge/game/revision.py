@@ -19,6 +19,11 @@ class ArtChange(Contract):
     prompt: str = Field(description="the new look for Muse Image: subject, colours, materials")
 
 
+class LevelChange(Contract):
+    level: int = Field(description="the level number the feedback is about")
+    change: str = Field(description="what to change in that level, in the human's words")
+
+
 class Revision(Contract):
     design_changes: str = Field(
         description="rule, entity, progression or difficulty changes for the design doc; ''"
@@ -34,13 +39,17 @@ class Revision(Contract):
         description="only when the human asks for a story or changes to it (named characters, "
         "plot, lore): what they want; ''"
     )
+    level_changes: list[LevelChange] = Field(
+        description="changes to one level's layout (gaps, platforms, enemies, crates, length, "
+        "difficulty of that level); [] if none"
+    )
 
     @model_validator(mode="before")
     @classmethod
     def older(cls, data):
-        """Revisions saved before QA tests or stories existed lack those fields."""
+        """Revisions saved before QA tests, stories or levels existed lack those fields."""
         if isinstance(data, dict):
-            data = {"drop_qa_tests": [], "story_changes": "", **data}
+            data = {"drop_qa_tests": [], "story_changes": "", "level_changes": [], **data}
         return data
 
     @property
@@ -51,6 +60,7 @@ class Revision(Contract):
             or self.art_changes
             or self.code_instructions.strip()
             or self.drop_qa_tests
+            or self.level_changes
         )
 
 
@@ -67,10 +77,12 @@ def revision_prompt(
         "redone: design_changes (new or changed rules, entities, upgrades, difficulty), "
         "art_changes (only entities whose look they want different, with the new look), "
         "code_instructions (how the game should behave or feel), drop_qa_tests (exact names "
-        "of QA tests they want ignored or dropped, e.g. a test they judge wrong), and "
+        "of QA tests they want ignored or dropped, e.g. a test they judge wrong), "
         "story_changes (only when they ask for a story, named characters, a plot or lore, or "
-        "for changes to the story: their words). Leave a part empty when the feedback does not "
-        "touch it; do not invent changes.\n\n"
+        "for changes to the story: their words), and level_changes (feedback about one level's "
+        "layout: its gaps, platforms, enemies, crates, length or difficulty, with the level "
+        "number). Leave a part empty when the feedback does not touch it; do not invent "
+        "changes.\n\n"
         f"Feedback:\n{feedback.strip()}\n\nDesign:\n{design.model_dump_json()}\n\n"
         f"Current art sources:\n{sources}"
         + (f"\n\nQA tests of this build:\n{tests}" if tests else "")
@@ -114,7 +126,11 @@ def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = (
     text = feedback.lower()
     if STORY_ASK.search(text):
         return Revision(design_changes="", art_changes=[], code_instructions="",
-                        drop_qa_tests=[], story_changes=feedback.strip())  # fmt: skip
+                        drop_qa_tests=[], story_changes=feedback.strip(), level_changes=[])  # fmt: skip
+    if levels := sorted({int(n) for n in LEVEL_ASK.findall(text)}):
+        return Revision(design_changes="", art_changes=[], code_instructions="", drop_qa_tests=[],
+                        story_changes="", level_changes=[LevelChange(level=n, change=feedback.strip())
+                                                         for n in levels])  # fmt: skip
     changes = [
         ArtChange(entity=e.id, prompt=f"{e.look}; {feedback.strip()}")
         for e in design.entities
@@ -127,8 +143,11 @@ def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = (
         code_instructions="" if changes or drops else feedback.strip(),
         drop_qa_tests=drops,
         story_changes="",
+        level_changes=[],
     )
 
 
 # "add a story", "give it a plot", "the story should ...": the offline Director's story cue.
 STORY_ASK = re.compile(r"\b(stor(y|ies|yline)|plot|lore|backstor(y|ies)|narrative)\b")
+# "level 2 is too long", "make level 3 harder": the offline Director's level cue.
+LEVEL_ASK = re.compile(r"\blevel\s+(\d)\b")

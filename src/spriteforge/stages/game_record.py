@@ -9,6 +9,7 @@ makes writing one idempotent when a step is re-entered. Runs from M11.1 kept one
 design version (`game/design/v<K>-story.json`); those still count.
 """
 
+import json
 import re
 
 from spriteforge.core.gates import Gate, Gates
@@ -16,6 +17,7 @@ from spriteforge.game.bundle import Build, Decision, GameRecord
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.dbsource import build_manifest, credits, read_art
 from spriteforge.game.design import GameDesign
+from spriteforge.game.levels import LevelRecord
 from spriteforge.game.plan import PlanRecord
 from spriteforge.game.qa import QASuite
 from spriteforge.game.research import ResearchRecord
@@ -27,6 +29,7 @@ STORY = re.compile(r"game/story/v(\d+)-([a-z0-9-]+)\.json")
 REPORT = re.compile(r"game/v(\d+)/report\.json")
 DESIGN = re.compile(r"game/design/v(\d+)\.json")
 PLAN = re.compile(r"game/plan/v(\d+)\.json")
+LEVELS = re.compile(r"game/levels/v(\d+)/levels\.json")
 RESEARCH = "game/research.json"
 
 
@@ -140,6 +143,12 @@ def run_record(ctx, pending: tuple[int, dict] | None = None) -> GameRecord:
                         {k2: x for k2, x in r.items() if k2 != "game_db"})
                   for v, r in sorted(reports.items())]  # fmt: skip
     rec.decisions = decisions(ctx)
+    built = rec.builds[-1].report.get("levels_version") if rec.builds else None
+    if level_set := built or latest_version(names, LEVELS):
+        index = ctx.read(f"game/levels/v{level_set}/levels.json")
+        rec.levels = [LevelRecord.model_validate(ctx.read(f"game/levels/v{level_set}/level-{n}.json"))
+                      for n in index["levels"]]  # fmt: skip
+        rec.levels_source = f"game/levels/v{level_set}/levels.json"
     if not rec.builds:
         return rec
     v = rec.builds[-1].version
@@ -163,4 +172,16 @@ def run_record(ctx, pending: tuple[int, dict] | None = None) -> GameRecord:
         rec.qa = QASuite.model_validate(ctx.read(f"{prefix}/qa-tests.json"))
     if f"{prefix}/test_game_qa.py" in names:
         rec.qa_export = ctx.data(f"{prefix}/test_game_qa.py")
+    if rec.levels and report.get("levels_version"):
+        played = {lv["n"]: lv for lv in report.get("levels", [])}
+        data = {}
+        if (build / "levels.json").exists():
+            data = {lv["n"]: lv for lv in json.loads((build / "levels.json").read_text(encoding="utf-8"))["levels"]}
+        for r in rec.levels:
+            n = r.spec.n
+            if f"{prefix}/levels/level-{n}.png" in names:
+                rec.level_previews[n] = ctx.data(f"{prefix}/levels/level-{n}.png")
+            if n in data:
+                rec.level_files[n] = (json.dumps(data[n], indent=1) + "\n").encode()
+            rec.level_play[n] = played.get(n, {})
     return rec

@@ -86,6 +86,7 @@ llm:
     story: high # Game Designer writing the story bible
     research: medium # Game Designer studying similar games with web search (L2.2)
     plan: high # Game Designer writing the game plan from the requirements and research
+    level: high # Level/Tile Designer writing each level as data (L2.3)
 research:
   # tools/probe_web_search.py 2026-11-02: Chat Completions rejects {"type": "web_search"}
   # (HTTP 400 "tools[0] did not match any supported type"); the Responses API accepts it.

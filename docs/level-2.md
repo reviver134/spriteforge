@@ -322,3 +322,130 @@ Tests: `test_game_sdk.py::test_boot_wait_works_under_the_build_csp` (the old wai
 the CSP error, the new one boots), `test_codegen_patch.py::
 test_a_repair_that_makes_the_game_worse_is_not_kept` (a repair that adds `eval` is not kept;
 the build on disk is the kept attempt; the ranking order).
+
+## L2.3: the Level Designer and levels as data
+
+A side-view game whose plan has a jump and levels now plays its levels as data. The Level
+Designer writes each level, code proves it can be played with the plan's movement, the SDK
+builds and plays it, and the Programmer writes the mechanics once. Top-down games keep the
+single-scene flow.
+
+### Levels as data (`game/levels.py`)
+
+`LevelSpec` (strict, Level/Tile Designer, `llm.reasoning.level: high`): the map as rows of
+characters (top row first, ' ' or '.' empty) and a legend: `kind` (solid, one_way, hazard,
+breakable, crate, pickup, enemy, checkpoint, exit, start), the design `entity` that shows it,
+`needs` (the ability that opens or beats it), `opened_by` (touch, dash, never), `holds` (what a
+crate drops) and `gives` (the ability a pickup or a crate's drop gives); the plan's challenges
+with the column where each starts; the design's check events the level makes happen; the
+abilities that replace each other (`exclusive`). One call per level (plus one retry with the
+problems code found), each with the plan level, the movement numbers, the entities, the two
+levels before it and a 1500-token context pack from the game's bundle.
+
+`fit_level` repairs what code can: ragged rows, characters not in the legend, unknown
+entities, a missing or second start or exit (a door-like prop is placed on the last floor),
+things floating in the air (dropped onto the floor below), ability names close to the plan's
+("acid" becomes "Acid Form"), events the design does not check.
+
+### Reachability by kinematics (`game/reach.py`)
+
+Code searches the level the way the SDK's player moves: the plan's run speed, gravity 8h/T²,
+a take-off speed solved for Arcade's stepping, the dash (over 9 physics steps, gravity off),
+60 Hz physics and the bot's inputs changing once per 30 fps playtest frame. The model jumps
+2 px lower than the SDK (the SDK peaks 6 px above the plan's height, so a floor exactly at the
+planned height can be landed on); a landing needs a quarter tile of the body on the floor.
+Hazard tiles are whole cells; an enemy's whole patrol (up to 3 tiles each way along its floor)
+is a hazard while it lives; crates cannot be stood on (they dissolve on touch).
+
+* Moves tried between floors: a jump with a constant air speed (from the tile centre or the
+  ledge), rise first then move (beside a wall, over spikes or an enemy), a walk off a ledge,
+  a jump with a dash at its peak or at take-off. With the slime's numbers (6 tiles/s, 4 tiles
+  in 0.6 s, a 4.5-tile dash) gaps up to 3 tiles are crossed (8 with a dash) and ledges up to
+  4 tiles climbed, as the plan's kinematics say; one more is refused.
+* The search: what the player holds and what is open. Whatever the player can reach, open and
+  come back from is opened greedily (crates, enemies it can beat, walls); taking a pickup
+  branches (an exclusive ability drops the others). It returns the route the bot plays: walks,
+  jumps and falls (take-off, air speed, wait, dash), touch, dash into, collect, exit.
+* Checks 1-4 of the plan: every floor is reachable (an unreachable slab is lowered by code when
+  that makes it reachable: "the floor at columns 11-14, row 2 was out of reach: lowered 2
+  row(s)"); the exit is reachable; a lock before its key says so ("a breakable wall (wall) at
+  column 49 blocks the way and needs Metal Form, but no Metal Form can be picked up before
+  it"); an enemy that blocks the way needs its ability the same way.
+
+### Logic and challenge checks
+
+* The level's new idea: an ability new in this level must be needed or given by something in
+  it, and when a pickup gives it, the exit must depend on it: code solves the level again
+  without it ("the exit can be reached without Metal Form, the level's new idea: the player
+  gets past what needs it ...", for example a 4-tall cracked wall that a 4-tile jump with a
+  dash clears).
+* A challenge between checkpoints: every stretch of 6 or more columns between the start, the
+  checkpoints and the exit has a gap, a wide gap, a climb, a dash, a hazard or enemy jumped
+  over, or a lock on the route.
+* Harder than the level before: code's measure (gaps 1, wide gaps +1, climbs 1, dashes 1.5,
+  hazards 1, enemies 2, locks 2, plus 0.1 a jump) never drops.
+* Every challenge the plan gives the level is placed and in the vocabulary; every floor,
+  pickup, crate and checkpoint is reachable.
+* A challenge that asks for a dash (its name, test or needs say so) must need one: the route
+  dashes somewhere (found live: the plan's "Dash Gap" became a 3-tile gap a plain jump clears).
+
+Problems go back to the Level Designer once; the better answer (solvable first, then fewer
+problems) is kept, and what remains is shown at G4 and in the bundle.
+
+### The SDK's level engine (`sdk/sflevel.js`, `sdk/LEVELS.md`)
+
+A build with levels loads `levels.js` (`window.SF_LEVELS`: the movement, what the player holds
+from the start, every level with its route) and `sflevel.js` before the game's files. The
+game's one scene calls `sf.level.build(this, {touch(thing, how), respawn, checkpoint,
+complete})`; the SDK makes a tilemap (solid tiles collide, one-way tiles on top only, hazards
+send the player back), a sprite per thing (crates and breakables solid; pickups, checkpoints
+and the exit overlap; enemies walk their patrol), the player moved with the plan's numbers
+(coyote time, a 0.1 s jump buffer, a variable jump, one air dash, falls capped below a tile per
+step), the camera, checkpoints and respawns (pits, hazards), and the flow: `level_start`,
+`level_complete`, the next level, `win` after the last, Enter restarts. `?level=n` starts at a
+level; `?only=1` stops after it. The game implements what each thing does in `touch()` from
+its data and calls `sf.level.open/drop/take/respawn`. In autoplay the SDK's bot follows the
+route code found: it walks to each take-off point, presses jump with the planned air speed
+(and dash), touches or dashes into things until they open, collects drops, retries a missed
+jump and resumes from the checkpoint after a respawn; `window.sf.bot` says which step it is on
+and, when it is stuck, why ("the crate t2 (crate) at column 4 did not open when touched (the
+game's touch hook)").
+
+The Programmer's contract for such a game (`level_requirements`, `LEVELS.md`, and a summary of
+every kind of thing in the levels with its data): no level geometry, controller or autoplay;
+mechanics in `touch()` as the data says; the design's events; each level's events. The offline
+Programmer returns `mock_platformer.js`, which implements every kind of thing from its data.
+
+### Playtest per level, G4 per level, the bundle
+
+* The bot playtest plays each level on its own (`?autoplay=1&headless=1&god=1&only=1&level=n`,
+  20 game seconds plus 6 per route step) until `level_complete`, a stuck bot, an error or the
+  time limit. A level passes when it is cleared, emits the game's own events it lists and has
+  no errors; the SDK's events (level_start, level_complete, checkpoint, respawn, jump, dash,
+  win) and the design's checks are counted over all levels, since whether the bot dashes in a
+  level depends on its route. Failures reach the Programmer per level.
+* Each build checks the levels again with the player's real body from the art, draws a map
+  preview per level with the game's art and the route (`game/vN/levels/level-n.png`), and its
+  report lists per level the play link (`index.html?level=n`), the preview, code's check and
+  the playtest (cleared, the bot, missing events).
+* G4 shows the previews and offers **Level** (The whole game, Level 1, ...). Feedback with a
+  level picked goes to the Level Designer for that level only: a new level set
+  (`game/levels/vL/`) with that level revised, the same code and art, every level replayed.
+  The Director can also split free text into `level_changes`. A design change checks every
+  level again with the new design and plan and revises only those with new problems.
+* Bundle: `levels/<n>` (type Level) with `resource: /references/levels/<n>.json` (what the SDK
+  loads), the preview `/references/levels/<n>.png`, the map and legend, code's check, the
+  playtest and a `# Schema` of the level data.
+
+### Tests
+
+`tests/test_levels.py`: jumps reach what the plan says and no further (gaps with and without a
+dash, ledges, spikes beside the take-off); a gated level is solved with its keys in order; a
+lock before its key says so; a wall the player can jump over is no gate; an unreachable slab is
+lowered; a stretch without a challenge, a level easier than the last and a missing new idea
+are found; fit repairs; problems go back to the Level Designer once; the offline levels hold
+and get harder; level feedback reaches the Director's `level_changes`; the preview; in the
+browser, the bot clears a gated level (acid, an enemy, metal, a dash through the wall) and gets
+stuck with a reason when the crate mechanic is broken; a gated mock run writes levels after
+G2, plays each level, shows them at G4 with the Level form, writes `levels/<n>` into the
+bundle, and "Make it longer" on Level 2 changes level 2 only, with the same code.

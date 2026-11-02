@@ -81,6 +81,7 @@ from .codegen import (
     PatchError,
     apply_patch,
     change_prompt,
+    level_summary,
     mock_code,
     programmer_prompt,
     repair_prompt,
@@ -90,6 +91,18 @@ from .dbsource import folder_record
 from .design import GameDesign, design_markdown, design_prompt, fallback_design
 from .gamedb import open_db, sync_record
 from .image_cache import ImageCache
+from .level_gen import fallback_level
+from .levels import (
+    SDK_EVENTS,
+    LevelRecord,
+    LevelSpec,
+    evaluate,
+    level_prompt,
+    level_retry_prompt,
+    level_revision_prompt,
+    levels_script,
+    player_body,
+)
 from .plan import (
     GamePlan,
     PlanRecord,
@@ -100,7 +113,7 @@ from .plan import (
     plan_revision_prompt,
     retry_prompt,
 )
-from .playtest import failure_summary, playtest, review_times
+from .playtest import failure_summary, playtest, playtest_levels, review_times
 from .qa import (
     QATest,
     QATests,
@@ -275,7 +288,87 @@ def save_json(path: Path, data) -> None:
 def write_design(models: Models, request: str, plan: PlanRecord | None = None) -> GameDesign:
     """The design for a request, written from the game plan when there is one."""
     prompt = design_prompt(request, plan_brief(plan) if plan else "")
-    return models.ask("Game Designer", prompt, GameDesign, fallback_design(request), "design")
+    fallback = fallback_design(request, platformer=bool(plan and plan.kinematics))
+    return models.ask("Game Designer", prompt, GameDesign, fallback, "design")
+
+
+# --- levels as data (L2.3) ----------------------------------------------------------------------
+
+
+def uses_levels(design: GameDesign, plan: PlanRecord | None) -> bool:
+    """Levels as data: a side-view game with a plan that has a jump and levels."""
+    return bool(design.camera == "side-view" and plan and plan.kinematics and plan.plan.levels)
+
+
+@dataclass
+class LevelPack:
+    """A game's levels as the build uses them."""
+
+    records: list[LevelRecord]
+    script: dict  # window.SF_LEVELS (levels.js)
+
+    @property
+    def summary(self) -> str:
+        return level_summary(self.records)
+
+    def playtest(self) -> list[dict]:
+        """Per level: the game's own events it must make happen (the SDK's are checked over
+        all levels: whether the bot dashes in a level depends on its route)."""
+        return [{"n": r.spec.n, "name": r.spec.name, "steps": len(r.route),
+                 "events": [e for e in r.spec.events if e not in SDK_EVENTS]}
+                for r in self.records]  # fmt: skip
+
+
+def level_pack(records: list[LevelRecord], design: GameDesign, plan: PlanRecord,
+               manifest: dict | None = None, fps: int = 30) -> LevelPack:  # fmt: skip
+    """The levels checked again with the player's real body from the build's art (the bot
+    follows the route found for it), and the script the build loads."""
+    body = player_body(design, manifest)
+    checked, previous = [], None
+    for r in records:
+        again = evaluate(r.spec, r.spec.n, design, plan, previous, body, fps, r.retried, r.notes, r.by)
+        checked.append(again)
+        previous = again
+    return LevelPack(checked, levels_script(checked, design, plan, body))
+
+
+def better_level(a: LevelRecord, b: LevelRecord) -> LevelRecord:
+    """The better of two answers: solvable first, then fewer problems (b wins a tie)."""
+    rank = lambda r: (r.solved, -len(r.problems))
+    return a if rank(a) > rank(b) else b
+
+
+def write_level(models: Models, n: int, design: GameDesign, plan: PlanRecord,
+                earlier: list[LevelRecord], context: str = "", fps: int = 30) -> LevelRecord:  # fmt: skip
+    """The Level Designer's level n, fitted and checked by code; problems go back once."""
+    body = player_body(design)
+    prompt = level_prompt(n, design, plan, earlier, context)
+    previous = earlier[-1] if earlier else None
+    spec = models.ask("Level/Tile Designer", prompt, LevelSpec, fallback_level(n, design, plan), "level")
+    record = evaluate(spec, n, design, plan, previous, body, fps, by=models.name)
+    if not record.problems:
+        return record
+    again = models.ask("Level/Tile Designer", level_retry_prompt(prompt, record.problems), LevelSpec,
+                       record.spec, "level")  # fmt: skip
+    retried = evaluate(again, n, design, plan, previous, body, fps, True, record.notes, models.name)
+    return better_level(record.model_copy(update={"retried": True}), retried)
+
+
+def revise_level(models: Models, record: LevelRecord, said: str, design: GameDesign,
+                 plan: PlanRecord, earlier: list[LevelRecord], fps: int = 30) -> LevelRecord:  # fmt: skip
+    """Level n revised for the human's words (the offline stand-in turns its sections)."""
+    n, body = record.spec.n, player_body(design)
+    previous = earlier[-1] if earlier else None
+    prompt = level_revision_prompt(record, said, design, plan, earlier)
+    fallback = fallback_level(n, design, plan, variant=1 + len(said) % 3)
+    spec = models.ask("Level/Tile Designer", prompt, LevelSpec, fallback, "level")
+    revised = evaluate(spec, n, design, plan, previous, body, fps, by=models.name)
+    if not revised.problems:
+        return revised
+    again = models.ask("Level/Tile Designer", level_retry_prompt(prompt, revised.problems), LevelSpec,
+                       revised.spec, "level")  # fmt: skip
+    retried = evaluate(again, n, design, plan, previous, body, fps, True, revised.notes, models.name)
+    return better_level(revised.model_copy(update={"retried": True}), retried)
 
 
 def write_research(models: Models, request: str, genre: str, genre_body: str,
@@ -453,14 +546,17 @@ def write_code(
     base: GameCode | None = None,
     instruction: str = "",
     log: Callable[[str], None] = lambda message: None,
+    levels: LevelPack | None = None,
 ) -> GameCode:
     """New code for a design, or `base` changed as `instruction` says (feedback rounds)."""
+    summary = levels.summary if levels else ""
     if base is None:
-        prompt = programmer_prompt(design, manifest)
-        return models.ask("Programmer", prompt, GameCode, mock_code(), "code")
+        prompt = programmer_prompt(design, manifest, summary)
+        return models.ask("Programmer", prompt, GameCode, mock_code(levels is not None), "code")
     return edit_code(
-        models, base, lambda error: change_prompt(design, base, instruction, manifest, error), log
-    )[0]
+        models, base,
+        lambda error: change_prompt(design, base, instruction, manifest, error, summary), log,
+    )[0]  # fmt: skip
 
 
 def edit_code(
@@ -520,9 +616,11 @@ def build_and_test(
     out: Path,
     log: Callable[[str], None] = print,
     qa: list[QATest] | None = None,
+    levels: LevelPack | None = None,
 ) -> BuildOutcome:
-    """Static checks, build, playtest with the bot, then the QA tests (real key presses);
-    failures of either go back to the Programmer (bounded)."""
+    """Static checks, build, playtest with the bot (each level on its own for a game with
+    levels as data), then the QA tests (real key presses); failures of either go back to the
+    Programmer (bounded)."""
     manifest = art.manifest()
     asset_ids = set(manifest["sprites"]) | set(manifest["images"])
     attempts, report, build_dir, shots, qa_results = [], {}, None, [], []
@@ -532,7 +630,7 @@ def build_and_test(
     def build(files: GameCode) -> Path:
         return build_game(out / "build", title=design.title, controls=design.controls,
                           files=files.as_dict(), assets=manifest, images=art.files(),
-                          credits=art.credits)  # fmt: skip
+                          credits=art.credits, levels=levels.script if levels else None)  # fmt: skip
 
     for n in range(cfg.game.max_repairs + 1):
         folder = out / "attempts" / str(n + 1)
@@ -547,13 +645,7 @@ def build_and_test(
             failures = "Static checks failed (the game was not run):\n" + "\n".join(problems)
         else:
             build_dir = build(code)
-            result = playtest(
-                build_dir,
-                design.checks,
-                design.session_seconds,
-                fps=cfg.game.playtest_fps,
-                capture_at=capture,
-            )
+            result = play(build_dir, design, cfg, levels, capture)
             shots = result.pop("screenshots", [])
             report = {"stage": "playtest", **result}
             failures = failure_summary(report) if not report["passed"] else ""
@@ -585,10 +677,11 @@ def build_and_test(
         if ok or n == cfg.game.max_repairs:
             break
         log("  Programmer is repairing the game")
+        summary = levels.summary if levels else ""
         fixed, how = edit_code(
             models,
             code,
-            lambda error, c=code, f=failures: repair_prompt(design, c, f, manifest, error),
+            lambda error, c=code, f=failures, s=summary: repair_prompt(design, c, f, manifest, error, s),
             log,
         )
         if fixed == code:  # the mock (or a stuck model) returned the same files: stop early
@@ -606,7 +699,18 @@ def build_and_test(
     return BuildOutcome(code, report, build_dir, attempts, shots, qa_results)
 
 
-def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out: Path):
+def play(build_dir: Path, design: GameDesign, cfg: Config, levels: "LevelPack | None",
+         capture: list[float] = ()) -> dict:  # fmt: skip
+    """The bot playtest: the whole session, or each level on its own."""
+    if levels:
+        return playtest_levels(build_dir, design.checks, levels.playtest(),
+                               fps=cfg.game.playtest_fps, capture=bool(capture))  # fmt: skip
+    return playtest(build_dir, design.checks, design.session_seconds, fps=cfg.game.playtest_fps,
+                    capture_at=capture)  # fmt: skip
+
+
+def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out: Path,
+           levels: "LevelPack | None" = None):  # fmt: skip
     """Build the same code with other art and play the session again: (build, report)."""
     build_dir = build_game(
         out / "build",
@@ -616,8 +720,9 @@ def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out:
         assets=art.manifest(),
         images=art.files(),
         credits=art.credits,
+        levels=levels.script if levels else None,
     )
-    result = playtest(build_dir, design.checks, design.session_seconds, fps=cfg.game.playtest_fps)
+    result = play(build_dir, design, cfg, levels)
     return build_dir, {"stage": "playtest", **result}
 
 
@@ -642,6 +747,7 @@ def review_art(
     log: Callable[[str], None] = print,
     version: int = 1,
     qa: list[QATest] | None = None,
+    levels: LevelPack | None = None,
 ) -> Reviewed:
     """The Art Reviewer looks at all the art together and in the running game, blocking
     issues are fixed once (capped), and the same code is played again with the fixed art (and
@@ -699,7 +805,7 @@ def review_art(
         fixed_art = replace(art, filled=filled, credits=credits,
                             picks=art.picks | {fx.entity: fx.pick for fx in kept})  # fmt: skip
         log("  playing the game again with the fixed art")
-        build_dir, report = replay(design, fixed_art, outcome.code, cfg, out)
+        build_dir, report = replay(design, fixed_art, outcome.code, cfg, out, levels)
         replayed = {"passed": report["passed"], "reverted": False}
         new_qa = (
             run_qa(build_dir, qa, cfg.game.playtest_fps)
@@ -714,7 +820,7 @@ def review_art(
             failed = sum(not r["passed"] for r in new_qa)
             replayed["qa"] = {"passed": len(new_qa) - failed, "failed": failed}
         if (outcome.report["passed"] and not report["passed"]) or broke:
-            replay(design, art, outcome.code, cfg, out)  # back to the art that passed
+            replay(design, art, outcome.code, cfg, out, levels)  # back to the art that passed
             replayed["reverted"] = True
             if outcome.report["passed"] and not report["passed"]:
                 why = "reverted: the game failed its playtest with the new art"

@@ -13,6 +13,11 @@ After the G1 questions:
                              written from plan vK
   game/design/vK-story.json/.md  Game Designer: the story bible (characters tied to entities,
                              world, arc, canon), shown at G2 and revised with the design
+  game/levels/vL/level-n.json/.md  Level/Tile Designer (L2.3, side-view games with a plan): each
+                             level as data, fitted and checked by code with the plan's movement
+                             (reach.py), with the route the bot plays; levels.json indexes a set.
+                             v1 is written after G2; feedback on one level makes a new set with
+                             only that level revised; a design change re-checks every level
   game/db/                   the game database: the canon as OKF entries (story, characters with
                              their locked art, world, gameplay, art, levels), written from the
                              artifacts; approvals promote it to human-reviewed
@@ -33,9 +38,12 @@ After the G1 questions:
   game/vN/qa.json            QA results (real key presses after the bot playtest); qa/ their
                              screenshots; test_game_qa.py the Playwright export (also in
                              build/tests/, so the play route serves it)
+  game/vN/levels/level-n.png the level's map preview with the game's art and the bot's route
   game/vN/poster.png         (+ demo.mp4 with ffmpeg)
   game/vN/report.json        what was built and by whom, art sources, warnings, attempts, play link
-  gate "playtest"            text -> Director splits it into design/art/code changes -> v(N+1)
+  gate "playtest"            text -> Director splits it into design/art/code/level changes ->
+                             v(N+1); with Level n chosen on the form, the text goes to the Level
+                             Designer for level n only (same code and art, every level replayed)
                              (a design change revises the plan too; entities that still exist
                              keep their locked art, only new ones are planned);
                              Apply on an art-review suggestion (form apply_suggestion=n) -> that
@@ -54,22 +62,29 @@ from spriteforge.core.gates import Gates, new_gate
 from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.design import GameDesign, design_markdown, revision_prompt
-from spriteforge.game.gamedb import open_db, promote_all, sync_record
+from spriteforge.game.gamedb import context_pack, open_db, promote_all, sync_record
+from spriteforge.game.level_preview import first_frame, preview
+from spriteforge.game.levels import LevelRecord, evaluate, level_markdown, player_body
 from spriteforge.game.pipeline import (
+    LevelPack,
     Models,
     art_sources,
     art_summary,
     build_and_test,
     call_summary,
+    level_pack,
     plan_art,
     plan_new_art,
     produce_art,
     qa_report,
     review_art,
+    revise_level,
     revise_plan,
     revise_story,
+    uses_levels,
     write_code,
     write_design,
+    write_level,
     write_plan,
     write_qa_tests,
     write_research,
@@ -79,14 +94,16 @@ from spriteforge.game.plan import PlanRecord, plan_brief, plan_markdown
 from spriteforge.game.qa import QASuite, QATests, merge_suite, screenshot_files, write_export
 from spriteforge.game.record import record_game
 from spriteforge.game.research import ResearchRecord, research_brief, research_markdown
-from spriteforge.game.revision import ArtChange, Revision, fallback_revision
+from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback_revision
 from spriteforge.game.revision import revision_prompt as director_prompt
 from spriteforge.game.story import StoryBible, story_markdown
 
 from .asset_store import ProductionStore
 from .game_record import (
+    LEVELS,
     REPORT,
     RESEARCH,
+    latest_version,
     next_story_name,
     run_record,
     shown,
@@ -97,6 +114,7 @@ from .intake import GameBrief
 
 STAGES = {"design", "playtest"}
 ADD_STORY = "Add a story"
+WHOLE_GAME = "The whole game"
 # G2 and G4 offer a story while the game has none (named characters, a world, an arc).
 STORY_FORM = {
     "type": "object",
@@ -195,6 +213,14 @@ def load_plan(ctx: GameContext, version: int) -> PlanRecord | None:
     """The plan of design `version` (runs before L2.2 have none)."""
     name = plan_name(version)
     return PlanRecord.model_validate(ctx.read(name)) if name in ctx.artifacts else None
+
+
+def load_plan_at(ctx: GameContext, version: int) -> PlanRecord | None:
+    """The plan a design version was written from: the latest plan at or before it."""
+    for k in range(version, 0, -1):
+        if plan := load_plan(ctx, k):
+            return plan
+    return None
 
 
 def ensure_plan(ctx: GameContext, version: int, make) -> PlanRecord:
@@ -300,6 +326,121 @@ def open_design_gate(ctx: GameContext, version: int) -> None:
     )
 
 
+def level_name(version: int, n: int) -> str:
+    return f"game/levels/v{version}/level-{n}.json"
+
+
+def load_levels(ctx: GameContext, version: int) -> list[LevelRecord]:
+    index = ctx.read(f"game/levels/v{version}/levels.json")
+    return [LevelRecord.model_validate(ctx.read(level_name(version, n))) for n in index["levels"]]
+
+
+def ensure_levels(ctx: GameContext, version: int, design_version: int, count: int, make,
+                  why: str) -> list[LevelRecord]:  # fmt: skip
+    """Level set v`version`: each level made once by `make(n, earlier)` (re-entry after a crash
+    reuses what is saved), then its index."""
+    index = f"game/levels/v{version}/levels.json"
+    if index in ctx.artifacts:
+        return load_levels(ctx, version)
+    records, changed = [], []
+    for n in range(1, count + 1):
+        name = level_name(version, n)
+        if name not in ctx.artifacts:
+            record, was_changed = make(n, records)
+            ctx.save(name, record.model_dump(), "Level/Tile Designer")
+            ctx.save(name.removesuffix(".json") + ".md", level_markdown(record).encode(),
+                     "Level/Tile Designer", "text/markdown")  # fmt: skip
+            changed += [n] if was_changed else []
+        records.append(LevelRecord.model_validate(ctx.read(name)))
+    ctx.save(index, {"version": version, "design_version": design_version,
+                     "levels": [r.spec.n for r in records], "changed": changed, "why": why,
+                     "problems": sum(len(r.problems) for r in records)}, "Level/Tile Designer")  # fmt: skip
+    return records
+
+
+def first_levels(ctx: GameContext, design: GameDesign, design_version: int, plan: PlanRecord) -> int:
+    """Level set v1 (or the next one when a game gains levels later): every level written by
+    the Level Designer from the plan and the game's record."""
+    version = latest_version(ctx.artifacts, LEVELS) + 1
+    log = ctx.log("Level/Tile Designer")
+
+    def make(n: int, earlier: list[LevelRecord]):
+        lp = plan.plan.levels[n - 1]
+        log(f"writing level {n}: {lp.name}")
+        focus = f"level {n}: {lp.name}: {lp.teaching_goal}; new idea: {lp.new_idea}"
+        record = write_level(ctx.models, n, design, plan, earlier, context_pack(ctx.db, focus, 1500),
+                             ctx.cfg.game.playtest_fps)  # fmt: skip
+        log(f"level {n}: " + ("checked by code, no problems" if not record.problems else
+                              f"{len(record.problems)} problem(s) code could not fix"))  # fmt: skip
+        return record, True
+
+    ensure_levels(ctx, version, design_version, len(plan.plan.levels), make, "written from the plan")
+    return version
+
+
+def next_levels(ctx: GameContext, old: int, design: GameDesign, design_version: int,
+                plan: PlanRecord, changes: dict[int, str], recheck: str = "") -> int:  # fmt: skip
+    """Level set v(latest + 1) from set `old`: levels in `changes` revised for the human's words;
+    with `recheck` (a design change), every other level is checked again with the new design
+    and plan and revised only when that finds new problems. The rest stay as they were."""
+    version = latest_version(ctx.artifacts, LEVELS) + 1
+    before = load_levels(ctx, old)
+    log = ctx.log("Level/Tile Designer")
+    fps = ctx.cfg.game.playtest_fps
+
+    def make(n: int, earlier: list[LevelRecord]):
+        record = before[n - 1] if n <= len(before) else None
+        if record is None:
+            log(f"writing level {n} (new in the plan)")
+            return write_level(ctx.models, n, design, plan, earlier, "", fps), True
+        if n in changes:
+            log(f"revising level {n} for the feedback")
+            return revise_level(ctx.models, record, changes[n], design, plan, earlier, fps), True
+        if not recheck:
+            return record, False
+        again = evaluate(record.spec, n, design, plan, earlier[-1] if earlier else None,
+                         player_body(design), fps, record.retried, record.notes, record.by)  # fmt: skip
+        new = [p for p in again.problems if p not in record.problems]
+        if not new:
+            return again, False
+        log(f"level {n} has new problems after the design change; revising it")
+        said = f"The design changed: {recheck}. Fix what code found: " + "; ".join(new)
+        return revise_level(ctx.models, again, said, design, plan, earlier, fps), True
+
+    why = "; ".join([f"level {n}: {c}" for n, c in sorted(changes.items())]
+                    + ([f"design v{design_version}: {recheck}"] if recheck else []))  # fmt: skip
+    ensure_levels(ctx, version, design_version, len(plan.plan.levels), make, why)
+    return version
+
+
+def level_previews(ctx: GameContext, prefix: str, pack: LevelPack, design: GameDesign, art) -> dict:
+    """Each level's map preview with the game's art; artifact names by level number."""
+    frames = {eid: first_frame(f.png, f.meta.get("frame") if f.kind == "sprite" else None)
+              for eid, f in art.filled.items()}  # fmt: skip
+    out = {}
+    for r in pack.records:
+        name = f"{prefix}/levels/level-{r.spec.n}.png"
+        ctx.save(name, preview(r, design, frames), "Level/Tile Designer", "image/png")
+        out[r.spec.n] = name
+    return out
+
+
+def level_report(pack: LevelPack, played: dict, previews: dict, play: str | None) -> list[dict]:
+    """report.json "levels": per level its play link, preview, code's check and the playtest."""
+    results = {r["n"]: r for r in played.get("levels", [])}
+    out = []
+    for r in pack.records:
+        res = results.get(r.spec.n, {})
+        out.append({"n": r.spec.n, "name": r.spec.name,
+                    "play": f"{play}?level={r.spec.n}" if play else None,
+                    "preview": previews.get(r.spec.n), "solved": r.solved,
+                    "difficulty": r.difficulty, "problems": r.problems,
+                    "cleared": res.get("cleared", False), "ended": res.get("ended"),
+                    "game_seconds": res.get("game_seconds"), "bot": res.get("bot"),
+                    "missing": res.get("missing", []), "events": res.get("events", {})})  # fmt: skip
+    return out
+
+
 def previous_art(ctx: GameContext, version: int):
     """Muse records of the previous build, so unchanged requests reuse their art."""
 
@@ -371,26 +512,33 @@ def build_version(
     instruction: str,
     revision: Revision | None = None,
     suite: QASuite | None = None,
+    levels: int | None = None,
+    game_plan: PlanRecord | None = None,
 ) -> list[str]:
-    """Art, code, playtest, repair and recording for one build; returns gate artifact names."""
+    """Art, code, playtest, repair and recording for one build; returns gate artifact names.
+    `levels`: the level set the build plays (levels as data), checked with `game_plan`."""
     prefix = f"game/v{version}"
     if f"{prefix}/report.json" not in ctx.artifacts:
         log = ctx.log("Director")
         log(f"build v{version}: art (library first, Muse Image for the rest)")
         art = produce_art(ctx.models, design, plan, ctx.cfg, previous_art(ctx, version))
+        pack = None
+        if levels and game_plan:
+            pack = level_pack(load_levels(ctx, levels), design, game_plan, art.manifest(),
+                              ctx.cfg.game.playtest_fps)  # fmt: skip
         if base is None or instruction.strip():
             log(f"build v{version}: the Programmer is writing the game")
-            code = write_code(ctx.models, design, art.manifest(), base, instruction, log)
+            code = write_code(ctx.models, design, art.manifest(), base, instruction, log, pack)
         else:
-            code = base  # feedback touched only the art: same code, new assets
+            code = base  # feedback touched only the art or the levels: same code
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log,
-                                 suite.tests if suite else None)  # fmt: skip
+                                 suite.tests if suite else None, pack)  # fmt: skip
         review = None
         if ctx.cfg.game.review and outcome.build:
             log(f"build v{version}: the Art Reviewer is looking at the art in the running game")
             review = review_art(ctx.models, design, plan, art, outcome, ctx.cfg,
                                 ctx.root / prefix, log, version,
-                                suite.tests if suite else None)  # fmt: skip
+                                suite.tests if suite else None, pack)  # fmt: skip
             art, outcome = review.art, review.outcome
         qa = save_qa(ctx, prefix, outcome, suite) if suite else None  # after the review's replay
         recording = None
@@ -437,13 +585,17 @@ def build_version(
                 ctx.save(
                     f"{prefix}/demo.mp4", recording.video.read_bytes(), "QA Playtester", "video/mp4"
                 )
+        play = f"/api/runs/{ctx.run_id}/play/v{version}/index.html" if outcome.build else None
+        previews = level_previews(ctx, prefix, pack, design, art) if pack else {}
         report = {
             "version": version,
             "title": design.title,
             "design_version": design_version,
+            **({"levels_version": levels,
+                "levels": level_report(pack, outcome.report, previews, play)} if pack else {}),
             "chosen_by": ctx.models.name,
             "passed": bool(outcome.report["passed"]),
-            "play": f"/api/runs/{ctx.run_id}/play/v{version}/index.html" if outcome.build else None,
+            "play": play,
             "checks": outcome.report.get("checks", []),
             "problems": outcome.report.get("problems", []) + outcome.report.get("errors", []),
             "art": art_sources(art),
@@ -508,6 +660,8 @@ def last_plan(ctx: GameContext, version: int) -> ArtPlan:
 def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None:
     report = ctx.read(f"game/v{version}/report.json")
     verdict = "all checks passed" if report["passed"] else "SOME CHECKS FAILED (see the report)"
+    if levels := report.get("levels"):
+        verdict += f"; {sum(lv['cleared'] for lv in levels)}/{len(levels)} levels cleared by the bot"
     if qa := report.get("qa"):
         total = qa["passed"] + qa["failed"]
         verdict += f"; QA {qa['passed']}/{total} tests pass" + (
@@ -520,7 +674,15 @@ def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None
         + ("" if story else " (no story: choose Add a story to get one)")
     )
     names = [*names, *(n for n in story_names_shown(ctx) if n not in names)]
-    extra = {} if story else {"form_schema": STORY_FORM}
+    form = {} if story else dict(STORY_FORM["properties"])
+    if levels:
+        title += ("; to change one level, pick it under Level (the others stay as they are)")
+        form["level"] = {"type": "string", "title": "Level",
+                         "description": "Which level the feedback is about (the whole game goes "
+                                        "to the Director).",
+                         "enum": [WHOLE_GAME, *(f"Level {lv['n']}: {lv['name']}" for lv in levels)],
+                         "default": WHOLE_GAME}  # fmt: skip
+    extra = {"form_schema": {"type": "object", "properties": form}} if form else {}
     Gates(ctx.store).open(
         ctx.run_id,
         new_gate("playtest", title, [ctx.artifacts[n].id for n in names],
@@ -534,6 +696,8 @@ def gate_names(ctx: GameContext, version: int) -> list[str]:
     prefix = f"game/v{version}"
     design_version = ctx.read(f"{prefix}/report.json")["design_version"]
     names = [n for n in (f"{prefix}/demo.mp4", f"{prefix}/poster.png") if n in ctx.artifacts][:1]
+    names += sorted((n for n in ctx.artifacts if re.fullmatch(rf"{prefix}/levels/level-\d+\.png", n)),
+                    key=lambda n: int(re.findall(r"\d+", n)[-1]))  # fmt: skip
     names += [n for n in (f"{prefix}/art.png", f"{prefix}/test_game_qa.py") if n in ctx.artifacts]
     return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
 
@@ -577,6 +741,13 @@ def apply_art_changes(plan: ArtPlan, design: GameDesign, revision: Revision) -> 
 def asks_story(gate) -> bool:
     """The human chose Add a story on the gate's form."""
     return bool(gate.response) and gate.response.form.get("story") == ADD_STORY
+
+
+def form_level(gate) -> int | None:
+    """The level the human picked on the G4 form (None: the whole game)."""
+    picked = str((gate.response.form if gate.response else {}).get("level") or "")
+    match = re.match(r"Level (\d+)", picked)
+    return int(match[1]) if match else None
 
 
 def game_step(store, run_id) -> bool:
@@ -650,12 +821,17 @@ def game_step(store, run_id) -> bool:
             return False
         sync_db(ctx, f"G2 approved design v{version}")
         promote_all(ctx.db, f"G2 approved: design v{version}" + (" and its story" if has_story else ""))
+        game_plan = load_plan(ctx, version)
+        levels = None
+        if uses_levels(design, game_plan):
+            levels = latest_version(ctx.artifacts, LEVELS) or first_levels(ctx, design, version, game_plan)
+            sync_db(ctx, f"levels v{levels}")
         plan = ctx.once(
             "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design), "Art Director"
         )
         suite = qa_suite(ctx, 1, design, version)
         open_playtest_gate(ctx, 1, build_version(ctx, 1, design, version, plan, None, "",
-                                                 suite=suite))  # fmt: skip
+                                                 suite=suite, levels=levels, game_plan=game_plan))  # fmt: skip
         return False
 
     if last.stage == "playtest" and last.status == "changes_requested":
@@ -666,6 +842,11 @@ def game_step(store, run_id) -> bool:
         design = load_design(ctx, design_version)
         feedback = feedback or "Try a different take."
         applied = suggestion_revision(previous, design, last.response.form.get("apply_suggestion"))
+        picked = form_level(last)
+        if applied is None and picked is not None:  # feedback on one level: the Level Designer
+            applied = Revision(design_changes="", art_changes=[], code_instructions="",
+                               drop_qa_tests=[], story_changes="",
+                               level_changes=[LevelChange(level=picked, change=feedback)])  # fmt: skip
         tests = {t["name"]: t["passed"] for t in (previous.get("qa") or {}).get("tests", [])}
 
         def director() -> Revision:
@@ -682,7 +863,7 @@ def game_step(store, run_id) -> bool:
                 answer = answer.model_copy(update={"story_changes": "Add a story"})
             return answer
 
-        role = "Art Reviewer" if applied else "Director"
+        role = ("Level/Tile Designer" if picked is not None else "Art Reviewer") if applied else "Director"
         revision = ctx.once(f"game/feedback/gate-{n}-revision.json", Revision, director, role)
         if revision.story_only:
             # Only the story changes: write it and show the same build again (no rebuild).
@@ -742,8 +923,25 @@ def game_step(store, run_id) -> bool:
         )
         base = GameCode.model_validate(ctx.read(f"game/v{version - 1}/code.json"))
         suite = qa_suite(ctx, version, design, design_version, revision.drop_qa_tests)
+        game_plan = load_plan_at(ctx, design_version)
+        levels = previous.get("levels_version")
+        changes = {c.level: c.change for c in revision.level_changes if c.change.strip()}
+        if uses_levels(design, game_plan):
+            built = f"game/v{version}/levels-version.json"
+            if built in ctx.artifacts:
+                levels = ctx.read(built)["version"]
+            elif levels is None:
+                levels = first_levels(ctx, design, design_version, game_plan)
+            elif changed or changes:
+                levels = next_levels(ctx, levels, design, design_version, game_plan, changes,
+                                     revision.design_changes.strip() if changed else "")  # fmt: skip
+            if built not in ctx.artifacts:
+                ctx.save(built, {"version": levels}, "Level/Tile Designer")
+        else:
+            levels = None
         names = build_version(
-            ctx, version, design, design_version, plan, base, instruction, revision, suite
+            ctx, version, design, design_version, plan, base, instruction, revision, suite,
+            levels, game_plan,
         )
         open_playtest_gate(ctx, version, names)
         return False

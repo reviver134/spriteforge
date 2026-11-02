@@ -22,6 +22,7 @@ from .art_review import sheet_image, thumb
 from .codegen import GameCode
 from .codeinfo import Module, read_code
 from .design import GameDesign
+from .levels import LevelRecord
 from .plan import PlanRecord
 from .qa import SDK_EVENTS, STATE_KEYS, QASuite, Step
 from .qa_runtime import describe_step
@@ -100,6 +101,11 @@ class GameRecord:
     research_source: str = ""
     plan: PlanRecord | None = None  # L2.2: the game plan of the current design
     plan_source: str = ""
+    levels: list[LevelRecord] = field(default_factory=list)  # L2.3: the levels as data
+    levels_source: str = ""
+    level_files: dict[int, bytes] = field(default_factory=dict)  # what the SDK loads, per level
+    level_previews: dict[int, bytes] = field(default_factory=dict)  # map previews (PNG)
+    level_play: dict[int, dict] = field(default_factory=dict)  # the latest build's playtest
 
     @property
     def latest(self) -> Build | None:
@@ -925,17 +931,86 @@ Levels are checked against these numbers: a platform higher than `max_rise` or a
     return entries
 
 
+LEVEL_SCHEMA = """| field | meaning |
+| --- | --- |
+| `n`, `name` | the level's number and name |
+| `cols`, `rows` | the map's size in tiles (16 px at scale 1) |
+| `map` | the tile rows, top first; a character is a tile in `tiles`, ' ' is empty |
+| `tiles` | character -> `kind` (solid, one_way, hazard) and the `entity` that draws it |
+| `things` | `id`, `kind` (crate, breakable, pickup, enemy, checkpoint, exit), `entity`, `col`, `row` (bottom cell), `cells`, `needs` (ability that opens or beats it), `opened_by` (touch, dash, never), `holds` (what a crate drops), `gives` (the ability a pickup gives), `patrol` (an enemy's columns) |
+| `start`, `player` | the player's start cell and entity |
+| `route` | the bot's steps code found: walk, jump or fall (take-off `x0`, speed `vx`, `wait`, `dash`), touch, dash, collect, exit |
+| `exclusive` | abilities that replace each other |"""
+
+
+def level_concepts(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
+    """levels/<n>: each level as data (L2.3), its map preview and what code and the bot found."""
+    entries, files = [], {}
+    plans = {lv.n: lv for lv in rec.plan.plan.levels} if rec.plan else {}
+    for r in rec.levels:
+        s, n = r.spec, r.spec.n
+        lp = plans.get(n)
+        play = rec.level_play.get(n) or {}
+        resource = None
+        if n in rec.level_files:
+            files[f"references/levels/{n}.json"] = rec.level_files[n]
+            resource = f"/references/levels/{n}.json"
+        if n in rec.level_previews:
+            files[f"references/levels/{n}.png"] = rec.level_previews[n]
+        legend = "\n".join(f"| `{e.char}` | {e.kind} | [{e.entity}](/entities/{e.entity}.md) | {e.needs or '-'} | "
+                           f"{e.opened_by} | {e.holds or '-'} | {e.gives or '-'} |" for e in s.legend)  # fmt: skip
+        route = ", ".join(st["do"] + (f" {st['thing']}" if st.get("thing") else "")
+                          for st in r.route if st["do"] != "walk")  # fmt: skip
+        played = (f"cleared by the bot in {play.get('game_seconds')} game seconds" if play.get("cleared")
+                  else f"not cleared ({play.get('ended')})" if play else "not played yet")  # fmt: skip
+        body = f"""
+# Plan
+{f"Teaches {lp.teaching_goal}. New idea: {lp.new_idea}. [Level plan](/plan/levels/{n}.md)" if lp else "-"}
+
+# Map
+{s.notes.strip() or "-"}
+
+""" + ("[Map preview](/references/levels/" + str(n) + ".png) (the bot's route as a line)\n\n" if n in rec.level_previews else "") + f"""```
+{chr(10).join(s.rows)}
+```
+
+| char | kind | entity | needs | opened by | holds | gives |
+| --- | --- | --- | --- | --- | --- | --- |
+{legend}
+
+Challenges: {", ".join(f"{c.name} (column {c.column})" for c in s.challenges) or "-"}. Events: {", ".join(s.events) or "-"}.
+
+# Code's check
+{"The exit can be reached with the plan's movement" if r.solved else "The exit CANNOT be reached"}; difficulty {r.difficulty:g} (code's measure). Bot route: {route or "-"}.
+
+Problems:
+{bullets([safe_text(p) for p in r.problems], "- none")}
+
+# Playtest
+{played}{"; missing events: " + ", ".join(play.get("missing", [])) if play.get("missing") else ""}
+
+# Schema
+{LEVEL_SCHEMA}
+"""
+        entries.append(make_entry(f"levels/{n}", "Level", f"Level {n}: {s.name}",
+                                  f"{len(s.rows[0]) if s.rows else 0}x{len(s.rows)} tiles; "
+                                  + (f"teaches {lp.teaching_goal}" if lp else s.notes),
+                                  ["level", f"level-{n}"], body, [rec.levels_source], resource))  # fmt: skip
+    return entries, files
+
+
 def bundle(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
     """Every concept and file of a game's record."""
     modules = read_code(rec.code.as_dict()) if rec.code else []
     art, art_files = art_concepts(rec)
     code, code_files = code_concepts(rec, modules)
     qa, qa_files, _ = qa_concepts(rec)
+    levels, level_files = level_concepts(rec)
     entries = [game_concept(rec, modules), rules_concept(rec), events_concept(rec, modules),
                *entity_concepts(rec), *art, *code, *qa, *build_concepts(rec),
                *decision_concepts(rec), *story_concepts(rec), *research_concepts(rec),
-               *plan_concepts(rec)]  # fmt: skip
-    return entries, art_files | code_files | qa_files
+               *plan_concepts(rec), *levels]  # fmt: skip
+    return entries, art_files | code_files | qa_files | level_files
 
 
 def portrait_of(sheet: bytes, frame: tuple[int, int] | None) -> Filled:

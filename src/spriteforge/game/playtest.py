@@ -131,9 +131,131 @@ def playtest(
     }
 
 
+LEVEL_SECONDS = 20  # game seconds per level, plus STEP_SECONDS per step of the bot's route
+STEP_SECONDS = 6
+
+
+def merge_counts(per_level: list[dict]) -> dict:
+    """Event counts of every level's run together (times stay per level)."""
+    out: dict[str, dict] = {}
+    for counts in per_level:
+        for name, c in counts.items():
+            m = out.setdefault(name, {"count": 0, "first": c["first"], "last": c["last"], "times": []})
+            m["count"] += c["count"]
+            m["first"], m["last"] = min(m["first"], c["first"]), max(m["last"], c["last"])
+            m["times"] = (m["times"] + c.get("times", []))[:300]
+    return out
+
+
+def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *, fps: int = 30,
+                    capture: bool = False) -> dict:  # fmt: skip
+    """Play each level on its own (`?level=n&only=1`) with the SDK's route bot in god mode and
+    check the design's events over all levels. `levels`: [{"n", "name", "events", "steps"}]
+    (the events each level makes happen). With `capture`, one drawn screenshot per level a few
+    seconds in (for the art review)."""
+    errors: list[str] = []
+    results, shots, counts_by_level, state = [], [], [], {}
+    with serve(Path(build_dir)) as url, sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        try:
+            for lv in levels:
+                page = browser.new_page(viewport={"width": 320, "height": 180})
+                mine: list[str] = []
+                page.on("pageerror", lambda e, mine=mine: mine.append(str(e)))
+                page.goto(f"{url}/index.html?autoplay=1&headless=1&god=1&only=1&level={lv['n']}")
+                ended, t, counts, bot = "timeout", 0.0, {}, {}
+                limit = LEVEL_SECONDS + STEP_SECONDS * lv.get("steps", 10)
+                if not wait_until(page, READY):
+                    ended = "no-boot"
+                shot_at = 4.0 if capture else None
+                while ended != "no-boot" and t < limit:
+                    before = t
+                    chunk = min(CHUNK_SECONDS, limit - t)
+                    if shot_at is not None:
+                        chunk = min(chunk, max(shot_at - t, 1 / fps))
+                    try:
+                        result = page.evaluate(f"window.sfRun({chunk}, {fps})")
+                    except PlaywrightError as exc:
+                        mine.append(str(exc).splitlines()[0])
+                        ended = "error"
+                        break
+                    t = float(result["t"])
+                    if shot_at is not None and t >= shot_at - 0.5 / fps:
+                        shot_at = None
+                        data = page.evaluate(f"window.sfShot({fps})")
+                        shots.append({"t": round(t, 1), "level": lv["n"],
+                                      "png": base64.b64decode(data.split(",", 1)[1])})  # fmt: skip
+                    counts = page.evaluate("window.sf.counts")
+                    bot = page.evaluate("window.sf.bot") or {}
+                    if "level_complete" in counts or "win" in counts:
+                        ended = "cleared"
+                        break
+                    if result["errors"]:
+                        ended = "error"
+                        break
+                    if bot.get("status") == "stuck":
+                        ended = "stuck"
+                        break
+                    if t <= before:
+                        ended = "stalled"
+                        break
+                if ended != "no-boot":
+                    counts = page.evaluate("window.sf.counts")
+                    state = page.evaluate("window.sf.state")
+                    bot = page.evaluate("window.sf.bot") or bot
+                mine += page.evaluate("window.sf ? window.sf.errors : []")
+                page.close()
+                mine = list(dict.fromkeys(mine))[:10]
+                errors += [f"level {lv['n']}: {e}" for e in mine]
+                events = {name: c["count"] for name, c in sorted(counts.items())}
+                missing = [e for e in lv.get("events", []) if e not in counts]
+                counts_by_level.append(counts)
+                results.append({"n": lv["n"], "name": lv.get("name", ""), "cleared": ended == "cleared",
+                                "ended": ended, "game_seconds": round(t, 1), "bot": bot,
+                                "events": events, "expected": lv.get("events", []),
+                                "missing": missing, "errors": mine,
+                                "ok": ended == "cleared" and not missing and not mine})  # fmt: skip
+        finally:
+            browser.close()
+    merged = merge_counts(counts_by_level)
+    checked = evaluate_checks(checks, merged)
+    unique_errors = list(dict.fromkeys(errors))[:20]
+    ok = all(r["ok"] for r in results) and all(c["ok"] for c in checked) and not unique_errors
+    worst = next((r["ended"] for r in results if not r["cleared"]), "cleared")
+    return {
+        "passed": ok and bool(results),
+        "ended": worst if results else "no-boot",
+        "game_seconds": round(sum(r["game_seconds"] for r in results), 1),
+        "session_seconds": sum(LEVEL_SECONDS + STEP_SECONDS * lv.get("steps", 10) for lv in levels),
+        "errors": unique_errors,
+        "checks": checked,
+        "events": {name: c["count"] for name, c in sorted(merged.items())},
+        "state": state,
+        "levels": results,
+        **({"screenshots": shots} if capture else {}),
+    }
+
+
+def level_failures(report: dict) -> list[str]:
+    lines = []
+    for r in report.get("levels", []):
+        bot = r.get("bot") or {}
+        if not r["cleared"]:
+            why = {"stuck": f"the bot got stuck: {bot.get('detail') or '?'}",
+                   "timeout": f"time ran out at step {bot.get('step', '?')} of {bot.get('steps', '?')}",
+                   "no-boot": "the level never finished booting", "error": "a runtime error stopped it",
+                   "stalled": "the game loop stopped advancing"}.get(r["ended"], r["ended"])  # fmt: skip
+            lines.append(f"Level {r['n']} ({r['name']}) was not cleared: {why}. Events seen: {r['events']}.")
+        if r.get("missing"):
+            lines.append(f"Level {r['n']} never emitted {', '.join(r['missing'])} (the level makes "
+                         "these happen on the bot's way to the exit: check the touch hook and the "
+                         "sf.event calls).")  # fmt: skip
+    return lines
+
+
 def failure_summary(report: dict) -> str:
     """Plain-text failures for the Programmer's repair prompt."""
-    lines = []
+    lines = level_failures(report)
     if report["ended"] == "no-boot":
         lines.append("The game never finished booting (sf.ready stayed false within 30 s).")
     if report["ended"] == "stalled":

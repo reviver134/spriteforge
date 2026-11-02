@@ -94,6 +94,11 @@ def design_prompt(request: str, plan: str = "") -> str:
         "the moment it happens, plus 'win' (or 'lose' for endless games). A bot that cannot die "
         "plays the full session, so every check must be reachable by simple play. Use by_second "
         "for rules about timing (e.g. first spawn within 5 s, difficulty rises by 120 s).\n"
+        "* A side-view platformer with a game plan plays its levels as data: the SDK builds each "
+        "level, moves the player with the plan's numbers and emits level_start, level_complete, "
+        "checkpoint, respawn, jump, dash and win (after the last level); use these names for "
+        "those rules. A bot plays each level on its own, so per-level rules are checked per "
+        "level.\n"
         + (
             "* The game plan below is approved groundwork: keep its numbers (movement, jump, "
             "dash), abilities, mechanics, levels, feel and animations; the player's stats and "
@@ -118,10 +123,13 @@ def revision_prompt(design: "GameDesign", feedback: str, plan: str = "") -> str:
     )
 
 
-def fallback_design(request: str) -> GameDesign:
+def fallback_design(request: str, platformer: bool = False) -> GameDesign:
     """Offline stand-in for the Game Designer (mock runs): a small arena game whose events the
-    bundled mock game emits, titled after the request."""
+    bundled mock game emits, titled after the request; with `platformer` (a planned side-view
+    game: levels as data), a platformer whose events the mock platformer emits."""
     words = re.findall(r"[A-Za-z]+", request)[:4]
+    if platformer:
+        return fallback_platformer(" ".join(w.capitalize() for w in words) or "Untitled", request)
     side = bool(re.search(r"\b(side|platform\w*|jump\w*)\b", request, re.IGNORECASE))
     return GameDesign(
         title=" ".join(w.capitalize() for w in words) or "Untitled",
@@ -209,6 +217,55 @@ def fallback_design(request: str) -> GameDesign:
                 min_count=1,
                 by_second=0,
             ),
+        ],
+    )
+
+
+def fallback_platformer(title: str, request: str) -> GameDesign:
+    """The offline platformer: a hero that runs and jumps through levels of floors, gaps,
+    spikes and slimes to a door (the mock platformer game plays it)."""
+    E = Entity
+    return GameDesign(
+        title=title,
+        pitch=request.strip()[:200] or "Jump across the levels to the door.",
+        camera="side-view",
+        controls="Arrows/WASD move; Space jumps",
+        session_seconds=120,
+        player="A small hero that runs and jumps (the plan's numbers)",
+        world="Side-view levels of floors, gaps, spikes and slimes, each ending at a door",
+        look="Readable pixel art, bright characters on a calm sky",
+        entities=[
+            E(id="hero", role="player", look="a small knight", behaviour="runs and jumps",
+              width=12, height=14, animations=["idle", "walk", "jump"]),
+            E(id="slime", role="enemy", look="a green slime", behaviour="patrols its floor; "
+              "touching it sends the hero back to the checkpoint", width=14, height=10,
+              animations=["idle", "walk"]),
+            E(id="gem", role="pickup", look="a small blue gem", behaviour="collect for points",
+              width=8, height=8, animations=[]),
+            E(id="floor", role="tile", look="grass-topped stone", behaviour="ground and platforms",
+              width=16, height=16, animations=[]),
+            E(id="spikes", role="tile", look="grey metal spikes", behaviour="touching them sends "
+              "the hero back to the checkpoint", width=16, height=16, animations=[]),
+            E(id="flag", role="prop", look="a small blue flag", behaviour="checkpoint",
+              width=12, height=16, animations=[]),
+            E(id="door", role="prop", look="a wooden door", behaviour="the level's exit",
+              width=16, height=24, animations=[]),
+        ],
+        rules=["Run and jump from floor to floor", ("Spikes and slimes send the hero back to "
+               "the last checkpoint"), "Gems add to the score", "The door ends the level"],
+        progression=["Levels in order; the last door wins the game"],
+        difficulty=["Each level adds wider gaps, higher floors, spikes and slimes"],
+        win="Reach the door of the last level",
+        lose="",
+        hud=["gems", "level"],
+        checks=[
+            Check(id="jumps", description="the hero jumps", event="jump", min_count=1, by_second=0),
+            Check(id="gems", description="gems can be collected", event="gem_collect",
+                  min_count=1, by_second=0),
+            Check(id="levels", description="levels can be finished", event="level_complete",
+                  min_count=1, by_second=0),
+            Check(id="win", description="the game can be won", event="win", min_count=1,
+                  by_second=0),
         ],
     )
 
