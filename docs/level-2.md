@@ -342,8 +342,9 @@ abilities that replace each other (`exclusive`). One call per level (plus one re
 problems code found), each with the plan level, the movement numbers, the entities, the two
 levels before it and a 1500-token context pack from the game's bundle.
 
-`fit_level` repairs what code can: ragged rows, characters not in the legend, unknown
-entities, a missing or second start or exit (a door-like prop is placed on the last floor),
+`fit_level` repairs what code can: ragged rows, characters not in the legend, entity ids close
+to the design's ("crates" is `wooden_crate`'s; a checkpoint the design has no art for is drawn
+by the SDK), a missing or second start or exit (a door-like prop is placed on the last floor),
 things floating in the air (dropped onto the floor below), ability names close to the plan's
 ("acid" becomes "Acid Form"), events the design does not check.
 
@@ -357,6 +358,9 @@ planned height can be landed on); a landing needs a quarter tile of the body on 
 Hazard tiles are whole cells; an enemy's whole patrol (up to 3 tiles each way along its floor)
 is a hazard while it lives; crates cannot be stood on (they dissolve on touch).
 
+* The Level Designer's brief gives the model's own limits for the player's body
+  (`gap_limits`: the widest gap a jump crosses, and with a dash), not the plan's whole-tile
+  estimate.
 * Moves tried between floors: a jump with a constant air speed (from the tile centre or the
   ledge), rise first then move (beside a wall, over spikes or an enemy), a walk off a ledge,
   a jump with a dash at its peak or at take-off. With the slime's numbers (6 tiles/s, 4 tiles
@@ -449,3 +453,66 @@ browser, the bot clears a gated level (acid, an enemy, metal, a dash through the
 stuck with a reason when the crate mechanic is broken; a gated mock run writes levels after
 G2, plays each level, shows them at G4 with the Level form, writes `levels/<n>` into the
 bundle, and "Make it longer" on Level 2 changes level 2 only, with the same code.
+
+### Live (2026-11-02)
+
+The slime game (`tools/game_live.py`, the L2.2 brief; G1 from flags with research, G2 approved
+by the test operator, G4 left to the human). Three runs; the first two found five problems,
+all fixed before the third.
+
+**Found live and fixed:**
+
+* **A dash challenge a jump clears.** The plan's "Dash Gap" became a 3-tile gap; nothing in
+  level 1 needed the dash, yet the level listed `dash` as an event, so its playtest would fail
+  on something the Programmer cannot fix. Now a challenge that asks for a dash (its name, test
+  or needs say so) must need one on the route, and per-level events are the game's own (the
+  SDK's are counted over all levels).
+* **Gap limits from the model.** The plan's whole-tile `max_gap` understates a jump: from the
+  very edge the run-3 slime crossed 4 tiles where the plan said 3, so a "dash gap" of 4 needed
+  no dash. The Level Designer's brief and the dash message now give the model's limits for the
+  player's body (`reach.gap_limits`: jumps up to 4 tiles, a dash gap 5-9 in run 3).
+* **A coin in mid-air read as a landing** (run 2). Arcade sets `body.touching` for overlaps as
+  well as collisions, so a jump through a floating coin looked grounded; the bot judged the
+  landing wrong and steered back into the pit, levels 2 and 3 stuck after the slime took acid.
+  The SDK now counts as ground only tiles below and the top of a crate or wall it collides
+  with. Replayed with the same Spark-written game, all three levels cleared.
+* **Checkpoints without art** (run 2). The design had no checkpoint entity, so every
+  checkpoint was dropped and the `checkpoint` check failed. Code now matches entity ids loosely
+  ("crates" is `wooden_crate`'s, a flag-like prop for a checkpoint), and a checkpoint the
+  design gave no art keeps working: the SDK draws a pole and a flag.
+* **Unreachable-coin false positives.** Coins that mark a jump's arc over a gap were reported
+  unreachable; pickups now count as reachable inside the jump envelope of a floor the player
+  reaches (floors keep the strict check).
+* Also: the design prompt says respawn is never a check (the bot never fails on purpose; run 2
+  made it one), the Level Designer sees each design check's minimum count, and the provider's
+  read timeout is 420 s (a high-reasoning repair took over 180 s and stopped run 2).
+
+**Run 3** (`workspace/l23-slime3`, "Slime Slides"): plan with 3 levels (dissolve crates, acid
+kills, metal breaks walls), movement 6.5 tiles/s, jump 3.25 tiles in 0.6 s, dash 4.5 tiles.
+The Level Designer wrote each level twice (every first answer had problems code found: a dash
+challenge that needed no dash, unreachable coins); code fitted level 3 (stray characters in its
+rows, two crates floating in the air dropped onto the floor). Every level is solvable by code
+with the plan's movement, and every floor reachable; difficulty 13.8, 13.8, 32.1.
+
+Build v1: **3/3 levels cleared by the bot** (10.9, 12.2 and 18.3 game seconds), each level's
+route with a dash; **all 12 design checks pass** (level_start 3, jump 12, dash 3, checkpoint
+35, crate_dissolved 14, coin_collected 39, acid_form 6, acid_kill 3, metal_form 2,
+wall_broken 2, level_complete 3, win 1). The first attempt failed one design check
+(`wall_broken` 1 of 2: only level 3's wall is needed); the Programmer's repair counted each
+wall tile. QA 5 of 6: "checkpoint and time HUD" waits 15 s for a checkpoint without moving
+(a test that cannot pass; two more repair rounds chased it, the best attempt was kept). The
+previews show the game's art, the cracked-wall gate and the route (the dash in gold). The
+Art Director again chose the library "flying eye" for the slime.
+
+Cost: $1.41 (Spark $1.30, Muse Image $0.11). The Level Designer is the new large item: six
+calls at `reasoning: high`, 11k-30k output tokens each, $0.55 together. Repairs took $0.38
+(two rounds for the QA test above). `llm.reasoning.level: medium` would cut the first; G4
+feedback such as "ignore the checkpoint test" drops the second.
+
+Not checked live: a G4 feedback round with Level n picked (the per-level revision and replay
+are covered by the mock test). The run waits at G4 for the human: play each level from the
+report's links (`index.html?level=n`), or pick a level under Level to change it alone.
+
+Full pytest: 351 passed, 4 failed: the same four as in L2.2 (`test_asset_production` (2) and
+`test_asset_ui` on the uncommitted asset-pipeline changes, and
+`test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events`).

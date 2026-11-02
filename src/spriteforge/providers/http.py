@@ -12,7 +12,8 @@ class ProviderError(RuntimeError):
 class MetaHTTP:
     def __init__(self, base_url: str, client: httpx.Client | None = None):
         self.base_url = str(base_url).rstrip("/")
-        self.client = client or httpx.Client(timeout=180)
+        # A Programmer repair with high reasoning took over 180 s live (2026-11-02, L2.3).
+        self.client = client or httpx.Client(timeout=httpx.Timeout(420, connect=30))
         self.owns_client = client is None
 
     def close(self):

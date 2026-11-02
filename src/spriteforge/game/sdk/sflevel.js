@@ -65,7 +65,8 @@
     const world = scene.physics.world;
     const L = {n: level.n, name: d.name, data: d, tile: T, width: W, height: H, hooks,
                things: {}, list: [], groups: {}, checkpoint: null, done: false, over: false,
-               facing: 1, grounded: false, dashing: false, autoAnim: true, t0: sf.clock.now};  // fmt: skip
+               facing: 1, grounded: false, dashing: false, autoAnim: true, t0: sf.clock.now,
+               standFrame: -1};  // fmt: skip
     level.current = L;
     world.gravity.y = mv.gravity * T;
     world.TILE_BIAS = T;
@@ -109,8 +110,14 @@
     scene.physics.add.collider(p, layer);
     scene.physics.add.collider(L.groups.enemy, layer);
     const touch = (_, o) => touched(L, o.getData('thing'));
-    scene.physics.add.collider(p, L.groups.crate, touch);
-    scene.physics.add.collider(p, L.groups.breakable, touch);
+    // Standing on a solid thing counts as ground (body.touching is no use: Arcade sets it for
+    // overlaps too, so passing through a coin in mid-air would read as a landing).
+    const solid = (pl, o) => {
+      if (pl.body.bottom <= o.body.top + 2) L.standFrame = sf.clock.now;
+      touch(pl, o);
+    };
+    scene.physics.add.collider(p, L.groups.crate, solid);
+    scene.physics.add.collider(p, L.groups.breakable, solid);
     scene.physics.add.overlap(p, L.groups.pickup, touch);
     scene.physics.add.overlap(p, L.groups.enemy, touch);
     scene.physics.add.overlap(p, L.groups.checkpoint, (_, o) => checkpoint(L, o.getData('thing')));
@@ -159,10 +166,24 @@
     return L;
   }
 
+  function flag(scene, T) {  // a checkpoint the design gave no art: a pole and a flag
+    const key = '__sf_flag_' + T;
+    if (!scene.textures.exists(key)) {
+      const g = scene.make.graphics({x: 0, y: 0, add: false});
+      g.fillStyle(0xd8d8e0).fillRect(T * 0.1, 0, T * 0.1, T);
+      g.fillStyle(0x4a90e2).fillRect(T * 0.2, T * 0.05, T * 0.55, T * 0.35);
+      g.generateTexture(key, Math.ceil(T * 0.8), T);
+      g.destroy();
+    }
+    return key;
+  }
+
   function place(scene, L, t, c, r) {
     const T = L.tile;
     const x = (c + 0.5) * T;
-    const o = sf.sprite(scene, x, (r + 0.5) * T, t.entity);
+    const o = t.kind === 'checkpoint' && !sf.has(t.entity)
+      ? scene.physics.add.sprite(x, (r + 0.5) * T, flag(scene, T))
+      : sf.sprite(scene, x, (r + 0.5) * T, t.entity);
     o.setData('thing', t);
     L.groups[t.kind].add(o);
     const b = o.body;
@@ -276,7 +297,7 @@
     if (!b || L.done) return;
     const T = L.tile, c = L.control, now = sf.clock.now;
     const inp = sf.input(scene);
-    const grounded = (L.grounded = b.blocked.down || b.touching.down);
+    const grounded = (L.grounded = b.blocked.down || L.standFrame === now);
     if (grounded) { c.lastGround = now; c.airDash = true; }
     c.inputX = inp.x;
     if (!c.dashSteps) b.setVelocityX(inp.x * mv.speed * T);

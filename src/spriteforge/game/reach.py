@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import math
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from functools import lru_cache
 
 DT = 1 / 60  # Phaser Arcade's fixed physics step
 CLEARANCE_SDK = 6 / 16  # the SDK's jump peaks this far (tiles) above the plan's jump height
@@ -754,6 +755,27 @@ class Search:
         if not steps or steps[-1].cell != to:
             steps.append(Step("walk", x=to[0] + 0.5, cell=to))
         return steps
+
+
+@lru_cache(maxsize=64)
+def gap_limits(m: Motion) -> tuple[int, int]:
+    """The widest gap the model crosses with a jump, and with a jump and a dash (0 without a
+    dash). Edge take-offs make these one wider than the plan's whole-tile estimate at times
+    (live 2026-11-02: the plan said 3, a jump from the very edge crossed 4)."""
+
+    def widest(motion: Motion) -> int:
+        best = 0
+        for gap in range(1, 24):
+            cols = gap + 8
+            tiles = {(c, 2): "solid" for c in range(cols) if not 3 <= c < 3 + gap}
+            grid = Grid(cols, 3, tiles, [Thing("x", "exit", "", ((cols - 2, 1),))], (1, 1))
+            if not solve(grid, motion).solved:
+                break
+            best = gap
+        return best
+
+    jump = widest(replace(m, dash=0.0))
+    return jump, (widest(m) if m.dash > 0 else 0)
 
 
 def solve(grid: Grid, m: Motion, held: set[str] = (), exclusive: set[str] = (),

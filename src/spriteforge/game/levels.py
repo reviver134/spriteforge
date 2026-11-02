@@ -32,7 +32,7 @@ from spriteforge.agents.models import Contract
 
 from .design import GameDesign
 from .plan import TILE, PlanRecord
-from .reach import Grid, Motion, Solution, Thing, World, key, solve
+from .reach import Grid, Motion, Solution, Thing, World, gap_limits, key, solve
 
 Kind = Literal["solid", "one_way", "hazard", "breakable", "crate", "pickup", "enemy",
                "checkpoint", "exit", "start"]  # fmt: skip
@@ -165,10 +165,16 @@ def fit_level(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord) -> 
         if not ch or ch in EMPTY or ch in chars:
             notes.append(f"legend entry {e.char!r} ({e.kind}) dropped: empty or repeated character")
             continue
-        entity = player if e.kind == "start" else e.entity.strip()
-        if entity not in ids:
+        entity = player if e.kind == "start" else match_entity(e.entity, e.kind, design)
+        if entity is None and e.kind == "checkpoint":  # works without art: the SDK draws a flag
+            notes.append(f"legend {ch!r}: the design has no checkpoint entity ({e.entity!r}); "
+                         "the SDK draws a flag")  # fmt: skip
+            entity = ""
+        if entity is None:
             notes.append(f"legend {ch!r}: unknown entity {e.entity!r}; its cells are left empty")
             continue
+        if entity and entity != e.entity.strip() and e.kind != "start":
+            notes.append(f"legend {ch!r}: entity {e.entity!r} read as {entity!r}")
         fixed = {"char": ch, "entity": entity}
         for field in ("needs", "gives"):
             name = match_ability(getattr(e, field), known)
@@ -245,6 +251,27 @@ def settle(rows: list[str], kinds: dict[str, str]) -> tuple[list[str], list[str]
                 grid[r][c], grid[to][c] = " ", ch
                 notes.append(f"{kinds[ch]} at column {c} dropped from row {r} onto the floor at row {to + 1}")
     return ["".join(g) for g in grid], notes
+
+
+KIND_WORDS = {"checkpoint": r"checkpoint|flag|banner|bell|torch", "exit": r"door|exit|portal|goal|gate"}
+
+
+def match_entity(name: str, kind: str, design: GameDesign) -> str | None:
+    """The design's entity id for `name`: exact, else the one id that contains it (or it
+    contains), else the one that shares a word, else the one entity that looks like the kind
+    (a flag for a checkpoint, a door for an exit); None when that is not exactly one."""
+    ids = [e.id for e in design.entities]
+    name = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+    if name in ids:
+        return name
+    words = set(name.split("_")) - {""}
+    for found in ([i for i in ids if name and (name in i or i in name)],
+                  [i for i in ids if words & set(i.split("_"))],
+                  [e.id for e in design.entities if kind in KIND_WORDS
+                   and re.search(KIND_WORDS[kind], f"{e.id} {e.look}", re.IGNORECASE)]):  # fmt: skip
+        if len(found) == 1:
+            return found[0]
+    return None
 
 
 def exit_entity(design: GameDesign) -> str:
@@ -411,10 +438,16 @@ def floors_out_of_reach(grid: Grid, sol: Solution, m: Motion) -> list[tuple[int,
 def unreachable_things(grid: Grid, sol: Solution, m: Motion) -> list[Thing]:
     out = []
     reach = sol.reached
+    air = m.rise_time(0, up=False) or 0
+    half = math.ceil(m.speed * air / 2) + 1  # a coin in the arc of a jump from a floor nearby
     for t in grid.things:
-        if t.kind in {"pickup", "checkpoint"}:
+        if t.kind == "checkpoint":
             c, r = t.cells[0]
-            if not any((x, y) in reach for x in (c - 1, c, c + 1)
+            if not any((x, y) in reach for x in (c - 1, c, c + 1) for y in range(r, r + m.tall)):
+                out.append(t)
+        elif t.kind == "pickup":
+            c, r = t.cells[0]
+            if not any((x, y) in reach for x in range(c - half, c + half + 1)
                        for y in range(r, r + m.tall + m.max_rise + 1)):  # fmt: skip
                 out.append(t)
         elif t.kind == "crate":
@@ -485,9 +518,9 @@ def check_level(spec: LevelSpec, grid: Grid, sol: Solution, m: Motion, plan: Pla
                 problems.append(f"the plan's challenge {name!r} for this level is not placed")
         by_name = {key(c.name): c for c in plan.plan.challenges}
         dashes = [n for n in lp.challenges if n and asks_dash(by_name.get(key(n)), n)]
-        k = plan.kinematics
         if dashes and m.dash > 0 and sol.solved and not any(s.move and s.move.dash >= 0 for s in sol.route):
-            gaps = f" (a jump crosses gaps up to {k.max_gap} tiles; a dash gap is {k.max_gap + 1}-"                    f"{k.max_gap_with_dash} tiles)" if k else ""  # fmt: skip
+            jump, dash = gap_limits(m)
+            gaps = f" (a jump crosses gaps up to {jump} tiles; a dash gap is {jump + 1}-{dash} tiles)"
             problems.append(f"the plan's challenge {dashes[0]!r} asks for a dash, but the way to the "
                             f"exit never needs one{gaps}")  # fmt: skip
     if sol.solved:
@@ -658,9 +691,11 @@ The level is original: research teaches patterns, never copy a game's levels."""
 def level_brief(n: int, design: GameDesign, plan: PlanRecord) -> str:
     p, k, mv = plan.plan, plan.kinematics, plan.plan.movement
     lp = p.levels[n - 1] if n <= len(p.levels) else None
-    jump = (f"a jump reaches floors up to {k.max_rise} tiles higher and clears gaps up to "
-            f"{k.max_gap} tiles" + (f" ({k.max_gap_with_dash} with a dash in the air)" if mv.dash_distance else "")
-            if k else "no jump")  # fmt: skip
+    m = motion_for(plan, player_body(design))
+    gap, dash = gap_limits(m) if k else (0, 0)
+    jump = (f"a jump reaches floors up to {m.max_rise} tiles higher and clears gaps up to {gap} "
+            "tiles" + (f"; a gap of {gap + 1}-{dash} tiles needs a dash in the air" if dash else "")
+            + " (code's model of the real movement)" if k else "no jump")  # fmt: skip
     ents = "\n".join(f"- `{e.id}` ({e.role}, {e.width}x{e.height} px): {e.look}; {e.behaviour}"
                      for e in design.entities)  # fmt: skip
     this = (f"Level {n} of {len(p.levels)}: {lp.name} (difficulty {lp.difficulty}/10). Teaches: "
@@ -671,7 +706,8 @@ def level_brief(n: int, design: GameDesign, plan: PlanRecord) -> str:
         "Abilities: " + ("; ".join(f"{a.name}: {a.does} (from {a.unlocked_by})" for a in p.abilities) or "-")
         + "\nMechanics: " + ("; ".join(f"{x.name}: {x.what}" for x in p.mechanics) or "-")
         + "\nChallenge vocabulary: " + ("; ".join(f"{c.name}: {c.tests}" for c in p.challenges) or "-")
-        + f"\nDesign check events: {', '.join(c.event for c in design.checks)}"
+        + "\nDesign check events (at least that many over all levels): "
+        + ", ".join(f"{c.event} ({c.min_count})" for c in design.checks)
         + f"\nEntities:\n{ents}"
     )  # fmt: skip
 

@@ -39,7 +39,7 @@ from spriteforge.game.plan import (
     make_record,
 )
 from spriteforge.game.playtest import playtest_levels
-from spriteforge.game.reach import Grid, Motion, Thing, solve
+from spriteforge.game.reach import Grid, Motion, Thing, gap_limits, solve
 from spriteforge.game.revision import fallback_revision
 from spriteforge.memory.okf.validate import validate
 from spriteforge.providers.mock import MockLLMProvider
@@ -162,6 +162,8 @@ def test_jumps_reach_what_the_plan_says_and_no_further():
                                          body_w=0.75, body_h=0.625)).solved  # fmt: skip
     assert gap(k.max_gap) and not gap(k.max_gap + 1)
     assert gap(k.max_gap_with_dash, 4.5) and not gap(k.max_gap_with_dash + 1, 4.5)
+    dash = Motion(speed=6, gravity=k.gravity / 16, jump=4, dash=4.5, body_w=0.75, body_h=0.625)
+    assert gap_limits(dash) == (k.max_gap, k.max_gap_with_dash)  # what the Level Designer is told
 
     def ledge(up):
         rows = ["." * 20] * 12
@@ -257,7 +259,7 @@ def test_a_dash_challenge_needs_a_gap_only_a_dash_crosses():
 
 def test_fit_repairs_what_code_can():
     design, plan = slime_design(), slime_plan()
-    legend = [L("#", "solid", "ground"), L("x", "crate", "crate", "dissolve", "touch", "acid", "acid"),
+    legend = [L("#", "solid", "ground"), L("x", "crate", "crates", "dissolve", "touch", "acid", "acid"),
               L("Q", "pickup", "nothing_like_it"), L("@", "start", "wrong_id")]  # fmt: skip
     rows = ["          ", "    x     ", "@ Z       ", "##########", "####"]
     fitted, notes = fit_level(LevelSpec(n=9, name="", legend=legend, rows=rows, challenges=[],
@@ -268,7 +270,8 @@ def test_fit_repairs_what_code_can():
     assert {len(r) for r in fitted.rows} == {10} and "padded" in text
     assert "'Z'" in text and "unknown entity 'nothing_like_it'" in text
     crate = next(e for e in fitted.legend if e.char == "x")
-    assert (crate.needs, crate.gives) == ("Dissolve", "Acid Form")
+    assert (crate.entity, crate.needs, crate.gives) == ("crate", "Dissolve", "Acid Form")
+    assert "entity 'crates' read as 'crate'" in text
     assert fitted.exclusive == ["Acid Form"] and fitted.events == ["jump"]
     assert fitted.rows[2][4] == "x" and "dropped" in text  # the floating crate is on the floor
     assert any(e.kind == "exit" for e in fitted.legend) and "no exit: placed" in text
@@ -363,6 +366,28 @@ def test_the_bot_clears_a_gated_level_in_the_browser(tmp_path):
     level = report["levels"][0]
     assert level["cleared"] and level["missing"] == [] and report["errors"] == [], level
     assert level["events"]["dash"] >= 1 and level["events"]["power"] >= 2
+
+
+def test_coins_in_the_air_are_no_floor_and_a_checkpoint_needs_no_art(tmp_path):
+    """Live 2026-11-02: a jump through a floating coin read as a landing (Arcade sets
+    body.touching for overlaps too) and the bot steered back into the pit; the design had no
+    checkpoint entity, so every checkpoint was dropped."""
+    design = slime_design()
+    design.entities = [e for e in design.entities if e.id != "flag"]
+    plan = slime_plan()
+    rows = [" " * 40] * 5 + [" " * 11 + "ooo" + " " * 26, " " * 40,
+                             "@  c      F         c          F      D  ",
+                             "#" * 11 + "   " + "#" * 26, "#" * 11 + "   " + "#" * 26]  # fmt: skip
+    rec = evaluate(spec(rows, n=1, challenges=[ChallengeAt(name="Small Gap", column=11)],
+                        events=["crate_open"]), 1, design, plan, None, player_body(design))  # fmt: skip
+    assert rec.solved and any("SDK draws a flag" in n for n in rec.notes)
+    assert not any("cannot be reached" in p for p in rec.problems)  # coins in the jump's arc
+    assert next(e for e in rec.spec.legend if e.kind == "checkpoint").entity == ""
+    build = built(tmp_path, design, plan, [rec])
+    report = playtest_levels(build, [], levels_of([rec]))
+    level = report["levels"][0]
+    assert level["cleared"] and report["errors"] == [], level
+    assert level["events"]["checkpoint"] >= 1 and level["events"].get("respawn", 0) == 0
 
 
 def test_a_mechanic_that_does_not_work_gets_the_bot_stuck(tmp_path):
