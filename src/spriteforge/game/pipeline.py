@@ -487,10 +487,28 @@ class BuildOutcome:
     report: dict
     build: Path | None
     attempts: list[dict]
-    # The last playtest's screenshots for the art review: [{"t", "png"}]
+    # The kept attempt's playtest screenshots for the art review: [{"t", "png"}]
     screenshots: list[dict] = field(default_factory=list)
-    # The last attempt's QA results (run_qa: screenshots as PNG bytes); [] without QA tests
+    # The kept attempt's QA results (run_qa: screenshots as PNG bytes); [] without QA tests
     qa: list[dict] = field(default_factory=list)
+
+
+def attempt_rank(report: dict, qa_results: list[dict], n: int) -> tuple:
+    """How good an attempt is: everything passes, then it booted, then the playtest passed,
+    then more design checks, more QA tests, fewer runtime errors; a tie goes to the later
+    attempt. A repair can make a game worse (live 2026-11-02: the last repair broke the weapon
+    pods that the attempt before it had working), so the best attempt is kept, not the last."""
+    booted = report["stage"] != "static" and report.get("ended") != "no-boot"
+    qa_passed = sum(r["passed"] for r in qa_results)
+    return (
+        report["passed"] and qa_passed == len(qa_results),
+        booted,
+        report["passed"],
+        sum(c["ok"] for c in report.get("checks", [])),
+        qa_passed,
+        -len(report.get("errors", [])),
+        n,
+    )
 
 
 def build_and_test(
@@ -508,7 +526,14 @@ def build_and_test(
     manifest = art.manifest()
     asset_ids = set(manifest["sprites"]) | set(manifest["images"])
     attempts, report, build_dir, shots, qa_results = [], {}, None, [], []
+    best = None  # (rank, attempt index, code, report, shots, qa results)
     capture = review_times(design.session_seconds) if cfg.game.review else []
+
+    def build(files: GameCode) -> Path:
+        return build_game(out / "build", title=design.title, controls=design.controls,
+                          files=files.as_dict(), assets=manifest, images=art.files(),
+                          credits=art.credits)  # fmt: skip
+
     for n in range(cfg.game.max_repairs + 1):
         folder = out / "attempts" / str(n + 1)
         (folder / "files").mkdir(parents=True, exist_ok=True)
@@ -516,19 +541,12 @@ def build_and_test(
             (folder / "files" / f.path.replace("/", "_")).write_text(f.content, encoding="utf-8")
         (folder / "notes.txt").write_text(code.notes, encoding="utf-8")
         problems = static_check(code, asset_ids, cfg.game.max_code_kb)
+        shots, qa_results = [], []
         if problems:
             report = {"passed": False, "stage": "static", "problems": problems}
             failures = "Static checks failed (the game was not run):\n" + "\n".join(problems)
         else:
-            build_dir = build_game(
-                out / "build",
-                title=design.title,
-                controls=design.controls,
-                files=code.as_dict(),
-                assets=manifest,
-                images=art.files(),
-                credits=art.credits,
-            )
+            build_dir = build(code)
             result = playtest(
                 build_dir,
                 design.checks,
@@ -539,7 +557,6 @@ def build_and_test(
             shots = result.pop("screenshots", [])
             report = {"stage": "playtest", **result}
             failures = failure_summary(report) if not report["passed"] else ""
-            qa_results = []
             if qa and report["ended"] != "no-boot":
                 qa_results = run_qa(build_dir, qa, cfg.game.playtest_fps)
                 failed = sum(not r["passed"] for r in qa_results)
@@ -562,6 +579,9 @@ def build_and_test(
             attempts[-1]["qa"] = {k: report["qa"][k] for k in ("passed", "failed")}
         status = "passed" if ok else f"failed at {attempts[-1]['stage']}"
         log(f"  attempt {n + 1}: {status}")
+        rank = attempt_rank(report, qa_results, n)
+        if best is None or rank > best[0]:
+            best = (rank, n, code, report, shots, qa_results)
         if ok or n == cfg.game.max_repairs:
             break
         log("  Programmer is repairing the game")
@@ -575,8 +595,14 @@ def build_and_test(
             break
         attempts[-1]["repair"] = how
         code = fixed
+    _, kept, code, report, shots, qa_results = best
+    attempts[kept]["kept"] = True
+    if kept != len(attempts) - 1:
+        log(f"  keeping attempt {kept + 1}: the later repairs made the game worse")
+        if report["stage"] != "static":
+            build_dir = build(code)  # the build folder holds the last attempt: rebuild the kept one
     if report["stage"] == "static":
-        build_dir, shots = None, []  # the last answer never passed static checks: no build
+        build_dir, shots = None, []  # no answer passed static checks: no build
     return BuildOutcome(code, report, build_dir, attempts, shots, qa_results)
 
 

@@ -10,6 +10,7 @@ from threading import Thread
 from PIL import Image, ImageColor
 from playwright.sync_api import sync_playwright
 
+from spriteforge.game.record import wait_until
 from spriteforge.pixel.atlas import pack
 
 from .concept import png
@@ -60,7 +61,8 @@ def capture_scene(directory):
                 )
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.goto(f"http://127.0.0.1:{server.server_port}/{directory.name}/index.html")
-                page.wait_for_function("window.previewReady === true", timeout=30000)
+                if not wait_until(page, "window.previewReady === true"):
+                    raise RuntimeError("Phaser preview never became ready")
                 errors += page.evaluate("window.previewErrors")
                 if errors:
                     raise RuntimeError("Phaser preview failed: " + "; ".join(errors))

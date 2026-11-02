@@ -284,3 +284,41 @@ uncommitted asset-pipeline changes (a clean worktree baseline): `test_asset_prod
 and `test_asset_ui` (that uncommitted change), and
 `test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events` ("Write batch failed
 corpus validation").
+
+### Follow-up: a second genre and two harness bugs (2026-11-02)
+
+A run-and-gun game (`workspace/l22-runngun`, "Ironline Commando: Triple Front": 3 levels,
+8-way aiming, weapon pods, bosses with weak points; an original game, not a copy of any) tested
+research and planning outside the slime game. Research: 8 searches; Contra, Metal Slug,
+Gunstar Heroes, Blazing Chrome and Cuphead as references, three of them flagged because their
+URL was not among the pages searched. Plan: 16 requirements covered, no problems; gaps up to 4
+tiles; 3 levels at difficulty 3, 5, 8. Build v1 about $0.86.
+
+Playing it, the human saw the enemies float above the ground. Cause: the generated code set a
+soldier's gravity and then added it to a physics group, which resets the body to the group's
+defaults (gravity 0). The human's words went to G4 through the UI's endpoint; the Director and
+the Programmer fixed it in v2 (soldiers stand on the ground; the bot now beats all three
+bosses). The Programmer's Phaser notes (`skills/builtin/phaser-arcade-physics`) now say this,
+for every game; the note was added before that repair, so the repair saw it.
+
+The same run showed two harness bugs, both fixed:
+
+* **False "never finished booting".** `page.wait_for_function` polls by compiling its string
+  in the page when the condition is not true at the first check; the build's CSP (no
+  `unsafe-eval`) blocks that with an EvalError, which the playtest reported as "no-boot" (and
+  then skipped QA). Slow-loading builds (24 entities) hit it, fast ones rarely. It is also a
+  likely cause of the QA timing flake seen in L2.1. `record.wait_until` (and
+  `qa_runtime.booted`, which must stay standalone) poll with `page.evaluate` instead; the
+  playtest, QA, recording and preview use them. The run-and-gun v1 build: no-boot 1 time in 2
+  before, 6 times in 6 booted after.
+* **The last repair was kept even when it was worse.** In v1 the fourth attempt "did not boot"
+  and in v2 it broke the weapon pods that the third attempt had working; both were kept.
+  `build_and_test` now ranks every attempt (everything passes, booted, playtest passed, more
+  checks, more QA tests, fewer errors, later) and keeps the best: its code, report, QA results
+  and screenshots, with its build rebuilt on disk. The kept attempt is marked `kept` in the
+  report's attempts.
+
+Tests: `test_game_sdk.py::test_boot_wait_works_under_the_build_csp` (the old wait fails with
+the CSP error, the new one boots), `test_codegen_patch.py::
+test_a_repair_that_makes_the_game_worse_is_not_kept` (a repair that adds `eval` is not kept;
+the build on disk is the kept attempt; the ranking order).

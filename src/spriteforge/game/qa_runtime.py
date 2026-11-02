@@ -14,6 +14,7 @@ down for a few frames, because games read keys once per frame. The game keeps ru
 
 import base64
 import json
+import time
 from contextlib import contextmanager
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -102,6 +103,21 @@ def compare(actual, op: str, expected) -> bool | None:
     return {"==": a == b, "!=": a != b, "<": a < b, "<=": a <= b, ">": a > b, ">=": a >= b}[op]
 
 
+def booted(page, timeout: float = 30) -> bool:
+    """Poll sf.ready with page.evaluate (not page.wait_for_function, whose polling a
+    build's CSP blocks with an EvalError when the game is not ready at the first check)."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            if page.evaluate("window.sf && window.sf.ready === true"):
+                return True
+        except Exception:  # noqa: BLE001, S110 -- the page is still navigating
+            pass
+        if time.monotonic() >= deadline:
+            return False
+        page.wait_for_timeout(50)
+
+
 class Game:
     """One open build in one page: steps game time, presses keys, reads the SDK."""
 
@@ -109,7 +125,8 @@ class Game:
         self.page, self.fps, self.errors = page, fps, []
         page.on("pageerror", lambda e: self.errors.append(str(e)))
         page.goto(f"{url}/index.html?headless=1" + ("&god=1" if god else ""))
-        page.wait_for_function("window.sf && window.sf.ready === true", timeout=30000)
+        if not booted(page):
+            raise RuntimeError("the game never finished booting (sf.ready stayed false within 30 s)")
         self.start = self.now()
 
     def now(self) -> float:

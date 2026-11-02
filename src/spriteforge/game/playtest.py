@@ -19,7 +19,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
 from .design import Check
-from .record import serve
+from .record import READY, serve, wait_until
 
 CHUNK_SECONDS = 30  # game seconds per browser call (keeps each evaluate short)
 GRACE_SECONDS = 30  # the session may end a little after its nominal length
@@ -74,9 +74,7 @@ def playtest(
             page = browser.new_page(viewport={"width": 320, "height": 180})
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(f"{url}/index.html?autoplay=1&headless=1&god=1")
-            try:
-                page.wait_for_function("window.sf && window.sf.ready === true", timeout=30000)
-            except PlaywrightError:
+            if not wait_until(page, READY):
                 ended = "no-boot"
 
             def shot() -> None:

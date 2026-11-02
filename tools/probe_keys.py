@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from spriteforge.game.art import keyword_plan, make_art
 from spriteforge.game.build import build_game
 from spriteforge.game.design import fallback_design
-from spriteforge.game.record import serve
+from spriteforge.game.record import READY, serve, wait_until
 
 GAME = """
 class Probe extends Phaser.Scene {
@@ -70,7 +70,7 @@ def main() -> int:
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(f"{url}/index.html?headless=1")
-            page.wait_for_function("window.sf && window.sf.ready === true", timeout=30000)
+            assert wait_until(page, READY), "the game never finished booting"
             run = lambda s: page.evaluate(f"window.sfRun({s}, 30)")
             state = lambda: page.evaluate("window.sf.state")
 

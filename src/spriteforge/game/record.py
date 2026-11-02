@@ -4,6 +4,7 @@ import base64
 import json
 import shutil
 import subprocess
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial
@@ -12,7 +13,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Thread
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
+
+READY = "window.sf && window.sf.ready === true"
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -32,6 +36,25 @@ def serve(directory: Path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def wait_until(page, expression: str, timeout: float = 30) -> bool:
+    """Poll `expression` with `page.evaluate` until it is true; False after `timeout` seconds.
+
+    Not `page.wait_for_function`: when the expression is not true at its first check, it
+    polls by compiling the string in the page, which a build's CSP (no 'unsafe-eval') blocks
+    with an EvalError. Slow-loading builds then looked like they never booted (L2.2 live run:
+    a build with 24 entities was reported "no-boot" while it ran fine in a browser)."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            if page.evaluate(expression):
+                return True
+        except PlaywrightError:  # the page is still navigating: not ready yet
+            pass
+        if time.monotonic() >= deadline:
+            return False
+        page.wait_for_timeout(50)
 
 
 def encode(frames_dir: Path, fps: int, scale: int, out: Path) -> Path | None:
@@ -87,7 +110,8 @@ def record_game(
                 errors: list[str] = []
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 page.goto(f"{url}/index.html?demo=1&capture=1")
-                page.wait_for_function("window.sf && window.sf.ready === true", timeout=30000)
+                if not wait_until(page, READY):
+                    raise RuntimeError("the game never finished booting (sf.ready stayed false)")
                 n = 0
                 while n < total:
                     batch = page.evaluate(f"window.sfCapture({min(fps, total - n)}, {fps})")

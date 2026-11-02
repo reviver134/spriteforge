@@ -223,3 +223,45 @@ def test_library_context_filtered_on_the_installed_library(monkeypatch):
     assert "citizen" not in text and "fishing" not in text and "tavern" not in text
     assert "pixel-crawler-dungeon/floor" in text  # every tile set for the camera
     assert len(text) / 4 < 600
+
+
+def test_a_repair_that_makes_the_game_worse_is_not_kept(tmp_path, budget):
+    """Live 2026-11-02: the last repair broke what the attempt before it had working, and the
+    harness kept the last one. The best attempt is kept, and its build is the one on disk."""
+    from spriteforge.game.pipeline import attempt_rank
+
+    design = fallback_design("arena")
+    almost = mock_code().files[0].content.replace("sf.event('gem_collect');", "")
+    assert almost != mock_code().files[0].content
+    scripted = MockLLMProvider(
+        budget,
+        [
+            design.model_dump(),
+            {"variant": "normal", "picks": []},
+            game(almost).model_dump(),  # boots and plays; never emits gem_collect
+            CodePatch(edits=[edit("sf.start(", "eval('1'); sf.start(")], notes="").model_dump(),
+        ],
+    )
+    cfg = load_config()
+    cfg.game.review = cfg.game.qa = False
+    cfg.game.max_repairs = 1
+    result = make_game("arena", tmp_path / "g", cfg, mock=True, provider=scripted,
+                       record=False, log=lambda m: None)  # fmt: skip
+    attempts = result.report["attempts"]
+    assert [a["stage"] for a in attempts] == ["playtest", "static"]
+    assert attempts[0].get("kept") and not attempts[1].get("kept")
+    built = (tmp_path / "g" / "build" / "game.js").read_text(encoding="utf-8")
+    assert "eval(" not in built and "gem_collect" not in built
+    playtest = (tmp_path / "g" / "playtest.json").read_text(encoding="utf-8")
+    assert '"stage": "playtest"' in playtest  # the kept attempt's report, not the static one
+    # The order: passing everything > booting > the playtest > checks > QA > errors > later.
+    static = {"stage": "static", "passed": False}
+    booted = {"stage": "playtest", "passed": False, "ended": "timeout", "errors": [],
+              "checks": [{"ok": True}, {"ok": False}]}  # fmt: skip
+    no_boot = {**booted, "ended": "no-boot", "checks": [{"ok": False}, {"ok": False}]}
+    played = {**booted, "passed": True, "checks": [{"ok": True}, {"ok": True}]}
+    assert attempt_rank(booted, [], 0) > attempt_rank(static, [], 3)
+    assert attempt_rank(booted, [], 0) > attempt_rank(no_boot, [], 3)
+    assert attempt_rank(played, [{"passed": False}], 0) > attempt_rank(booted, [{"passed": True}], 3)
+    assert attempt_rank(played, [{"passed": True}], 0) > attempt_rank(played, [{"passed": False}], 3)
+    assert attempt_rank(booted, [], 2) > attempt_rank(booted, [], 1)  # a tie: the later one
