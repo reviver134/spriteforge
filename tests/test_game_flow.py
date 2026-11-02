@@ -174,6 +174,7 @@ def test_every_screen_is_shot_and_labels_fit(tmp_path):
         for sid in script["screens"]:
             p.js(f"window.sf.flow.preview({json.dumps(sid)})")
             panel = p.js("window.sf.flow.panel")
+            assert panel["y"] >= 0 and panel["y"] + panel["h"] <= 180, (sid, panel)  # on the screen
             widths = p.js("window.sf.flow && sf.game.scene.getScene('sf-menu').parts"
                           ".filter(o => o.type === 'Text').map(o => [o.x - o.displayOriginX, o.width])")  # fmt: skip
             inside = [x >= panel["x"] - 1 and x + w <= panel["x"] + panel["w"] + 1 for x, w in widths

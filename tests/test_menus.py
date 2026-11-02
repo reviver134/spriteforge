@@ -243,3 +243,60 @@ def test_a_build_carries_the_menus_and_the_programmer_is_told(budget):
     assert FLOW_API not in programmer_prompt(design, art.manifest())
     script = menus_script(record.spec, structure, design, ["Pixel Crawler - Free Pack 2.11 (CC0)"])
     assert "Pixel Crawler - Free Pack 2.11" in script["credits"]
+
+
+def test_live_menu_mistakes_are_repaired():
+    """Found in the live run (2026-11-02): settings labels with their value, invented credits,
+    a long controls sentence; and a full main menu fits under the title (test_game_flow)."""
+    from spriteforge.game.menus import control_lines, credit_lines
+
+    design, structure = arena()
+    good = spec_for(design, structure)
+    settings = screen(good, "settings").model_copy(update={"items": [
+        MenuItem(label="Difficulty: Normal", action="difficulty"),
+        MenuItem(label="Fewer Flashes (Off)", action="fewer_flashes"), MenuItem(label="Back", action="back")]})  # fmt: skip
+    spec, notes = fit_menu(good.model_copy(update={
+        "credits": ["Made by the Goo Squad", "Music: Chiptune Blips"],
+        "screens": [settings if s.id == "settings" else s for s in good.screens]}), structure, design)  # fmt: skip
+    assert [i.label for i in screen(spec, "settings").items] == ["Difficulty", "Fewer Flashes", "Back"]
+    assert spec.credits == credit_lines(design) and any("Goo Squad" in n for n in notes)
+    lines = control_lines("Left/Right or A/D to move, Space to jump, Shift to dash")
+    assert len(lines) == 2 and all(len(x) <= 36 for x in lines) and "~" not in "".join(lines)
+
+
+def test_a_requested_colour_the_art_lacks_is_kept():
+    colours = [("#3FA441", 0.3), ("#E2B031", 0.3), ("#28241E", 0.4)]
+    theme = Theme(panel="#162E3D", border="#5AC8D8", text="#FFF6E5", highlight="#8EFF5E", dim="#6E8391",
+                  style="double")  # fmt: skip
+    kept, notes = fit_theme(theme, colours)
+    assert kept.highlight == "#8EFF5E" and any("kept" in n for n in notes)  # acid green, not gold
+    snapped, _ = fit_theme(theme.model_copy(update={"highlight": "#E8B040"}), colours)
+    assert snapped.highlight == "#E2B031"  # a colour the art has: the art's
+
+
+def test_qa_selects_survive_a_renamed_item_and_game_code_cannot_touch_the_menus():
+    from spriteforge.game.codegen import CodeFile, GameCode, static_check
+    from spriteforge.game.qa import QATest, bind_selects, blank_step
+
+    design, structure = arena()
+    spec = spec_for(design, structure)
+    main = screen(spec, "main").model_copy(update={"items": [
+        MenuItem(label="New Adventure", action="start"), *screen(spec, "main").items[1:]]})  # fmt: skip
+    script = menus_script(spec.model_copy(update={"screens": [main if s.id == "main" else s
+                                                              for s in spec.screens]}), structure, design)  # fmt: skip
+    s = blank_step
+    test = QATest(name="t", purpose="p", god=True, start="title",
+                  steps=[s(do="select", menu="New Adventure"), s(do="select", menu="Difficulty: Normal"),
+                         s(do="select", menu="settings"), s(do="select", menu="Nothing like it")])  # fmt: skip
+    bound = bind_selects([test], script)[0]
+    assert [x.menu for x in bound.steps] == ["start", "difficulty", "settings", "Nothing like it"]
+    hack = GameCode(files=[CodeFile(path="game.js", content=(
+        "const old = sf.event; sf.event = function (n, d) { old(n, d); };\n"
+        "if (sf.flow) sf.flow.pick(0);\nsf.state = {hp: 1};\nsf.start({scenes: []});"))], notes="")  # fmt: skip
+    problems = static_check(hack, set())
+    assert any("assignments to the SDK's own functions" in p for p in problems)
+    assert any("menus, flow or level data" in p for p in problems)
+    fine = GameCode(files=[CodeFile(path="game.js", content=(
+        "sf.state = {hp: 1}; if (sf.event === undefined) {}\nconst m = sf.settings.multiplier;\n"
+        "sf.start({scenes: []});"))], notes="")  # fmt: skip
+    assert static_check(fine, set()) == []

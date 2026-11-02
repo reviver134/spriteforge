@@ -312,6 +312,37 @@ def label_of(menus: dict, screen: str, action: str) -> str | None:
     return next((action for i in items if i["action"] == action), None)
 
 
+VALUE_SUFFIX = re.compile(r"\s*[:=-]?\s*\(?\b(easy|normal|hard|on|off)\b\)?\s*$", re.IGNORECASE)
+
+
+def bind_selects(tests: list[QATest], menus: dict | None) -> list[QATest]:
+    """`select` steps name the item's action instead of the label it had in `menus` (the menus
+    the tests were written against), so a menu revision that renames an item keeps them
+    working. Live 2026-11-02: "New Adventure" renamed to "Start" failed a test, and the
+    Programmer, asked to fix it, rewrote the SDK's menus from game code."""
+    if not menus:
+        return list(tests)
+    actions = {}
+    for screen in menus["screens"].values():
+        for item in screen["items"]:
+            actions.setdefault(item["label"].strip().lower(), item["action"])
+    known = {i["action"] for s in menus["screens"].values() for i in s["items"]}
+    out = []
+    for test in tests:
+        steps = []
+        for step in test.steps:
+            if step.do == "select":
+                want = step.menu.strip().lower()
+                bare = VALUE_SUFFIX.sub("", want)
+                action = (want.replace(" ", "_") if want.replace(" ", "_") in known
+                          else actions.get(want) or actions.get(bare))  # fmt: skip
+                if action and action != step.menu:
+                    step = step.model_copy(update={"menu": action})
+            steps.append(step)
+        out.append(test.model_copy(update={"steps": steps}))
+    return out
+
+
 def flow_tests(design: GameDesign, menus: dict) -> list[QATest]:
     """Tests of the SDK's menus and flow."""
     s = blank_step

@@ -150,6 +150,7 @@ from .plan import (
 from .playtest import failure_summary, playtest, playtest_levels, review_times
 from .qa import (
     QATest,
+    bind_selects,
     QATests,
     fallback_qa,
     qa_failures,
@@ -485,7 +486,8 @@ def write_qa_tests(models: Models, design: GameDesign,
     a check, the build goes on)."""
     fallback = fallback_qa(design, menus)
     try:
-        return models.ask("QA Playtester", qa_prompt(design, menus), QATests, fallback, "qa"), ""
+        tests = models.ask("QA Playtester", qa_prompt(design, menus), QATests, fallback, "qa")
+        return tests.model_copy(update={"tests": bind_selects(tests.tests, menus)}), ""
     except Exception as exc:  # noqa: BLE001
         first = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
         note = (

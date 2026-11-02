@@ -311,22 +311,11 @@
     }
     const list = items(id);
     const panelW = Math.min(w - 32 * s, PANEL_MAX * s), room = panelW - 2 * PAD * s;
-    let top;
-    if (id === 'title' || id === 'main') {  // the game's title over the art, the emblem above it
-      let y = h * 0.12;
-      if (M.art && M.art.emblem && sf.has(M.art.emblem)) {
-        const em = add(scene.add.image(w / 2, y, M.art.emblem).setOrigin(0.5, 0).setDepth(DEPTH + 1));
-        em.setScale(Math.min(1, (h * 0.3) / em.height));
-        y += em.displayHeight + 4 * s;
-      }
-      text(w / 2, y, fit(M.title, BIG * s, w - 24 * s), BIG, theme.highlight);
-      y += (BIG + 4) * s;
-      if (M.subtitle) { text(w / 2, y, fit(M.subtitle, ITEM * s, w - 24 * s), ITEM, theme.text); y += LINE * s; }
-      top = Math.max(y + 6 * s, h - (list.length * LINE + 2 * PAD + 4) * s);
-    }
+    let top = null;
     const lines = [];
     if (def.title) lines.push({str: def.title, px: HEAD, color: theme.highlight});
-    if (def.subtitle) lines.push({str: def.subtitle, px: ITEM, color: theme.text});
+    // (The controls screen lists the controls itself: a subtitle repeating them is left out.)
+    if (def.subtitle && id !== 'controls') lines.push({str: def.subtitle, px: ITEM, color: theme.text});
     if (id === 'results' && flow.last) {
       lines.push({str: 'Level ' + flow.last.n + ': ' + ((M.levels || [])[flow.last.n - 1] || {}).name, px: ITEM, color: theme.text});
       lines.push({str: 'Time ' + flow.last.time.toFixed(1) + ' s' + (flow.last.score ? '   Score ' + flow.last.score : ''), px: ITEM, color: theme.text});
@@ -336,6 +325,28 @@
     if (id === 'credits') (M.credits || []).forEach(c => lines.push({str: c, px: ITEM, color: theme.text}));
     const headH = lines.reduce((a, l) => a + (l.px + 4) * s, 0);
     const panelH = headH + (list.length * LINE) * s + 2 * PAD * s;
+    if (id === 'title' || id === 'main') {
+      // The panel sits at the bottom; the game's title, its tagline and the emblem share what is
+      // left above it: the emblem shrinks (or goes) first, then the tagline (live 2026-11-02: a
+      // six-item main menu under a full-size emblem ran off the screen).
+      top = h - panelH - 4 * s;
+      const room = top - 2 * s;
+      const sub = !!M.subtitle && room >= (BIG + 4 + LINE + 4) * s;
+      const words = (BIG + 4) * s + (sub ? LINE * s : 0);
+      let y = Math.max(2 * s, Math.min(h * 0.12, room - words));
+      if (M.art && M.art.emblem && sf.has(M.art.emblem)) {
+        const space = Math.min(h * 0.3, room - words - y - 4 * s);
+        if (space >= 12 * s) {
+          const em = add(scene.add.image(w / 2, y, M.art.emblem).setOrigin(0.5, 0).setDepth(DEPTH + 1));
+          em.setScale(Math.min(1, space / em.height));
+          y += em.displayHeight + 4 * s;
+        }
+      }
+      text(w / 2, y, fit(M.title, BIG * s, w - 24 * s), BIG, theme.highlight);
+      y += (BIG + 4) * s;
+      if (sub) { text(w / 2, y, fit(M.subtitle, ITEM * s, w - 24 * s), ITEM, theme.text); y += LINE * s; }
+      top = Math.max(top, y + 2 * s);
+    }
     if (top == null) top = Math.max(4 * s, (h - panelH) / 2);
     const px = w / 2 - panelW / 2;
     const panel = add(scene.add.rectangle(px, top, panelW, panelH, col(theme.panel), 0.94).setOrigin(0).setDepth(DEPTH + 1));

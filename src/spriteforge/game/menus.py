@@ -26,7 +26,7 @@ from PIL import Image
 from pydantic import Field
 
 from spriteforge.agents.models import Contract
-from spriteforge.library.looks import hex_of, measure, rgb_of
+from spriteforge.library.looks import colour_gap, hex_of, measure, rgb_of
 
 from .art import look_palette
 from .design import GameDesign
@@ -131,8 +131,9 @@ class MenuSpec(Contract):
     subtitle: str = Field(description="a short tagline under the title, or ''")
     theme: Theme
     screens: list[Screen]
-    credits: list[str] = Field(description="credit lines (who made the game; the art credits "
-                                           "are added by code)")  # fmt: skip
+    credits: list[str] = Field(description="leave [] (code writes the credits: what made the "
+                                           "game and the art's credits; never invent people or "
+                                           "music)")  # fmt: skip
     title_art: str = Field(description="what the title screen's background picture shows (a "
                                        "scene from the game; never text)")  # fmt: skip
     emblem: str = Field(description="the emblem over the title: one object or creature of the "
@@ -240,6 +241,7 @@ def readable(colour: str, panel: str, ratio: float) -> str:
 
 
 MIN_TEXT, MIN_HIGHLIGHT, MIN_DIM, MIN_BORDER = 4.5, 3.0, 1.6, 1.4
+SNAP_GAP = 25  # delta E: an art colour this close to the designer's stands in for it
 
 
 def default_theme(look: str = "") -> Theme:
@@ -288,7 +290,12 @@ def fit_theme(theme: Theme, colours: list[tuple[str, float]]) -> tuple[Theme, li
         # must stand out from the plain text, not just be readable.
         vivid = [c for c in palette if saturation(c) >= 0.3 and value(c) >= 0.35]
         want = theme.highlight if HEX.match(theme.highlight) else "#F4D35E"
-        t.highlight = nearest(want, vivid) if vivid else want
+        near = min(vivid, key=lambda c: colour_gap(c, want)) if vivid else None
+        # Snap to the art only when it has a colour like the one asked for; a colour the art does
+        # not have stays (live 2026-11-02: "acid green" was snapped to the art's gold).
+        t.highlight = near if near and colour_gap(near, want) <= SNAP_GAP else want
+        if t.highlight == want and near:
+            notes.append(f"highlight {want} kept: the art has no colour like it (nearest {near})")
         t.border = mix(t.highlight, t.panel, 0.3)
         lightest = max(palette, key=luminance)
         t.text = mix(lightest, "#FFFFFF", 0.5)
@@ -342,7 +349,7 @@ def fallback_menu(design: GameDesign, structure: GameStructure) -> MenuSpec:
                               items=[MenuItem(label=label(a), action=a) for a in acts]))  # fmt: skip
     return MenuSpec(title=design.title, subtitle=design.pitch.split(".")[0][:60],
                     theme=default_theme(design.look), screens=screens,
-                    credits=[f"{design.title}: made with SpriteForge"],
+                    credits=credit_lines(design),
                     title_art=f"{design.world}; {design.look}",
                     emblem=next((f"{e.look}" for e in design.entities if e.role == "player"), design.title))  # fmt: skip
 
@@ -387,8 +394,14 @@ def fit_menu(spec: MenuSpec, structure: GameStructure, design: GameDesign,
                 continue
             seen.add(act)
             room = item_room - (VALUE if act in {"difficulty", "fewer_flashes"} else 0)
-            label = clip(it.label, room) or LABELS[act]
-            if label != re.sub(r"\s+", " ", it.label).strip():
+            said = it.label
+            if act in {"difficulty", "fewer_flashes"} and SETTING_VALUE.search(said):
+                # The SDK shows the setting's value after the label (live 2026-11-02: the Menu
+                # Designer wrote "Difficulty: Normal", which would read "Difficulty: Normal: hard").
+                said = SETTING_VALUE.sub("", said)
+                notes.append(f"{sid}: label {it.label!r} carried its value: {said!r} (the SDK adds it)")
+            label = clip(said, room) or LABELS[act]
+            if label != re.sub(r"\s+", " ", said).strip():
                 notes.append(f"{sid}: label {it.label!r} shortened to {label!r} to fit the panel")
             items.append(MenuItem(label=label, action=act))
         for act in required(sid, structure):
@@ -422,11 +435,26 @@ def fit_menu(spec: MenuSpec, structure: GameStructure, design: GameDesign,
     fitted = spec.model_copy(update={
         "title": title, "subtitle": clip(spec.subtitle, max_chars(screen_w, scale, ITEM_PX)),
         "theme": theme, "screens": screens,
-        "credits": [clip(c, max_chars(screen_w, scale, ITEM_PX)) for c in spec.credits if c.strip()][:8],
+        "credits": credit_lines(design),
         "title_art": spec.title_art.strip()[:400] or fallback.title_art,
         "emblem": spec.emblem.strip()[:300] or fallback.emblem,
     })  # fmt: skip
+    said = [c.strip() for c in spec.credits if c.strip()]
+    if said and said != credit_lines(design):
+        notes.append("credits are written by code; the designer's lines were dropped: "
+                     + "; ".join(said)[:200])  # fmt: skip
     return fitted, notes + theme_notes
+
+
+SETTING_VALUE = re.compile(r"\s*[:=-]?\s*\(?\b(easy|normal|hard|on|off)\b\)?\s*$", re.IGNORECASE)
+
+
+def credit_lines(design: GameDesign) -> list[str]:
+    """The credits code writes: only what is true of every SpriteForge game (the art's credits
+    are added per build). A model's credits invented people and music (live 2026-11-02: "Made
+    by the Goo Squad", "Music: Chiptune Blips" for a game without sound)."""
+    return [clip(design.title, 36), "Made with SpriteForge", "Design and code: Muse Spark",
+            "Art: Muse Image and the art library"]  # fmt: skip
 
 
 def reachable(spec: MenuSpec, structure: GameStructure) -> set[str]:
@@ -555,7 +583,8 @@ colours and handles the keys: arrows/WASD move the highlight, Enter/Space pick, 
 (on pause it resumes; after a level ends it goes to the title), the mouse works too. It shows the
 title art behind the title and main screens, and the level's own picture behind pause, results,
 game over and victory. Level select lists the levels from the saved progress (locked ones dim);
-give it only a Back item. Settings items show their value after the label (Difficulty: normal).
+give it only a Back item. Settings items show their value after the label (Difficulty: normal):
+write the label alone ('Difficulty', never 'Difficulty: Normal'). Code writes the credits.
 
 Screens this game has (only these):
 {screens}
@@ -635,11 +664,28 @@ def menus_script(spec: MenuSpec, structure: GameStructure, design: GameDesign,
                            "items": [i.model_dump() for i in s.items]} for s in spec.screens},  # fmt: skip
         "levels": [lv.model_dump() for lv in structure.levels],
         "can_lose": bool(structure.lose.strip()),
-        "controls": [c.strip() for c in re.split(r"[;\n]", design.controls) if c.strip()][:6],
+        "controls": control_lines(design.controls),
         "credits": lines[:8],
         "difficulty": DIFFICULTY,
         "art": art or {},
     }
+
+
+def control_lines(controls: str, width: int = 36, most: int = 6) -> list[str]:
+    """The design's controls as lines that fit the panel: split at ';' and line breaks, then at
+    ',' and words when a part is too long (live 2026-11-02: one long sentence was clipped)."""
+    out = []
+    for part in (p.strip() for p in re.split(r"[;\n]", controls) if p.strip()):
+        line = ""
+        for word in re.split(r"(?<=,)\s+|\s+", part):
+            if line and len(line) + 1 + len(word) > width:
+                out.append(line.rstrip(","))
+                line = word
+            else:
+                line = f"{line} {word}".strip()
+        if line:
+            out.append(line.rstrip(","))
+    return out[:most]
 
 
 def menus_markdown(spec: MenuSpec, notes: list[str] = (), problems: list[str] = ()) -> str:

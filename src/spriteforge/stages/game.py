@@ -119,7 +119,14 @@ from spriteforge.game.pipeline import (
     write_story,
 )
 from spriteforge.game.plan import PlanRecord, plan_brief, plan_markdown
-from spriteforge.game.qa import QASuite, QATests, merge_suite, screenshot_files, write_export
+from spriteforge.game.qa import (
+    QASuite,
+    QATests,
+    bind_selects,
+    merge_suite,
+    screenshot_files,
+    write_export,
+)
 from spriteforge.game.record import record_game
 from spriteforge.game.research import ResearchRecord, research_brief, research_markdown
 from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback_revision
@@ -613,6 +620,15 @@ def qa_suite(
         return QASuite.model_validate(ctx.read(name))
     before = f"game/v{version - 1}/qa-tests.json"
     previous = QASuite.model_validate(ctx.read(before)) if before in ctx.artifacts else None
+    if previous is not None and menus:
+        # Each earlier test's `select` steps name actions, read from the menus of the build it
+        # was first run in (a later menu revision may have renamed its items).
+        bound = []
+        for t, v in zip(previous.tests, previous.versions, strict=True):
+            report = f"game/v{v}/report.json"
+            written = ctx.read(report).get("menus_version") if report in ctx.artifacts else None
+            bound += bind_selects([t], flow_script(ctx, written, design)) if written else [t]
+        previous = previous.model_copy(update={"tests": bound})
     old_design = (
         ctx.read(f"game/v{version - 1}/report.json")["design_version"] if version > 1 else None
     )

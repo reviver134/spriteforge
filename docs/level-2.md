@@ -868,14 +868,72 @@ the menus red" makes menus v2 and build v2 with the same code and locked art, ap
 the menus (not the build) and opens G4, the bundle conforms, and menu feedback at G4 reaches the
 Menu Designer without a Programmer call.
 
-Full pytest: 383 passed, 7 failed; three were expectations L2.5 changes on purpose (G2 also
+After the live fixes: 390 passed, 4 failed (the four below). Before them: 383 passed, 7 failed; three were expectations L2.5 changes on purpose (G2 also
 shows the structure; G3 adds a gate and a decision before G4) and pass after updating them;
 the other four are the same four as in L2.2-L2.4 (`test_asset_production` (2) and
 `test_asset_ui` on the uncommitted asset-pipeline changes, and
 `test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events`).
 
-### Not done yet
+### Live (2026-11-02/03)
 
-The live acceptance run (a live build whose menus use its palette and Muse title art, G3
-showing every screen, the menu QA tests passing) has not been made; it needs the go-ahead to
-spend (about $0.05 for the menus and the title art on top of a build).
+The slime game (`tools/game_live.py --until menus`, `workspace/l25-slime`, the L2.3 goal word
+for word; research on, G2 approved by the test operator): "Slime Shift Adventure", 3 levels
+(Goo First Steps, Acid Guard Run, Keep Your Form). Then two G3 rounds as the test operator
+(`--menus-feedback`); the run waits at G3 v3 for the human.
+
+**The menus** (one Menu Designer call): all ten screens in the game's voice ("Pick a Puddle",
+"Paused Puddle", "Squished!", "You Kept Your Form!", "How to Wobble"), every action known and
+allowed, no problems left for code; a navy panel with a teal frame and a green highlight. The
+title art came from Muse (2 calls): floating grass islands with the game's crates, the flag,
+the exit door and the slime, no text; the emblem a slime in a bubble. Each build snapped the
+theme to the art (black panel, gold highlight in v1). Every screen was shot without errors and
+G3 opened with them, the title art and the level previews.
+
+**Build v1** ($1.47 for the whole run so far: 20 Spark and 11 Muse calls): 3/3 levels cleared
+by the bot, and **QA 6 of 6 on the first attempt**, among them the QA Playtester's own menu test
+(title -> New Adventure -> pause -> resume -> Settings -> Difficulty). It failed one design
+check: level 3 listed `kill_enemy`, but its route jumps over every enemy, so the bot never kills
+one there and three repair rounds could not help.
+
+**Found live and fixed:**
+
+* **Settings labels with their value.** The Menu Designer wrote "Difficulty: Normal" and the SDK
+  adds the value: "Difficulty: Normal: normal". Code now strips a value from a setting's label,
+  and the rules tell the designer to write the label alone.
+* **Invented credits.** "Made by the Goo Squad", "Music: Chiptune Blips" (a game without
+  sound). Code writes the credits now (the game, SpriteForge, Muse Spark, Muse Image and the
+  library, then the art's own credits); the designer's lines are dropped with a note.
+* **The main menu ran off the screen.** Six items under a full-size emblem: Settings was cut,
+  Credits invisible. The SDK now sets the panel at the bottom and fits the title block above
+  it (the emblem shrinks or goes first, then the tagline); a test checks every panel stays on
+  the screen. The controls screen no longer repeats the controls in its subtitle, and a long
+  controls sentence is wrapped instead of clipped.
+* **A level event the route never makes happen.** (Not L2.5: the L2.3 level checks.) Code now
+  drops a level's event that names something the route never opens (a kill without an enemy
+  beaten, a break without a wall broken) with a note; every build checks its levels again, so
+  build v2 passed.
+* **A renamed menu item broke a QA test, and the Programmer cheated.** G3 round 1 ("Make the
+  selected item acid green instead of gold, and call New Adventure just Start"): the QA test
+  still selected "New Adventure", failed, and went to the Programmer, who in three rounds
+  rewrote the SDK from game code (replaced `sf.event`, `sf.start` and `sf.choose`, searched
+  `window` for menu data and renamed "Start" back to "New Adventure") until the test passed.
+  Three fixes: QA `select` steps are bound to the item's action when the tests are written,
+  and earlier tests to the menus of the build they first ran in (`qa.bind_selects`); static
+  checks reject game code that assigns the SDK's members (`sf.event = ...`; `sf.state` stays
+  the game's) or touches `sf.flow`, `SF_MENUS` or `SF_LEVELS` (no earlier live game trips it).
+  Build v2 stays in the run as it was built (its QA result is not to be trusted); round 2 below
+  started from its code.
+* **The asked-for colour was snapped away.** "Acid green" became the art's gold, because the
+  theme always took the art colour nearest the designer's. It now snaps only when the art has a
+  colour like it (delta E <= 25) and keeps the designer's colour otherwise, with a note.
+
+**G3 round 2** ("Make the panel frame acid green too, to match the highlight"), with the fixes:
+menus v3 (Start, Difficulty, Fewer Flashes, honest credits); build v3 started from v2's code,
+which static checks rejected; one repair removed the hack; then **3/3 levels cleared, every
+design check passing and QA 6 of 6** with the selects bound to actions (start, settings,
+difficulty, restart). The highlight is acid green (#8EFF5E, kept: the art's nearest is a dark
+grass green) with a green frame; the title art stayed locked from v1 (no new call). Run total
+$1.91 (28 Spark calls, 13 Muse Image calls).
+
+Not checked live: G3 approval and G4 (left to the human), the results and victory screens in a
+human's play (shot by code, and played in the mock tests).

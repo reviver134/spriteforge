@@ -567,6 +567,32 @@ def lower(rows: list[str], kinds: dict[str, str], c0: int, c1: int, r: int, by: 
     return ["".join(g) for g in grid]
 
 
+# Event words that name what opens on the route: an event about beating an enemy needs the
+# route to beat one (live 2026-11-02: level 3 listed kill_enemy, its route jumped over every
+# enemy, and three repair rounds asked the Programmer for a kill the bot never makes).
+EVENT_KINDS = (
+    (re.compile(r"kill|defeat|beat|stomp|slay"), {"enemy"}),
+    (re.compile(r"break|smash|shatter|crumble|wall"), {"breakable"}),
+    (re.compile(r"dissolve|crate"), {"crate"}),
+)
+
+
+def events_off_route(spec: LevelSpec, grid, sol) -> list[str]:
+    """The level's events that name something the route never opens (a kill without an enemy
+    beaten, a break without a wall broken). Events code cannot read stay."""
+    kind_of = {t.id: t.kind for t in grid.things}
+    opened = {kind_of.get(st.get("thing")) for st in (s.data() for s in sol.route)
+              if st["do"] in {"touch", "dash"}}  # fmt: skip
+    out = []
+    for event in spec.events:
+        for words, kinds in EVENT_KINDS:
+            if words.search(event):
+                if not (kinds & opened):
+                    out.append(event)
+                break
+    return out
+
+
 def evaluate(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord,
              previous: LevelRecord | None, body: tuple[float, float], fps: int = 30,
              retried: bool = False, notes: list[str] = (), by: str = "") -> LevelRecord:  # fmt: skip
@@ -600,6 +626,10 @@ def evaluate(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord,
             break
         fitted, grid, sol, note = better
         repairs.append(note)
+    if sol.solved and (unseen := events_off_route(fitted, grid, sol)):
+        fitted = fitted.model_copy(update={"events": [e for e in fitted.events if e not in unseen]})
+        repairs.append(f"events the route never makes happen dropped: {', '.join(unseen)} (the bot "
+                       "plays the route, so the playtest could not see them)")  # fmt: skip
     feats = features(grid, sol, m) if sol.solved else []
     score = difficulty(feats, sol) if sol.solved else 0.0
     problems = check_level(fitted, grid, sol, m, plan, design, previous, held, feats, score)

@@ -46,6 +46,14 @@ FORBIDDEN = [
     (r"document\.cookie", "cookies"),
     (r"\bnew\s+Phaser\.Game\b", "new Phaser.Game (use sf.start)"),
     (r"\bDate\.now\s*\(|\bperformance\.now\s*\(", "wall-clock time (use sf.clock.now)"),
+    # The SDK is not the game's to change: live 2026-11-02 a repair replaced sf.event, sf.start
+    # and sf.choose and rewrote the menu data so that a QA test found an old menu label.
+    (r"\bsf\s*\.\s*(event|start|choose|menu|menus|flow|input|fx|particles|play|sprite|text|bar|has"
+     r"|level|progress|settings|clock|errors|events|counts|flags|rand|assets|game|ready|paused"
+     r"|screen|bot|halted)\s*=(?!=)",
+     "assignments to the SDK's own functions or data (sf.state is the game's; the rest is the SDK's)"),
+    (r"\bsf\s*\.\s*flow\b|\bSF_MENUS\b|\bSF_LEVELS\b", "the SDK's menus, flow or level data (they are the SDK's)"),
+    (r"\bdefineProperty\s*\(\s*(window\.)?sf\b|\b(window|globalThis)\s*\.\s*sf\s*=", "redefining the SDK"),
 ]
 ASSET_USE = re.compile(
     r"(?:sf\.sprite\([^,()]*,[^,()]*,[^,()]*,|\.add\.(?:image|tileSprite|sprite)\([^()]*?,)"

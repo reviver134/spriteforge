@@ -531,3 +531,14 @@ def test_a_g4_step_resumed_after_a_failure_reuses_its_design_version(tmp_path, m
     names = {a.name for a in store.artifacts(ident)}
     assert "game/design/v2.json" in names and "game/design/v3.json" not in names
     assert read(store, ident, "game/v2/report.json")["design_version"] == 2
+
+
+def test_an_event_the_route_never_makes_happen_is_dropped():
+    """Live 2026-11-02: level 3 listed kill_enemy, its route jumped over every enemy, and three
+    repair rounds asked the Programmer for a kill the bot never makes."""
+    rows = [row.replace("e", " ") for row in GATED]  # no enemy at all
+    record = check(rows, n=1, events=["crate_open", "enemy_defeat", "wall_break", "level_complete"])
+    assert "enemy_defeat" not in record.spec.events and "wall_break" in record.spec.events
+    assert any("never makes happen dropped: enemy_defeat" in n for n in record.notes)
+    kept = check(GATED, n=1, events=["crate_open", "enemy_defeat", "wall_break", "level_complete"])
+    assert "enemy_defeat" in kept.spec.events
