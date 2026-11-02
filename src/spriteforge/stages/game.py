@@ -876,7 +876,12 @@ def game_step(store, run_id) -> bool:
         changed = bool(revision.design_changes.strip())
         if changed:
             old, old_version = design, design_version
-            design_version = design_versions(ctx) + 1
+            # Chosen once per build: a step re-entered after a failure (a budget cap, a timeout)
+            # reuses it instead of counting the versions again (live 2026-11-02 made a stray v3).
+            chosen = f"game/v{version}/design-version.json"
+            if chosen not in ctx.artifacts:
+                ctx.save(chosen, {"version": design_versions(ctx) + 1}, "Game Designer")
+            design_version = ctx.read(chosen)["version"]
             game_plan = next_plan(ctx, design_version, old_version, revision.design_changes,
                                   feedback)
             brief = plan_brief(game_plan) if game_plan else ""

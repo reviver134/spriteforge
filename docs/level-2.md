@@ -509,6 +509,31 @@ calls at `reasoning: high`, 11k-30k output tokens each, $0.55 together. Repairs 
 (two rounds for the QA test above). `llm.reasoning.level: medium` would cut the first; G4
 feedback such as "ignore the checkpoint test" drops the second.
 
+**The human's G4 round on run 3** ("the game is to simple and the enemies are not disappearing
+after dying they remain in the dying motion"): the Director split it into a design change
+("increase difficulty") and a code instruction. The plan revision added challenges to every
+level, so all three levels had new problems and were revised (six Level Designer calls,
+$0.47); the run then stopped at its $2.00 cap before the Programmer's call. With the human's
+consent the cap was raised to $3.00 and the run resumed. Found and fixed:
+
+* **Beaten enemies stayed in their dying motion.** The SDK looped every animation row not on its
+  play-once list, so a multi-frame `die` row never completed and `sf.level.open()` never
+  removed the enemy. `die`, `break`, `land` and `transform` now play once, `open()` plays the
+  row once whatever its repeat says, and a timer removes the sprite regardless
+  (`test_a_beaten_enemy_plays_its_death_once_and_is_gone` fails on the old SDK).
+* **A resumed G4 step made a stray design version.** The step counted design versions again on
+  re-entry, so the resume wrote plan v3 and design v3 instead of reusing v2 (about $0.07; the
+  build reports design v3, and the levels written for plan v2 now list challenge names plan v3
+  renamed). The version a build answers with is now saved once
+  (`game/vN/design-version.json`; `test_a_g4_step_resumed_after_a_failure_reuses_its_design_version`).
+
+Build v2: **3/3 levels cleared by the bot, all design checks pass**; code's difficulty 11.8,
+26.7, 64.8 (v1: 13.8, 13.8, 32.1); enemies beaten in levels 2 and 3; three repair rounds (one
+level-3 enemy did not die on touch until the Programmer's repair). QA 8 of 10: both failures
+are tests that cannot pass on these levels ("checkpoint and time HUD" waits for a checkpoint
+without moving; "move left-right" holds Right for 3 s and walks into the first pit, respawning
+at the start); real keys move, jump and dash. Run total $2.79.
+
 Not checked live: a G4 feedback round with Level n picked (the per-level revision and replay
 are covered by the mock test). The run waits at G4 for the human: play each level from the
 report's links (`index.html?level=n`), or pick a level under Level to change it alone.

@@ -487,3 +487,37 @@ def test_levels_are_written_built_played_and_revised_one_at_a_time(tmp_path):
     assert v2["levels_version"] == 2 and all(lv["cleared"] for lv in v2["levels"])
     assert read(store, ident, "game/v2/code.json") == read(store, ident, "game/v1/code.json")
     assert read(store, ident, "game/levels/v2/levels.json")["changed"] == [2]
+
+
+def test_a_g4_step_resumed_after_a_failure_reuses_its_design_version(tmp_path, monkeypatch):
+    """Live 2026-11-02: a G4 round stopped by the cost cap made a stray design v3 on resume."""
+    import spriteforge.stages.game as stage
+    from spriteforge.game.revision import Revision
+
+    store = Store(tmp_path / "state.sqlite3")
+    cfg = load_config()
+    cfg.workspace = tmp_path
+    ident = start_run(store, cfg, mock=True, goal=WORDS).id
+    workflow_step(store, ident)
+    answer(store, ident, form={"genre": "genres/side-scrolling-platformer"})
+    answer(store, ident, form={"perspective": "side-scroll"})
+    answer(store, ident)
+    submit(store, ident)  # build v1, G4
+    harder = Revision(design_changes="make it harder", art_changes=[], code_instructions="",
+                      drop_qa_tests=[], story_changes="", level_changes=[])  # fmt: skip
+    monkeypatch.setattr(stage, "fallback_revision", lambda *a, **k: harder)
+    real, failed = stage.build_version, []
+
+    def once_broken(*args, **kwargs):
+        if not failed:
+            failed.append(True)
+            raise RuntimeError("Call budget exceeded")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(stage, "build_version", once_broken)
+    with pytest.raises(RuntimeError):
+        submit(store, ident, "The game is too simple")
+    workflow_step(store, ident)  # resumed
+    names = {a.name for a in store.artifacts(ident)}
+    assert "game/design/v2.json" in names and "game/design/v3.json" not in names
+    assert read(store, ident, "game/v2/report.json")["design_version"] == 2
