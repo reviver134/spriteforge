@@ -109,11 +109,14 @@ def sync_record(db: KnowledgeStore, rec: GameRecord, message: str) -> dict:
     return sync(db, entries, files, message)
 
 
-def promote_all(db: KnowledgeStore, why: str, human: str = REVIEWER) -> int:
+def promote_all(db: KnowledgeStore, why: str, human: str = REVIEWER,
+                only: tuple[str, ...] = ()) -> int:  # fmt: skip
     """Every concept not yet human-reviewed becomes human-reviewed (the human approved what
-    the gate showed). One commit; returns how many."""
+    the gate showed); with `only`, just the concepts whose id starts with one of them (G3
+    shows the menus, not the build). One commit; returns how many."""
     entries = [e for e in db.scan()[0]
-               if e.metadata.trust_tier != "human-reviewed" and e.metadata.status != "deprecated"]  # fmt: skip
+               if e.metadata.trust_tier != "human-reviewed" and e.metadata.status != "deprecated"
+               and (not only or e.id.startswith(only))]  # fmt: skip
     if entries:
         db.write_batch(entries, why, actor=ACTOR, verified_by=human, preserve_generation=True)
     return len(entries)

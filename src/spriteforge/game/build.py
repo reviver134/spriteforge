@@ -7,6 +7,9 @@ build/
   assets.js/.json     art manifest: screen, scale, sprites (frames, animations), images
   levels.js/.json     levels as data (L2.3, platformers): the plan's movement and every level;
                       sflevel.js, the SDK's level engine, is loaded with them
+  menus.js/.json      menus as data (L2.5): screens, theme, levels, controls, credits; sfflow.js,
+                      the SDK's flow (title, pause, results, game over, victory, progress), is
+                      loaded with them; the title art is in assets/ (role "menu")
   assets/<id>.png     sprite sheets and images
   <generated>.js      the game itself; game.js is loaded last
   CREDITS.txt         where each piece of art came from and under which licence
@@ -31,9 +34,13 @@ def script_order(paths: list[str]) -> list[str]:
     return [p for p in paths if p != "game.js"] + ["game.js"]
 
 
-def index_html(title: str, controls: str, scripts: list[str], levels: bool = False) -> str:
+def index_html(title: str, controls: str, scripts: list[str], levels: bool = False,
+               menus: bool = False) -> str:  # fmt: skip
     tags = "".join(f'<script src="{html.escape(s)}"></script>' for s in scripts)
     level_tags = '<script src="levels.js"></script><script src="sflevel.js"></script>' if levels else ""
+    if menus:
+        level_tags += '<script src="menus.js"></script><script src="sfflow.js"></script>'
+    pause = " &middot; Esc pauses" if menus else ""
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -44,7 +51,7 @@ canvas{{display:block;image-rendering:pixelated}}
 #help{{position:fixed;bottom:6px;left:0;right:0;text-align:center;
 font:12px/1.4 system-ui,sans-serif;color:#94b0c2;pointer-events:none}}</style>
 </head><body>
-<div id="help">{html.escape(controls)} &middot; add <code>?autoplay=1</code> to watch the bot</div>
+<div id="help">{html.escape(controls)}{pause} &middot; add <code>?autoplay=1</code> to watch the bot</div>
 <script src="phaser.min.js"></script><script src="sf.js"></script><script src="assets.js"></script>
 {level_tags}{tags}
 </body></html>
@@ -61,10 +68,12 @@ def build_game(
     images: dict[str, bytes],
     credits: list[str],
     levels: dict | None = None,
+    menus: dict | None = None,
 ) -> Path:
     """Write the build into `out` (replaced). `files` are generated scripts by name, `images`
     are asset PNGs by their path inside the build (e.g. "assets/player.png"); `levels` is
-    `window.SF_LEVELS` (levels.levels_script) for a game with levels as data."""
+    `window.SF_LEVELS` (levels.levels_script) for a game with levels as data; `menus` is
+    `window.SF_MENUS` (menus.menus_script) for a game with menus."""
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -83,10 +92,16 @@ def build_game(
         (out / "levels.json").write_text(text + "\n", encoding="utf-8")
         (out / "levels.js").write_text(f"window.SF_LEVELS = {text};\n", encoding="utf-8")
         shutil.copy(SDK_DIR / "sflevel.js", out / "sflevel.js")
+    if menus is not None:
+        text = json.dumps(menus, indent=1)
+        (out / "menus.json").write_text(text + "\n", encoding="utf-8")
+        (out / "menus.js").write_text(f"window.SF_MENUS = {text};\n", encoding="utf-8")
+        shutil.copy(SDK_DIR / "sfflow.js", out / "sfflow.js")
     for name, code in files.items():
         (out / name).write_text(code, encoding="utf-8")
     (out / "index.html").write_text(
-        index_html(title, controls, script_order(list(files)), levels is not None), encoding="utf-8"
+        index_html(title, controls, script_order(list(files)), levels is not None, menus is not None),
+        encoding="utf-8",
     )
     (out / "CREDITS.txt").write_text(
         "Art sources and licences\n\n" + ("\n".join(credits) or "(generated art only)") + "\n",

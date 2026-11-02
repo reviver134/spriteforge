@@ -21,8 +21,14 @@ After the G1 questions:
   game/db/                   the game database: the canon as OKF entries (story, characters with
                              their locked art, world, gameplay, art, levels), written from the
                              artifacts; approvals promote it to human-reviewed
+  game/design/vK-structure.json/.md  code: the game's structure (levels in order, what carries
+                             over, what is saved, win and lose), from design vK and its plan
   gate "design"              text -> plan and design v(K+1); empty -> build v1 from the
                              approved design
+  game/menus/vM.json/.md     Menu Designer (L2.5): the menus as data (screens, items, theme,
+                             what the title art shows), fitted and checked by code; v1 written
+                             at G2 approval, a new version per menu feedback (G3, or G4's
+                             menu_changes), refitted by code when the structure changes
   game/design/vK-motion.json/.md  Art Director (L2.4): the motion design for design vK: rows
                              per entity (what each frame shows, when it plays, fps, loop),
                              forms, effects (sf.fx), fitted by code; a design change keeps the
@@ -44,6 +50,11 @@ After the G1 questions:
                              screenshots; test_game_qa.py the Playwright export (also in
                              build/tests/, so the play route serves it)
   game/vN/levels/level-n.png the level's map preview with the game's art and the bot's route
+  game/vN/menus/<screen>.png every screen of the menus as the player sees it; menus.png all of
+                             them; menus/title-art.png, emblem.png (Muse, locked once drawn, or
+                             code-drawn) and title-art.json
+  gate "menus"               G3, after the first build with menus: text -> the Menu Designer
+                             revises the menus -> v(N+1) with the same code and art; empty -> G4
   game/vN/poster.png         (+ demo.mp4 with ffmpeg)
   game/vN/report.json        what was built and by whom, art sources, warnings, attempts, play link
   gate "playtest"            text -> Director splits it into design/art/code/level changes ->
@@ -68,17 +79,23 @@ from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.design import GameDesign, design_markdown, revision_prompt
 from spriteforge.game.gamedb import context_pack, open_db, promote_all, sync_record
+from spriteforge.game.menus import MenuRecord, menus_markdown, menus_script, refit
 from spriteforge.game.level_preview import first_frame, preview
 from spriteforge.game.levels import LevelRecord, evaluate, level_markdown, player_body
 from spriteforge.game.motion import MotionRecord, motion_markdown
 from spriteforge.game.pipeline import (
     LevelPack,
+    MenuPack,
     Models,
     art_sources,
     art_summary,
     build_and_test,
     call_summary,
+    game_assets,
     level_pack,
+    menu_files,
+    menu_pack,
+    menus_report,
     motion_previews,
     motion_report,
     plan_art,
@@ -87,12 +104,14 @@ from spriteforge.game.pipeline import (
     qa_report,
     review_art,
     revise_level,
+    revise_menus,
     revise_plan,
     revise_story,
     uses_levels,
     write_code,
     write_design,
     write_level,
+    write_menus,
     write_motion,
     write_plan,
     write_qa_tests,
@@ -106,10 +125,13 @@ from spriteforge.game.research import ResearchRecord, research_brief, research_m
 from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback_revision
 from spriteforge.game.revision import revision_prompt as director_prompt
 from spriteforge.game.story import StoryBible, story_markdown
+from spriteforge.game.structure import GameStructure, make_structure, structure_markdown
+from spriteforge.game.title_art import TitleArt
 
 from .asset_store import ProductionStore
 from .game_record import (
     LEVELS,
+    MENUS,
     REPORT,
     RESEARCH,
     latest_version,
@@ -270,6 +292,95 @@ def save_design(ctx: GameContext, version: int, design: GameDesign) -> None:
         ctx.save(f"{name}.json", design.model_dump(), "Game Designer")
     if f"{name}.md" not in ctx.artifacts:
         ctx.save(f"{name}.md", design_markdown(design).encode(), "Game Designer", "text/markdown")
+    ensure_structure(ctx, version, design)
+
+
+def structure_name(version: int) -> str:
+    return f"game/design/v{version}-structure.json"
+
+
+def ensure_structure(ctx: GameContext, version: int, design: GameDesign) -> GameStructure:
+    """The structure of design vK (L2.5), derived by code from the design and its plan."""
+    name = structure_name(version)
+    if name not in ctx.artifacts:
+        plan = load_plan_at(ctx, version)
+        structure = make_structure(design, plan, uses_levels(design, plan))
+        ctx.save(name, structure.model_dump(), "Game Designer")
+        ctx.save(name.removesuffix(".json") + ".md", structure_markdown(structure).encode(),
+                 "Game Designer", "text/markdown")  # fmt: skip
+    return GameStructure.model_validate(ctx.read(name))
+
+
+# --- menus (L2.5) ---------------------------------------------------------------------------------
+
+
+def menus_name(version: int) -> str:
+    return f"game/menus/v{version}.json"
+
+
+def load_menus(ctx: GameContext, version: int) -> MenuRecord:
+    return MenuRecord.model_validate(ctx.read(menus_name(version)))
+
+
+def save_menus(ctx: GameContext, record: MenuRecord) -> int:
+    version = latest_version(ctx.artifacts, MENUS) + 1
+    name = menus_name(version)
+    ctx.save(name, record.model_dump(), "Menu Designer")
+    ctx.save(name.removesuffix(".json") + ".md",
+             menus_markdown(record.spec, record.notes, record.problems).encode(),
+             "Menu Designer", "text/markdown")  # fmt: skip
+    return version
+
+
+def ensure_menus(ctx: GameContext, design: GameDesign, design_version: int) -> int | None:
+    """The menus a build of design vK uses: v1 written by the Menu Designer from the game's
+    record (once), later the latest version, refitted by code when the structure changed.
+    None when `game.menus` is off."""
+    if not ctx.cfg.game.menus:
+        return None
+    structure = ensure_structure(ctx, design_version, design)
+    latest = latest_version(ctx.artifacts, MENUS)
+    if not latest:
+        ctx.log("Menu Designer")("writing the menus: every screen, the theme and the title art")
+        record = write_menus(ctx.models, design, structure,
+                             context_pack(ctx.db, "menus title screen look art style", 1500),
+                             f"written from design v{design_version}")  # fmt: skip
+        return save_menus(ctx, record)
+    record = load_menus(ctx, latest)
+    again = refit(record, structure, design)
+    return latest if again is record else save_menus(ctx, again)
+
+
+def next_menus(ctx: GameContext, n: int, old: int, feedback: str, design: GameDesign,
+               design_version: int, where: str) -> int:  # fmt: skip
+    """The menus revised for gate n's feedback (once per gate: a re-entered step reuses it)."""
+    pointer = f"game/feedback/gate-{n}-menus.json"
+    if pointer not in ctx.artifacts:
+        ctx.log("Menu Designer")("revising the menus for the feedback")
+        structure = ensure_structure(ctx, design_version, design)
+        record = revise_menus(ctx.models, load_menus(ctx, old), feedback, design, structure,
+                              f"{where}: {feedback.strip()[:200]}")  # fmt: skip
+        ctx.save(pointer, {"version": save_menus(ctx, record), "from": old}, "Menu Designer")
+    return ctx.read(pointer)["version"]
+
+
+def flow_script(ctx: GameContext, menus: int | None, design: GameDesign) -> dict | None:
+    """The menus as the QA Playtester reads them (no theme needed)."""
+    if not menus:
+        return None
+    record = load_menus(ctx, menus)
+    return menus_script(record.spec, record.structure, design)
+
+
+def previous_title(ctx: GameContext, version: int) -> TitleArt | None:
+    """The previous build's title art, so an unchanged request reuses it (locked)."""
+    base = f"game/v{version - 1}/menus"
+    if f"{base}/title-art.json" not in ctx.artifacts or f"{base}/title-art.png" not in ctx.artifacts:
+        return None
+    rec = ctx.read(f"{base}/title-art.json")
+    return TitleArt(ctx.data(f"{base}/title-art.png"), ctx.data(f"{base}/emblem.png"),
+                    rec.get("source", ""), rec.get("prompts", {}), [], {},
+                    rec.get("version") or version - 1)  # fmt: skip
 
 
 def latest_story(ctx: GameContext) -> StoryBible | None:
@@ -327,6 +438,7 @@ def open_design_gate(ctx: GameContext, version: int) -> None:
     )
     names = [n for n in (RESEARCH, plan_name(version)) if n in ctx.artifacts]
     names += [f"game/design/v{version}.json", *story_names_shown(ctx)]
+    names += [n for n in (structure_name(version),) if n in ctx.artifacts]
     extra = {} if latest_story(ctx) else {"form_schema": STORY_FORM}
     Gates(ctx.store).open(
         ctx.run_id,
@@ -488,10 +600,12 @@ def previous_art(ctx: GameContext, version: int):
 
 
 def qa_suite(
-    ctx: GameContext, version: int, design: GameDesign, design_version: int, drop=()
+    ctx: GameContext, version: int, design: GameDesign, design_version: int, drop=(),
+    menus: int | None = None,
 ) -> QASuite | None:
     """The QA tests build vN runs: the previous build's suite minus `drop`, plus the QA
-    Playtester's tests for this design version (written once per design version)."""
+    Playtester's tests for this design version (written once per design version, with the
+    menus when the game has them)."""
     if not ctx.cfg.game.qa:
         return None
     name = f"game/v{version}/qa-tests.json"
@@ -506,7 +620,7 @@ def qa_suite(
     if previous is None or design_version != old_design:
         written = f"game/design/v{design_version}-qa-tests.json"
         if written not in ctx.artifacts:
-            tests, note = write_qa_tests(ctx.models, design)
+            tests, note = write_qa_tests(ctx.models, design, flow_script(ctx, menus, design))
             ctx.save(written, tests.model_dump(), "QA Playtester")
             notes += [note] if note else []
         new = QATests.model_validate(ctx.read(written))
@@ -548,10 +662,12 @@ def build_version(
     levels: int | None = None,
     game_plan: PlanRecord | None = None,
     motion: MotionRecord | None = None,
+    menus: int | None = None,
 ) -> list[str]:
     """Art, code, playtest, repair and recording for one build; returns gate artifact names.
     `levels`: the level set the build plays (levels as data), checked with `game_plan`;
-    `motion`: the motion design the art's rows follow."""
+    `motion`: the motion design the art's rows follow; `menus`: the menus version the SDK
+    renders (title art, theme in the art's colours, screenshots of every screen)."""
     prefix = f"game/v{version}"
     if f"{prefix}/report.json" not in ctx.artifacts:
         log = ctx.log("Director")
@@ -561,19 +677,27 @@ def build_version(
         if levels and game_plan:
             pack = level_pack(load_levels(ctx, levels), design, game_plan, art.manifest(),
                               ctx.cfg.game.playtest_fps)  # fmt: skip
+        flow: MenuPack | None = None
+        if menus:
+            log(f"build v{version}: the menus (v{menus}) and their title art")
+            flow = menu_pack(ctx.models, load_menus(ctx, menus), design, art, ctx.cfg,
+                             previous_title(ctx, version))  # fmt: skip
+            if not flow.title_art.version:
+                flow.title_art.version = version
         if base is None or instruction.strip():
             log(f"build v{version}: the Programmer is writing the game")
-            code = write_code(ctx.models, design, art.manifest(), base, instruction, log, pack)
+            code = write_code(ctx.models, design, game_assets(art, flow)[0], base, instruction, log,
+                              pack)  # fmt: skip
         else:
-            code = base  # feedback touched only the art or the levels: same code
+            code = base  # feedback touched only the art, the levels or the menus: same code
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log,
-                                 suite.tests if suite else None, pack)  # fmt: skip
+                                 suite.tests if suite else None, pack, flow)  # fmt: skip
         review = None
         if ctx.cfg.game.review and outcome.build:
             log(f"build v{version}: the Art Reviewer is looking at the art in the running game")
             review = review_art(ctx.models, design, plan, art, outcome, ctx.cfg,
                                 ctx.root / prefix, log, version,
-                                suite.tests if suite else None, pack)  # fmt: skip
+                                suite.tests if suite else None, pack, flow)  # fmt: skip
             art, outcome = review.art, review.outcome
         qa = save_qa(ctx, prefix, outcome, suite) if suite else None  # after the review's replay
         recording = None
@@ -625,6 +749,15 @@ def build_version(
                 )
         play = f"/api/runs/{ctx.run_id}/play/v{version}/index.html" if outcome.build else None
         previews = level_previews(ctx, prefix, pack, design, art) if pack else {}
+        menu_part = {}
+        if flow and outcome.build:
+            log(f"build v{version}: a screenshot of every menu screen")
+            files, shots, errors = menu_files(flow, outcome.build, ctx.cfg.game.playtest_fps)
+            for name, data in files.items():
+                ctx.save(f"{prefix}/{name}", data, "Menu Designer", "image/png")
+            ctx.save(f"{prefix}/menus/title-art.json",
+                     {**flow.title_art.record(), "version": flow.title_art.version}, "Pixel Artist")  # fmt: skip
+            menu_part = {"menus_version": menus, "menus": menus_report(flow, shots, errors, prefix + "/")}
         report = {
             "version": version,
             "title": design.title,
@@ -642,6 +775,7 @@ def build_version(
             "revision": revision.model_dump() if revision else None,
             "art_review": review_report(review.report, prefix) if review else None,
             "motion": motion_report(art) if motion else None,
+            **menu_part,
             "qa": qa,
             "model_calls": call_summary(ctx.store, ctx.run_id),
         }
@@ -729,6 +863,44 @@ def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None
     )
 
 
+def menus_approved(ctx: GameContext) -> bool:
+    return any(g.stage == "menus" and g.status == "approved" for g in Gates(ctx.store).all(ctx.run_id))
+
+
+def open_after_build(ctx: GameContext, version: int, names: list[str]) -> None:
+    """G3 (the menus) after a build with menus until the human approved them once; then G4."""
+    report = ctx.read(f"game/v{version}/report.json")
+    if (report.get("menus") or {}).get("screens") and not menus_approved(ctx):
+        open_menus_gate(ctx, version)
+    else:
+        open_playtest_gate(ctx, version, names)
+
+
+def open_menus_gate(ctx: GameContext, version: int) -> None:
+    prefix = f"game/v{version}"
+    report = ctx.read(f"{prefix}/report.json")
+    m, info = report["menus_version"], report["menus"]
+    source = info["title_art"]["source"]
+    names = [n for n in (f"{prefix}/menus.png", f"{prefix}/menus/title-art.png",
+                         f"{prefix}/menus/emblem.png") if n in ctx.artifacts]  # fmt: skip
+    names += sorted((n for n in ctx.artifacts if re.fullmatch(rf"{prefix}/levels/level-\d+\.png", n)),
+                    key=lambda n: int(re.findall(r"\d+", n)[-1]))  # fmt: skip
+    names += [menus_name(m), f"{prefix}/report.json"]
+    problems = (f" Code could not fix {len(info['problems'])} problem(s) (listed in the menus)."
+                if info.get("problems") else "")  # fmt: skip
+    title = (
+        f"G3 Menus v{m} (build v{version}: {report['title']}): every screen of the menus, the title "
+        f"art ({source})" + (" and the level previews" if report.get("levels") else "")
+        + ". Type what to change in the menus or the title art (labels, colours, what the title "
+        "picture shows), or leave feedback empty and submit to approve them and go on to the "
+        "playtest (G4)." + problems
+    )
+    Gates(ctx.store).open(
+        ctx.run_id,
+        new_gate("menus", title, [ctx.artifacts[n].id for n in names], empty_feedback_approves=True),
+    )
+
+
 def gate_names(ctx: GameContext, version: int) -> list[str]:
     """What G4 shows for build vN: the video or poster, the art sheet, the QA export, the
     report and the design it was built from."""
@@ -737,8 +909,8 @@ def gate_names(ctx: GameContext, version: int) -> list[str]:
     names = [n for n in (f"{prefix}/demo.mp4", f"{prefix}/poster.png") if n in ctx.artifacts][:1]
     names += sorted((n for n in ctx.artifacts if re.fullmatch(rf"{prefix}/levels/level-\d+\.png", n)),
                     key=lambda n: int(re.findall(r"\d+", n)[-1]))  # fmt: skip
-    names += [n for n in (f"{prefix}/motion.gif", f"{prefix}/art.png", f"{prefix}/test_game_qa.py")
-              if n in ctx.artifacts]  # fmt: skip
+    names += [n for n in (f"{prefix}/menus.png", f"{prefix}/motion.gif", f"{prefix}/art.png",
+                          f"{prefix}/test_game_qa.py") if n in ctx.artifacts]  # fmt: skip
     return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
 
 
@@ -826,6 +998,43 @@ def game_step(store, run_id) -> bool:
         store.advance(run_id, ctx.run.cursor, "G4 approved; game build locked", final=True)
         return False
 
+    if last.stage == "menus" and last.status == "approved":
+        version = shown(ctx, last, REPORT)
+        m = ctx.read(f"game/v{version}/report.json").get("menus_version")
+        sync_db(ctx, f"G3 approved menus v{m} (build v{version})")
+        promote_all(ctx.db, f"G3 approved: menus v{m}", only=("menus/", "design/structure"))
+        open_playtest_gate(ctx, version, gate_names(ctx, version))
+        return False
+
+    if last.stage == "menus" and last.status == "changes_requested":
+        # Menus are data: the Menu Designer revises them and the same code and art are built
+        # again with them (no Programmer call), then G3 again.
+        shown_version = shown(ctx, last, REPORT)
+        version = shown_version + 1
+        previous = ctx.read(f"game/v{shown_version}/report.json")
+        design_version = previous["design_version"]
+        design = load_design(ctx, design_version)
+        feedback = feedback or "Try a different take."
+        menus = next_menus(ctx, n, previous["menus_version"], feedback, design, design_version, "G3")
+        revision = ctx.once(f"game/feedback/gate-{n}-revision.json", Revision,
+                            lambda: Revision(design_changes="", art_changes=[], code_instructions="",
+                                             drop_qa_tests=[], story_changes="", level_changes=[],
+                                             menu_changes=feedback), "Menu Designer")  # fmt: skip
+        if f"game/v{version}/revision.json" not in ctx.artifacts:
+            ctx.save(f"game/v{version}/revision.json", revision.model_dump(), "Menu Designer")
+        plan = last_plan(ctx, shown_version)
+        if f"game/v{version}/art-plan.json" not in ctx.artifacts:
+            ctx.save(f"game/v{version}/art-plan.json", plan.model_dump(), "Art Director")
+        base = GameCode.model_validate(ctx.read(f"game/v{shown_version}/code.json"))
+        game_plan = load_plan_at(ctx, design_version)
+        levels = previous.get("levels_version")
+        motion = ensure_motion(ctx, design_version, design, game_plan, levels)
+        suite = qa_suite(ctx, version, design, design_version, menus=menus)
+        names = build_version(ctx, version, design, design_version, plan, base, "", revision, suite,
+                              levels, game_plan, motion, menus)  # fmt: skip
+        open_after_build(ctx, version, names)
+        return False
+
     if last.stage == "design" and last.status == "changes_requested":
         version = design_versions(ctx) + 1
         previous = load_design(ctx, version - 1)
@@ -867,14 +1076,17 @@ def game_step(store, run_id) -> bool:
             levels = latest_version(ctx.artifacts, LEVELS) or first_levels(ctx, design, version, game_plan)
             sync_db(ctx, f"levels v{levels}")
         motion = ensure_motion(ctx, version, design, game_plan, levels)
+        menus = ensure_menus(ctx, design, version)
+        if menus:
+            sync_db(ctx, f"menus v{menus}")
         plan = ctx.once(
             "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design, motion),
             "Art Director",
         )
-        suite = qa_suite(ctx, 1, design, version)
-        open_playtest_gate(ctx, 1, build_version(ctx, 1, design, version, plan, None, "",
-                                                 suite=suite, levels=levels, game_plan=game_plan,
-                                                 motion=motion))  # fmt: skip
+        suite = qa_suite(ctx, 1, design, version, menus=menus)
+        open_after_build(ctx, 1, build_version(ctx, 1, design, version, plan, None, "",
+                                               suite=suite, levels=levels, game_plan=game_plan,
+                                               motion=motion, menus=menus))  # fmt: skip
         return False
 
     if last.stage == "playtest" and last.status == "changes_requested":
@@ -972,7 +1184,14 @@ def game_step(store, run_id) -> bool:
             if part
         )
         base = GameCode.model_validate(ctx.read(f"game/v{version - 1}/code.json"))
-        suite = qa_suite(ctx, version, design, design_version, revision.drop_qa_tests)
+        # Menus: kept, refitted by code to a changed structure, or revised for menu feedback.
+        # A build from before menus existed (L2.5) stays without them.
+        menus = previous.get("menus_version")
+        if menus and changed:
+            menus = ensure_menus(ctx, design, design_version) or menus
+        if menus and revision.menu_changes.strip():
+            menus = next_menus(ctx, n, menus, revision.menu_changes, design, design_version, "G4")
+        suite = qa_suite(ctx, version, design, design_version, revision.drop_qa_tests, menus)
         game_plan = load_plan_at(ctx, design_version)
         levels = previous.get("levels_version")
         changes = {c.level: c.change for c in revision.level_changes if c.change.strip()}
@@ -991,9 +1210,9 @@ def game_step(store, run_id) -> bool:
             levels = None
         names = build_version(
             ctx, version, design, design_version, plan, base, instruction, revision, suite,
-            levels, game_plan, motion,
+            levels, game_plan, motion, menus,
         )
-        open_playtest_gate(ctx, version, names)
+        open_after_build(ctx, version, names)
         return False
 
     # Entering from the G1 follow-ups: the research (when the brief asks for it), the game plan,

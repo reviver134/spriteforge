@@ -23,12 +23,14 @@ from .codegen import GameCode
 from .codeinfo import Module, read_code
 from .design import GameDesign
 from .levels import LevelRecord
+from .menus import ACTIONS, MenuRecord, menus_markdown
 from .motion import MotionRecord, motion_markdown
 from .plan import PlanRecord
 from .qa import SDK_EVENTS, STATE_KEYS, QASuite, Step
 from .qa_runtime import describe_step
 from .research import ResearchRecord
 from .story import StoryBible
+from .structure import GameStructure, structure_markdown
 
 WITHHELD = "withheld from the record: it looked like a credential"
 
@@ -110,6 +112,13 @@ class GameRecord:
     motion: MotionRecord | None = None  # L2.4: the motion design of the current design
     motion_source: str = ""
     motion_gif: bytes | None = None  # the latest build's rows playing
+    structure: GameStructure | None = None  # L2.5: levels in order, carries, saved, win
+    structure_source: str = ""
+    menus: MenuRecord | None = None  # L2.5: the menus as data (the latest build's version)
+    menus_source: str = ""
+    menus_file: bytes | None = None  # menus.json as the SDK loads it (theme in the art's colours)
+    menu_shots: dict[str, bytes] = field(default_factory=dict)  # screen id -> PNG
+    title_art: dict[str, bytes] = field(default_factory=dict)  # "title-art", "emblem" -> PNG
 
     @property
     def latest(self) -> Build | None:
@@ -170,6 +179,12 @@ def game_concept(rec: GameRecord, modules: list[Module]) -> Entry:
         "[Events and state](/design/events.md): what every build emits and exposes",
         "[Entities](/entities/index.md): everything the player sees",
     ]
+    if rec.structure:
+        sections.append("[Structure](/design/structure.md): the levels in order, what carries "
+                        "over and what is saved")  # fmt: skip
+    if rec.menus:
+        sections.append("[Menus](/menus/overview.md): every screen around play, the theme and "
+                        "the title art")  # fmt: skip
     if rec.art:
         sections.append("[Art style](/art/style.md) and [locked assets](/art/assets/index.md)")
     if modules:
@@ -1045,6 +1060,94 @@ Problems:
     return entries, files
 
 
+def structure_concept(rec: GameRecord) -> list[Entry]:
+    """design/structure (L2.5): the levels in order, what carries over and what is saved."""
+    s = rec.structure
+    if s is None:
+        return []
+    links = ", ".join(f"[level {lv.n}](/levels/{lv.n}.md)" for lv in s.levels
+                      if any(r.spec.n == lv.n for r in rec.levels))  # fmt: skip
+    body = structure_markdown(s).replace("# Game structure", "# Structure", 1)
+    if links:
+        body += f"\nLevels as data: {links}\n"
+    if rec.menus:
+        body += "\nThe SDK's flow plays it: see [the menus](/menus/overview.md).\n"
+    return [make_entry("design/structure", "Game Structure", f"{rec.design.title}: structure",
+                       f"{len(s.levels)} level(s); win: {s.win}", ["design", "structure", "levels"],
+                       body, [rec.structure_source])]  # fmt: skip
+
+
+MENUS_SCHEMA = """# Schema
+`/references/menus.json` (window.SF_MENUS, what the SDK's flow loads):
+* `title`, `subtitle`: the title screen's words (the SDK draws all text).
+* `theme`: `panel`, `border`, `text`, `highlight`, `dim` (#RRGGBB, fitted by code to the locked
+  art's measured colours, text contrast checked) and `style` (framed, double, solid).
+* `screens.<id>`: `title`, `subtitle`, `items[]` (`label`, `action`). Screen ids: title, main,
+  pause, settings, controls, credits, level_select, results, game_over, victory.
+* `levels[]`: `n`, `name`, `goal` (the structure); `can_lose`; `controls[]`; `credits[]`;
+  `difficulty` (name -> the multiplier the game reads as sf.settings.multiplier); `art`
+  (`title`, `emblem`: image ids in assets.json, role menu).
+Actions: """ + ", ".join(f"`{a}` ({w})" for a, w in ACTIONS.items()) + "."
+
+
+def menu_concepts(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
+    """menus/overview and menus/<screen> (L2.5): the menus as data, their screenshots and the
+    title art."""
+    m = rec.menus
+    if m is None:
+        return [], {}
+    files, resource = {}, None
+    if rec.menus_file:
+        files["references/menus.json"] = rec.menus_file
+        resource = "/references/menus.json"
+    pictures = ""
+    for part, name in (("title-art", "title"), ("emblem", "emblem")):
+        if part in rec.title_art:
+            files[f"references/art/{name}.png"] = rec.title_art[part]
+            pictures += f"![{part.replace('-', ' ')}](/references/art/{name}.png) "
+    report = (rec.latest.report.get("menus") or {}) if rec.latest else {}
+    art_source = (report.get("title_art") or {}).get("source", "")
+    screens = "\n".join(f"- [{s.id}](/menus/{s.id}.md): " + (", ".join(i.label for i in s.items) or "-")
+                         for s in m.spec.screens)  # fmt: skip
+    body = (
+        f"{pictures}\n\n" if pictures else ""
+    ) + menus_markdown(m.spec, m.notes, m.problems).replace(f"# Menus: {m.spec.title}", "# Menus", 1) + f"""
+# Title art
+{art_source or "(not built yet)"}
+
+# Screens
+{screens}
+
+# Written by
+{m.by}{" (asked again once with code's problems)" if m.retried else ""}; {m.why or "-"}
+
+{MENUS_SCHEMA}
+"""
+    entries = [make_entry("menus/overview", "Menus", f"{rec.design.title}: menus",
+                          f"{len(m.spec.screens)} screens rendered by the SDK; theme "
+                          f"{m.spec.theme.panel} / {m.spec.theme.highlight}",
+                          ["menus", "ui", "title"], body, [rec.menus_source], resource)]  # fmt: skip
+    for s in m.spec.screens:
+        shot = ""
+        if s.id in rec.menu_shots:
+            files[f"references/menus/{s.id}.png"] = rec.menu_shots[s.id]
+            shot = f"![the {s.id} screen](/references/menus/{s.id}.png)\n\n"
+        items = "\n".join(f"{i}. {it.label} ({it.action}: {ACTIONS.get(it.action, '?')})"
+                           for i, it in enumerate(s.items, 1)) or "- (no items)"  # fmt: skip
+        body = f"""{shot}# {s.title or m.spec.title}
+{s.subtitle or ""}
+
+# Items
+{items}
+
+Part of [the menus](/menus/overview.md).
+"""
+        entries.append(make_entry(f"menus/{s.id}", "Menu Screen", f"Menu: {s.id.replace('_', ' ')}",
+                                  f"{len(s.items)} items: " + ", ".join(i.label for i in s.items),
+                                  ["menus", s.id], body, [rec.menus_source], resource))  # fmt: skip
+    return entries, files
+
+
 def bundle(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
     """Every concept and file of a game's record."""
     modules = read_code(rec.code.as_dict()) if rec.code else []
@@ -1052,11 +1155,12 @@ def bundle(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
     code, code_files = code_concepts(rec, modules)
     qa, qa_files, _ = qa_concepts(rec)
     levels, level_files = level_concepts(rec)
+    menus, menu_files = menu_concepts(rec)
     entries = [game_concept(rec, modules), rules_concept(rec), events_concept(rec, modules),
                *entity_concepts(rec), *art, *code, *qa, *build_concepts(rec),
                *decision_concepts(rec), *story_concepts(rec), *research_concepts(rec),
-               *plan_concepts(rec), *levels]  # fmt: skip
-    return entries, art_files | code_files | qa_files | level_files
+               *plan_concepts(rec), *levels, *structure_concept(rec), *menus]  # fmt: skip
+    return entries, art_files | code_files | qa_files | level_files | menu_files
 
 
 def portrait_of(sheet: bytes, frame: tuple[int, int] | None) -> Filled:

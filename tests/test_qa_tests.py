@@ -191,7 +191,7 @@ def test_failures_reach_repair_prompt(tmp_path, budget):
     seen, chat = [], scripted.chat
     scripted.chat = lambda request: (seen.append(request), chat(request))[1]
     cfg = load_config()
-    cfg.game.review = cfg.game.motion = False
+    cfg.game.review = cfg.game.motion = cfg.game.menus = False
     result = make_game("arena", tmp_path / "g", cfg, mock=True, provider=scripted, record=False,
                        log=lambda m: None)  # fmt: skip
     titles = [r.json_schema["title"] for r in seen]

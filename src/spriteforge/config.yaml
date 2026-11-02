@@ -44,6 +44,13 @@ game:
   # frame shows, fps, loop), how the player looks in each form and the effects the SDK plays
   # (sf.fx); Muse draws the rows, code checks and repairs them. false = the design's names.
   motion: true
+  # Menus and flow (L2.5): the Menu Designer writes the menus as data (one Spark call per game;
+  # feedback revises them), the SDK renders them in the art's colours and runs the flow (title,
+  # pause, results, game over, victory, progress saved in the browser); G3 shows every screen
+  # before the playtest. title_art: Muse draws the title background and an emblem (2 image
+  # calls, locked once drawn; false: code draws them from the game's art).
+  menus: true
+  title_art: true
   # (No story switch: the G1 brief decides. A story bible is written only when the human asks
   # for one; every game keeps its full record as an OKF bundle in runs/<id>/game/db.)
   max_code_kb: 200
@@ -92,6 +99,7 @@ llm:
     plan: high # Game Designer writing the game plan from the requirements and research
     level: high # Level/Tile Designer writing each level as data (L2.3)
     motion: medium # Art Director's motion design: rows, forms, effects (L2.4)
+    menus: medium # Menu Designer: the menus as data and their revisions (L2.5)
 research:
   # tools/probe_web_search.py 2026-11-02: Chat Completions rejects {"type": "web_search"}
   # (HTTP 400 "tools[0] did not match any supported type"); the Responses API accepts it.

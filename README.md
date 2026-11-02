@@ -843,3 +843,30 @@ Programmer no longer improvises them. G4 shows every row playing (`motion.gif`),
 Reviewer sees them as filmstrips, and the bundle gains `art/motion`. `game.motion: false`
 returns to the design's animation names. Details and live results: `docs/level-2.md`.
 
+
+# Level 2 / L2.5: structure, flow and menus
+
+A game is now a title, its levels in order and the screens around them. Code derives the
+game's **structure** from the design and the plan (`game/design/vK-structure.json/.md`: the
+levels, what carries over, what is saved, win and lose), shown at G2. At G2 approval the new
+**Menu Designer** writes the **menus as data** (`game/menus/vM.json`, one Spark call): the
+screens (title, main, pause, settings, controls, credits, victory; game over when the game can
+be lost; results and level select with several levels), their labels and actions, a theme and
+what the title art shows. Code fits and checks them (every screen reachable from the title,
+every action known and allowed there, a way out of every screen, every label fitting the
+panel, readable text) and asks once more when it fails. Each build snaps the theme to the
+colours measured from the locked art; Muse Image draws a title background and an emblem in
+the game's style (2 calls, never text, locked once drawn; drawn by code offline).
+
+The SDK (`sfflow.js`) renders and runs it: arrows/WASD and Enter, Escape pauses (game time
+stops) and goes back, digits and the mouse work too; results between levels, game over with
+Retry, victory with Play again; progress (levels unlocked, best results, settings) is saved in
+the browser, `?reset=1` clears it, `?play=1` skips the title. Difficulty is a multiplier the
+game reads (`sf.settings.multiplier`). The bot and the playtests skip the title. QA tests can
+start on the title and use `expect_menu`, `select` (by label or action, with real arrow keys)
+and `reload`. **G3** shows every screen (`menus.png`) and the title art after the first build:
+feedback revises the menus and rebuilds with the same code and art; empty feedback goes on to
+G4, where menu feedback still reaches the Menu Designer (`menu_changes`). The bundle gains
+`design/structure`, `menus/overview` and `menus/<screen>` with their screenshots.
+`game.menus: false` builds without them; `game.title_art: false` lets code draw the title art.
+Details: `docs/level-2.md`.

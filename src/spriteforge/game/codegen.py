@@ -24,6 +24,7 @@ from .design import GameDesign
 
 SDK_API = (Path(__file__).parent / "sdk" / "API.md").read_text(encoding="utf-8")
 LEVELS_API = (Path(__file__).parent / "sdk" / "LEVELS.md").read_text(encoding="utf-8")
+FLOW_API = (Path(__file__).parent / "sdk" / "FLOW.md").read_text(encoding="utf-8")
 MOCK_GAME = Path(__file__).with_name("mock_game.js")
 MOCK_PLATFORMER = Path(__file__).with_name("mock_platformer.js")
 SKILL = Path(__file__).parents[1] / "skills" / "builtin" / "phaser-arcade-physics" / "SKILL.md"
@@ -190,6 +191,8 @@ def assets_summary(manifest: dict) -> str:
             for n, (_, c) in a["anims"].items())  # fmt: skip
         lines.append(f"* sprite `{ident}` ({a['role']}) {a['frame'][0]}x{a['frame'][1]}: {anims}")
     for ident, a in manifest["images"].items():
+        if a.get("role") == "menu":  # the title art: the SDK's menus draw it
+            continue
         extra = f", parallax {a['parallax']:g}" if "parallax" in a else ""
         lines.append(f"* image `{ident}` ({a['role']}) {a['size'][0]}x{a['size'][1]}{extra}")
     if fx := manifest.get("fx"):
@@ -199,6 +202,11 @@ def assets_summary(manifest: dict) -> str:
         lines.append("Forms (the player's look while it holds the ability; the SDK shows it): "
                      + ", ".join(f"{n} ({f['row'] or 'tint ' + f['tint']})" for n, f in forms.items()))
     return "\n".join(lines)
+
+
+def has_menus(manifest: dict) -> bool:
+    """The build has the SDK's menus (L2.5): its manifest carries the title art."""
+    return any(a.get("role") == "menu" for a in manifest.get("images", {}).values())
 
 
 def code_context(design: GameDesign, manifest: dict, levels: str = "") -> str:
@@ -215,7 +223,7 @@ Phaser notes:
 
 SDK reference:
 {SDK_API}
-""" + (f"\n{LEVELS_API}\n" if levels else "") + f"""
+""" + (f"\n{LEVELS_API}\n" if levels else "") + (f"\n{FLOW_API}\n" if has_menus(manifest) else "") + f"""
 Design (JSON):
 {design.model_dump_json(indent=1)}
 
@@ -246,7 +254,18 @@ def level_requirements(design: GameDesign) -> str:
 * No network, no modules, no eval, no URLs, no Date.now/performance.now."""
 
 
-def requirements(design: GameDesign, levels: str = "") -> str:
+FLOW_REQUIREMENT = """
+* The SDK draws the title, menus, pause (Escape), results, game over and victory (see "Menus
+  and flow"): no title scene, menus or pause handling of your own; your first scene starts
+  in play. Multiply enemy speed, damage and spawn rate by sf.settings.multiplier."""
+
+
+def requirements(design: GameDesign, levels: str = "", manifest: dict | None = None) -> str:
+    flow = FLOW_REQUIREMENT if manifest and has_menus(manifest) else ""
+    return requirements_text(design, levels) + flow
+
+
+def requirements_text(design: GameDesign, levels: str = "") -> str:
     if levels:
         return level_requirements(design)
     checks = "\n".join(
@@ -290,7 +309,7 @@ def programmer_prompt(design: GameDesign, manifest: dict, levels: str = "") -> s
 Write the complete game described above. Implement every rule, the progression and the
 difficulty curve of the design exactly; do not add unrelated features.
 
-{requirements(design, levels)}"""
+{requirements(design, levels, manifest)}"""
 
 
 def repair_prompt(
@@ -316,7 +335,7 @@ def repair_prompt(
 The game above was built and playtested by the harness and failed. Fix every problem
 listed, keep everything that works.
 
-{requirements(design, levels)}
+{requirements(design, levels, manifest)}
 
 Problems:
 {failures}
@@ -349,7 +368,7 @@ it, keep every other behaviour and every sf.event that still applies, and keep t
 policy able to trigger all design checks (the design above is already updated if the
 change affected it).
 
-{requirements(design, levels)}
+{requirements(design, levels, manifest)}
 
 Change requested:
 {instruction.strip()}

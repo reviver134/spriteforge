@@ -18,12 +18,14 @@ from spriteforge.game.codegen import GameCode
 from spriteforge.game.dbsource import build_manifest, credits, read_art
 from spriteforge.game.design import GameDesign
 from spriteforge.game.levels import LevelRecord
+from spriteforge.game.menus import SCREENS, MenuRecord
 from spriteforge.game.motion import MotionRecord
 from spriteforge.game.plan import PlanRecord
 from spriteforge.game.qa import QASuite
 from spriteforge.game.research import ResearchRecord
 from spriteforge.game.revision import Revision
 from spriteforge.game.story import StoryBible
+from spriteforge.game.structure import GameStructure
 
 LEGACY_STORY = re.compile(r"game/design/v(\d+)-story\.json")
 STORY = re.compile(r"game/story/v(\d+)-([a-z0-9-]+)\.json")
@@ -32,6 +34,8 @@ DESIGN = re.compile(r"game/design/v(\d+)\.json")
 PLAN = re.compile(r"game/plan/v(\d+)\.json")
 MOTION = re.compile(r"game/design/v(\d+)-motion\.json")
 LEVELS = re.compile(r"game/levels/v(\d+)/levels\.json")
+MENUS = re.compile(r"game/menus/v(\d+)\.json")
+STRUCTURE = re.compile(r"game/design/v(\d+)-structure\.json")
 RESEARCH = "game/research.json"
 
 
@@ -73,7 +77,8 @@ def gate_revision(ctx, n: int, version: int | None = None) -> Revision | None:
 
 
 def decisions(ctx) -> list[Decision]:
-    """The human's decisions: the G1 brief, then every answered design and playtest gate."""
+    """The human's decisions: the G1 brief, then every answered design, menus and playtest
+    gate."""
     brief = ctx.brief
     out = [Decision(
         gate="G1 brief", outcome="approved", words="\n".join(n for n in brief.notes if n.strip()),
@@ -82,9 +87,19 @@ def decisions(ctx) -> list[Decision]:
                    else "no research"),
     )]  # fmt: skip
     for n, g in enumerate(Gates(ctx.store).all(ctx.run_id), 1):
-        if g.response is None or g.stage not in {"design", "playtest"}:
+        if g.response is None or g.stage not in {"design", "menus", "playtest"}:
             continue
         words = (g.response.text or "").strip()
+        if g.stage == "menus":
+            v = shown(ctx, g, REPORT) or 1
+            gate = f"G3 menus (build v{v})"
+            if g.status == "approved":
+                out.append(Decision(gate, "approved", words, f"the menus of build v{v} approved: "
+                                    "its playtest (G4) follows", v))  # fmt: skip
+            else:
+                out.append(Decision(gate, "changes requested", words, "the menus revised: build "
+                                    f"v{v + 1} with the same code and art", v + 1, True))  # fmt: skip
+            continue
         added = story_for_trigger(ctx.artifacts, f"gate-{n}")
         if g.stage == "design":
             k = shown(ctx, g, DESIGN) or 1
@@ -116,6 +131,7 @@ def decisions(ctx) -> list[Decision]:
                 "QA tests dropped: " + ", ".join(rev.drop_qa_tests)
                 if rev and rev.drop_qa_tests else "",
                 f"story: {rev.story_changes}" if rev and rev.story_changes else "",
+                f"menus: {rev.menu_changes}" if rev and rev.menu_changes else "",
             ]  # fmt: skip
             changed = "; ".join(p for p in parts if p) or "a new build"
             out.append(Decision(gate, "changes requested", words, changed, v + 1, True))
@@ -149,6 +165,14 @@ def run_record(ctx, pending: tuple[int, dict] | None = None) -> GameRecord:
                         {k2: x for k2, x in r.items() if k2 != "game_db"})
                   for v, r in sorted(reports.items())]  # fmt: skip
     rec.decisions = decisions(ctx)
+    structures = sorted(int(m[1]) for n in names if (m := STRUCTURE.fullmatch(n)) and int(m[1]) <= k)
+    if structures:
+        name = f"game/design/v{structures[-1]}-structure.json"
+        rec.structure, rec.structure_source = GameStructure.model_validate(ctx.read(name)), name
+    menus_built = rec.builds[-1].report.get("menus_version") if rec.builds else None
+    if menu_set := menus_built or latest_version(names, MENUS):
+        name = f"game/menus/v{menu_set}.json"
+        rec.menus, rec.menus_source = MenuRecord.model_validate(ctx.read(name)), name
     built = rec.builds[-1].report.get("levels_version") if rec.builds else None
     if level_set := built or latest_version(names, LEVELS):
         index = ctx.read(f"game/levels/v{level_set}/levels.json")
@@ -180,6 +204,13 @@ def run_record(ctx, pending: tuple[int, dict] | None = None) -> GameRecord:
         rec.qa = QASuite.model_validate(ctx.read(f"{prefix}/qa-tests.json"))
     if f"{prefix}/test_game_qa.py" in names:
         rec.qa_export = ctx.data(f"{prefix}/test_game_qa.py")
+    if report.get("menus_version"):
+        rec.menu_shots = {sid: ctx.data(f"{prefix}/menus/{sid}.png") for sid in SCREENS
+                          if f"{prefix}/menus/{sid}.png" in names}  # fmt: skip
+        rec.title_art = {part: ctx.data(f"{prefix}/menus/{part}.png") for part in ("title-art", "emblem")
+                         if f"{prefix}/menus/{part}.png" in names}  # fmt: skip
+        if (build / "menus.json").exists():
+            rec.menus_file = (build / "menus.json").read_bytes()
     if rec.levels and report.get("levels_version"):
         played = {lv["n"]: lv for lv in report.get("levels", [])}
         data = {}

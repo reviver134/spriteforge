@@ -266,9 +266,15 @@ def test_make_game_offline_end_to_end(tmp_path):
         "consistency", "readability", "perspective", "scale", "palette"}  # fmt: skip
     assert {"sheet.png", "sheet-4x.png", "shot-1.png", "shot-2.png", "shot-3.png"} <= {
         p.name for p in (out / "review").iterdir()}  # fmt: skip
-    # design, QA, motion, art plan, code, review (no story)
-    assert result.report["model_calls"]["chat"] == 6
+    # design, menus, QA, motion, art plan, code, review (no story)
+    assert result.report["model_calls"]["chat"] == 7
     assert result.report["qa"]["failed"] == 0 and result.report["qa"]["passed"] >= 5
+    # The menus (L2.5): every screen shot, the title art drawn by code offline (no image call).
+    menus = result.report["menus"]
+    assert menus["errors"] == [] and "menus/pause.png" in menus["screens"]
+    assert menus["title_art"]["source"].startswith("code-drawn") and (out / "menus.png").is_file()
+    assert {"title to play, pause and resume", "game over and retry"} <= {
+        t["name"] for t in result.report["qa"]["tests"]}  # fmt: skip
 
 
 def test_repair_loop_feeds_failures_back(tmp_path, budget):
@@ -300,6 +306,7 @@ def test_repair_loop_feeds_failures_back(tmp_path, budget):
     cfg.game.review = False  # scripted answers cover the Programmer only (review: test_art_review)
     cfg.game.qa = False  # (QA tests: test_qa_tests)
     cfg.game.motion = False  # (motion design: test_motion)
+    cfg.game.menus = False  # (menus: test_menus)
     result = make_game(
         "arena",
         tmp_path / "g",
@@ -335,6 +342,7 @@ def test_playtest_reports_missing_events(tmp_path, budget):
     )
     cfg = load_config()
     cfg.game.max_repairs, cfg.game.review, cfg.game.qa, cfg.game.motion = 1, False, False, False
+    cfg.game.menus = False
     result = make_game(
         "arena", tmp_path / "g", cfg, mock=True, provider=scripted, record=False, log=lambda m: None
     )

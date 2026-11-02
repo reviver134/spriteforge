@@ -436,11 +436,21 @@ def test_a_mechanic_that_does_not_work_gets_the_bot_stuck(tmp_path):
 def answer(store, ident, **kwargs):
     ScriptedHuman([Feedback(action="approve", **kwargs)]).answer(Gates(store), ident)
     workflow_step(store, ident)
+    through_menus(store, ident)
+
+
+def through_menus(store, ident):
+    """G3 (the menus, L2.5) opens before the first G4: approve it (tested in test_game_flow)."""
+    gate = Gates(store).pending(ident)
+    if gate is not None and gate.stage == "menus":
+        ScriptedHuman([Feedback(action="submit", text="")]).answer(Gates(store), ident)
+        workflow_step(store, ident)
 
 
 def submit(store, ident, text="", form=None):
     ScriptedHuman([Feedback(action="submit", text=text, form=form or {})]).answer(Gates(store), ident)
     workflow_step(store, ident)
+    through_menus(store, ident)
 
 
 def read(store, ident, name):

@@ -101,6 +101,11 @@ class GameConfig(Schema):
     # them (and earlier versions' tests) with real key presses after the bot playtest.
     qa: bool = True
     motion: bool = True  # the Art Director's motion design: rows, forms, effects (L2.4)
+    # Menus and flow (L2.5): the Menu Designer's screens rendered by the SDK (title, pause,
+    # results, game over, victory, saved progress) and G3; title_art: Muse draws the title
+    # background and emblem (2 image calls; false or offline: code draws them).
+    menus: bool = True
+    title_art: bool = True
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)

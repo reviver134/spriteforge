@@ -43,13 +43,18 @@ class Revision(Contract):
         description="changes to one level's layout (gaps, platforms, enemies, crates, length, "
         "difficulty of that level); [] if none"
     )
+    menu_changes: str = Field(
+        description="changes to the menus or the title screen (labels, colours, the title "
+        "picture, screens): what they want, in their words; ''"
+    )
 
     @model_validator(mode="before")
     @classmethod
     def older(cls, data):
-        """Revisions saved before QA tests, stories or levels existed lack those fields."""
+        """Revisions saved before QA tests, stories, levels or menus existed lack those fields."""
         if isinstance(data, dict):
-            data = {"drop_qa_tests": [], "story_changes": "", "level_changes": [], **data}
+            data = {"drop_qa_tests": [], "story_changes": "", "level_changes": [],
+                    "menu_changes": "", **data}  # fmt: skip
         return data
 
     @property
@@ -61,6 +66,7 @@ class Revision(Contract):
             or self.code_instructions.strip()
             or self.drop_qa_tests
             or self.level_changes
+            or self.menu_changes.strip()
         )
 
 
@@ -81,7 +87,9 @@ def revision_prompt(
         "story_changes (only when they ask for a story, named characters, a plot or lore, or "
         "for changes to the story: their words), and level_changes (feedback about one level's "
         "layout: its gaps, platforms, enemies, crates, length or difficulty, with the level "
-        "number). Leave a part empty when the feedback does not touch it; do not invent "
+        "number), and menu_changes (the title screen, menus, pause or game-over screens: "
+        "labels, colours, the title picture; the SDK draws them from data, so they are not "
+        "code). Leave a part empty when the feedback does not touch it; do not invent "
         "changes.\n\n"
         f"Feedback:\n{feedback.strip()}\n\nDesign:\n{design.model_dump_json()}\n\n"
         f"Current art sources:\n{sources}"
@@ -126,11 +134,15 @@ def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = (
     text = feedback.lower()
     if STORY_ASK.search(text):
         return Revision(design_changes="", art_changes=[], code_instructions="",
-                        drop_qa_tests=[], story_changes=feedback.strip(), level_changes=[])  # fmt: skip
+                        drop_qa_tests=[], story_changes=feedback.strip(), level_changes=[],
+                        menu_changes="")  # fmt: skip
+    if MENU_ASK.search(text):
+        return Revision(design_changes="", art_changes=[], code_instructions="", drop_qa_tests=[],
+                        story_changes="", level_changes=[], menu_changes=feedback.strip())  # fmt: skip
     if levels := sorted({int(n) for n in LEVEL_ASK.findall(text)}):
         return Revision(design_changes="", art_changes=[], code_instructions="", drop_qa_tests=[],
                         story_changes="", level_changes=[LevelChange(level=n, change=feedback.strip())
-                                                         for n in levels])  # fmt: skip
+                                                         for n in levels], menu_changes="")  # fmt: skip
     changes = [
         ArtChange(entity=e.id, prompt=f"{e.look}; {feedback.strip()}")
         for e in design.entities
@@ -144,10 +156,13 @@ def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = (
         drop_qa_tests=drops,
         story_changes="",
         level_changes=[],
+        menu_changes="",
     )
 
 
 # "add a story", "give it a plot", "the story should ...": the offline Director's story cue.
 STORY_ASK = re.compile(r"\b(stor(y|ies|yline)|plot|lore|backstor(y|ies)|narrative)\b")
+# "the menus should be red", "a darker title screen": the offline Director's menu cue.
+MENU_ASK = re.compile(r"\b(menus?|title screen|title art|pause screen|game over screen|emblem)\b")
 # "level 2 is too long", "make level 3 harder": the offline Director's level cue.
 LEVEL_ASK = re.compile(r"\blevel\s+(\d)\b")

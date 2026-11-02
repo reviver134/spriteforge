@@ -12,11 +12,15 @@ from pathlib import Path
 from .bundle import ArtInfo, Build, Decision, GameRecord, art_info, portrait_of
 from .codegen import CodeFile, GameCode
 from .design import GameDesign
+from .menus import SCREENS, MenuRecord
 from .motion import MotionRecord
 from .qa import QASuite, QATests
 from .story import StoryBible
+from .structure import GameStructure
 
-SDK_SCRIPTS = {"phaser.min.js", "sf.js", "assets.js"}
+# The SDK's own scripts (levels and menus as data with their engines), not the game's code.
+SDK_SCRIPTS = {"phaser.min.js", "sf.js", "assets.js", "levels.js", "sflevel.js", "menus.js",
+               "sfflow.js"}
 
 
 def build_manifest(build: Path) -> dict:
@@ -103,6 +107,16 @@ def folder_record(out: Path, request: str | None = None) -> GameRecord:
     if motion := load(out / "motion.json"):
         rec.motion, rec.motion_source = MotionRecord.model_validate(motion), "motion.json"
         rec.motion_gif = (out / "motion.gif").read_bytes() if (out / "motion.gif").is_file() else None
+    if structure := load(out / "structure.json"):
+        rec.structure, rec.structure_source = GameStructure.model_validate(structure), "structure.json"
+    if menus := load(out / "menus.json"):
+        rec.menus, rec.menus_source = MenuRecord.model_validate(menus), "menus.json"
+        rec.menu_shots = {sid: (out / "menus" / f"{sid}.png").read_bytes() for sid in SCREENS
+                          if (out / "menus" / f"{sid}.png").is_file()}  # fmt: skip
+        rec.title_art = {part: (out / "menus" / f"{part}.png").read_bytes()
+                         for part in ("title-art", "emblem") if (out / "menus" / f"{part}.png").is_file()}  # fmt: skip
+        if (build / "menus.json").is_file():
+            rec.menus_file = (build / "menus.json").read_bytes()
     code = load(out / "code.json")
     rec.code = GameCode.model_validate(code) if code else build_code(build)
     tests = load(out / "qa-tests.json")

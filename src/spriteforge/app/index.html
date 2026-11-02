@@ -184,7 +184,7 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  if(g.changes){for(const c of g.changes.requests){const p=document.createElement('p');
  p.textContent='Target: '+JSON.stringify(c.target)+' | '+c.instruction+' | '+c.severity+' | '+c.scope+' | Regenerate: '+c.needs_regen;
  $('change-requests').append(p);}}
- $('request-changes').hidden=g.kind==='confirm_changes'||(d.run.config.workflow==='intake-concept-v1'&&!['concept','assets','gameplay','design','playtest'].includes(g.stage));$('tags').hidden=g.kind==='confirm_changes';
+ $('request-changes').hidden=g.kind==='confirm_changes'||(d.run.config.workflow==='intake-concept-v1'&&!['concept','assets','gameplay','design','menus','playtest'].includes(g.stage));$('tags').hidden=g.kind==='confirm_changes';
  const single=!!g.empty_feedback_approves;$('feedback-hint').hidden=!single;$('submit-feedback').hidden=!single;$('approve').hidden=single;if(single)$('request-changes').hidden=true;
  const label=()=>{const story=$('custom-fields').querySelector('[name="story"]');$('submit-feedback').textContent=$('feedback-text').value.trim()?'Send feedback (make a new version)':(story&&story.value==='Add a story'?'Add a story (then review it here)':'Approve (no feedback)');};$('feedback-text').oninput=label;label();
  $('custom-fields').replaceChildren();

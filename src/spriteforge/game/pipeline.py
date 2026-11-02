@@ -29,6 +29,8 @@ Muse Image calls run in parallel (`game.image_workers`, one provider per thread)
 requests are cached in `<workspace>/cache/muse-image` (`game.image_cache`).
 """
 
+import base64
+import io
 import json
 import shutil
 import threading
@@ -37,6 +39,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from PIL import Image, ImageDraw
+from playwright.sync_api import sync_playwright
 from pydantic import ValidationError
 
 from spriteforge.agents.roles import load_roles
@@ -95,6 +99,20 @@ from .design import GameDesign, design_markdown, design_prompt, fallback_design
 from .gamedb import open_db, sync_record
 from .image_cache import ImageCache
 from .level_gen import fallback_level
+from .menus import (
+    MenuRecord,
+    MenuSpec,
+    art_colours,
+    checked,
+    fallback_menu,
+    fit_theme,
+    menu_prompt,
+    menu_revision_prompt,
+    menus_markdown,
+    menus_script,
+    offline_revision,
+)
+from .menus import retry_prompt as menu_retry_prompt
 from .levels import (
     SDK_EVENTS,
     LevelRecord,
@@ -141,7 +159,7 @@ from .qa import (
     without_pictures,
     write_export,
 )
-from .record import record_game
+from .record import READY, record_game, serve, wait_until
 from .research import (
     Research,
     ResearchRecord,
@@ -150,6 +168,8 @@ from .research import (
     research_prompt,
     structure_prompt,
 )
+from .structure import GameStructure, make_structure, structure_markdown
+from .title_art import TitleArt, make_title_art, manifest_images
 from .story import (
     StoryBible,
     fallback_story,
@@ -458,12 +478,14 @@ def revise_story(
     return fit_story(revised, design)
 
 
-def write_qa_tests(models: Models, design: GameDesign) -> tuple[QATests, str]:
-    """The QA Playtester's tests for a design, and a note when the offline tests stood in (an
-    answer that broke the limits twice, or a failed call: QA is a check, the build goes on)."""
-    fallback = fallback_qa(design)
+def write_qa_tests(models: Models, design: GameDesign,
+                   menus: dict | None = None) -> tuple[QATests, str]:  # fmt: skip
+    """The QA Playtester's tests for a design (and its menus, `menus_script`), and a note when
+    the offline tests stood in (an answer that broke the limits twice, or a failed call: QA is
+    a check, the build goes on)."""
+    fallback = fallback_qa(design, menus)
     try:
-        return models.ask("QA Playtester", qa_prompt(design), QATests, fallback, "qa"), ""
+        return models.ask("QA Playtester", qa_prompt(design, menus), QATests, fallback, "qa"), ""
     except Exception as exc:  # noqa: BLE001
         first = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
         note = (
@@ -471,6 +493,143 @@ def write_qa_tests(models: Models, design: GameDesign) -> tuple[QATests, str]:
             "the offline tests ran instead"
         )
         return fallback, note
+
+
+# --- menus and flow (L2.5) ----------------------------------------------------------------------
+
+
+def write_menus(models: Models, design: GameDesign, structure: GameStructure, context: str = "",
+                why: str = "") -> MenuRecord:  # fmt: skip
+    """The Menu Designer's menus, fitted and checked by code; problems go back once."""
+    prompt = menu_prompt(design, structure, context)
+    offline = fallback_menu(design, structure)
+    spec = models.ask("Menu Designer", prompt, MenuSpec, offline, "menus")
+    record = checked(spec, structure, design, models.name, why=why)
+    if not record.problems:
+        return record
+    again = models.ask("Menu Designer", menu_retry_prompt(prompt, record.problems), MenuSpec,
+                       record.spec, "menus")  # fmt: skip
+    second = checked(again, structure, design, models.name, True, record.notes, why)
+    return second if len(second.problems) <= len(record.problems) else record
+
+
+def revise_menus(models: Models, record: MenuRecord, feedback: str, design: GameDesign,
+                 structure: GameStructure, why: str = "") -> MenuRecord:  # fmt: skip
+    """The menus revised for the human's words (the offline stand-in takes a colour they name)."""
+    prompt = menu_revision_prompt(record.spec, feedback, design, structure)
+    spec = models.ask("Menu Designer", prompt, MenuSpec, offline_revision(record.spec, feedback),
+                      "menus")  # fmt: skip
+    revised = checked(spec, structure, design, models.name, why=why)
+    if not revised.problems:
+        return revised
+    again = models.ask("Menu Designer", menu_retry_prompt(prompt, revised.problems), MenuSpec,
+                       revised.spec, "menus")  # fmt: skip
+    second = checked(again, structure, design, models.name, True, revised.notes, why)
+    return second if len(second.problems) <= len(revised.problems) else revised
+
+
+@dataclass
+class MenuPack:
+    """A build's menus: the record's spec with the theme in the art's colours, the title art,
+    and what the build loads (window.SF_MENUS, the title art's images)."""
+
+    record: MenuRecord
+    spec: MenuSpec  # the theme fitted to the art
+    title_art: TitleArt
+    script: dict
+    images: dict  # assets.json image entries (role "menu")
+    files: dict[str, bytes]
+    notes: list[str]
+
+    def assets(self, art: ArtResult) -> tuple[dict, dict[str, bytes]]:
+        return game_assets(art, self)
+
+
+def game_assets(art: ArtResult, menus: "MenuPack | None") -> tuple[dict, dict[str, bytes]]:
+    """The build's assets.json and asset files: the art's, plus the title art with menus."""
+    manifest, files = art.manifest(), art.files()
+    if menus:
+        manifest["images"] = {**manifest["images"], **menus.images}
+        files = {**files, **menus.files}
+    return manifest, files
+
+
+def menu_pack(models: Models, record: MenuRecord, design: GameDesign, art: ArtResult, cfg: Config,
+              previous: TitleArt | None = None) -> MenuPack:  # fmt: skip
+    """The menus as a build uses them: the theme snapped to the colours measured from the
+    locked art (contrast repaired), the title art (Muse in the art's style, locked once
+    drawn; code-drawn offline or when Muse fails), the script the SDK loads."""
+    theme, notes = fit_theme(record.spec.theme, art_colours([f.png for f in art.filled.values()]))
+    spec = record.spec.model_copy(update={"theme": theme})
+    generate, close, cache = None, lambda: None, None
+    if cfg.game.title_art and (not models.mock or models.images is not None):
+        generate, close = models.image_generator()
+        cache = models.image_cache()
+    try:
+        title = make_title_art(spec, design, art, generate, cache, previous)
+    finally:
+        close()
+    if not cfg.game.title_art:
+        title.source = "code-drawn: game.title_art is off"
+    images, files = manifest_images(title)
+    script = menus_script(spec, record.structure, design, art.credits,
+                          {"title": "sf_title_art", "emblem": "sf_emblem"})  # fmt: skip
+    return MenuPack(record, spec, title, script, images, files, notes + title.notes)
+
+
+SCREEN_SHOT_ORDER = ("title", "main", "level_select", "settings", "controls", "credits", "pause",
+                     "results", "game_over", "victory")  # fmt: skip
+
+
+def menu_shots(build_dir: Path, script: dict, fps: int = 30) -> tuple[dict[str, bytes], list[str]]:
+    """Every screen of the build's menus as the player sees it (PNG at game size), and errors.
+    Screens over play are taken a second into level 1."""
+    shots, errors = {}, []
+    screens = [s for s in SCREEN_SHOT_ORDER if s in script["screens"]]
+    with serve(Path(build_dir)) as url, sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        try:
+            page = browser.new_page(viewport={"width": 320, "height": 180})
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(f"{url}/index.html?headless=1&reset=1&god=1")
+            if not wait_until(page, READY):
+                return {}, ["the build never finished booting"]
+            for sid in screens:
+                if sid in {"pause", "results", "game_over", "victory"}:
+                    if page.evaluate("window.sf.flow.state") == "title":
+                        page.evaluate("window.sf.flow.newGame(1)")
+                        page.evaluate(f"window.sfRun(1, {fps}, true)")
+                    page.evaluate(f"window.sf.flow.preview({json.dumps(sid)})")
+                else:
+                    if page.evaluate("window.sf.flow.state") != "title":
+                        page.evaluate("window.sf.flow.toTitle()")
+                        page.evaluate(f"window.sfRun(0.2, {fps}, true)")
+                    page.evaluate(f"window.sf.flow.preview({json.dumps(sid)})")
+                data = page.evaluate(f"window.sfShot({fps})")
+                shots[sid] = base64.b64decode(data.split(",", 1)[1])
+            errors += page.evaluate("window.sf.errors")
+        finally:
+            browser.close()
+    return shots, list(dict.fromkeys(errors))[:10]
+
+
+def menu_sheet(shots: dict[str, bytes]) -> bytes | None:
+    """Every screen on one sheet (two columns, each with its name)."""
+    if not shots:
+        return None
+    images = [(sid, Image.open(io.BytesIO(data)).convert("RGB")) for sid, data in shots.items()]
+    w, h = images[0][1].size
+    cols, label = 2, 14
+    rows = (len(images) + cols - 1) // cols
+    sheet = Image.new("RGB", (cols * (w + 8) + 8, rows * (h + label + 8) + 8), "#1b1d27")
+    draw = ImageDraw.Draw(sheet)
+    for i, (sid, img) in enumerate(images):
+        x, y = 8 + (i % cols) * (w + 8), 8 + (i // cols) * (h + label + 8)
+        draw.text((x, y), sid.replace("_", " "), fill="#e8e8f0")
+        sheet.paste(img, (x, y + label))
+    out = io.BytesIO()
+    sheet.save(out, "PNG")
+    return out.getvalue()
 
 
 def plan_art(models: Models, design: GameDesign, motion: MotionRecord | None = None) -> ArtPlan:
@@ -690,11 +849,12 @@ def build_and_test(
     log: Callable[[str], None] = print,
     qa: list[QATest] | None = None,
     levels: LevelPack | None = None,
+    menus: MenuPack | None = None,
 ) -> BuildOutcome:
     """Static checks, build, playtest with the bot (each level on its own for a game with
     levels as data), then the QA tests (real key presses); failures of either go back to the
-    Programmer (bounded)."""
-    manifest = art.manifest()
+    Programmer (bounded). `menus`: the SDK's menus and flow go into every build."""
+    manifest, images = game_assets(art, menus)
     asset_ids = set(manifest["sprites"]) | set(manifest["images"])
     attempts, report, build_dir, shots, qa_results = [], {}, None, [], []
     best = None  # (rank, attempt index, code, report, shots, qa results)
@@ -702,8 +862,9 @@ def build_and_test(
 
     def build(files: GameCode) -> Path:
         return build_game(out / "build", title=design.title, controls=design.controls,
-                          files=files.as_dict(), assets=manifest, images=art.files(),
-                          credits=art.credits, levels=levels.script if levels else None)  # fmt: skip
+                          files=files.as_dict(), assets=manifest, images=images,
+                          credits=art.credits, levels=levels.script if levels else None,
+                          menus=menus.script if menus else None)  # fmt: skip
 
     for n in range(cfg.game.max_repairs + 1):
         folder = out / "attempts" / str(n + 1)
@@ -783,17 +944,19 @@ def play(build_dir: Path, design: GameDesign, cfg: Config, levels: "LevelPack | 
 
 
 def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out: Path,
-           levels: "LevelPack | None" = None):  # fmt: skip
+           levels: "LevelPack | None" = None, menus: "MenuPack | None" = None):  # fmt: skip
     """Build the same code with other art and play the session again: (build, report)."""
+    manifest, images = game_assets(art, menus)
     build_dir = build_game(
         out / "build",
         title=design.title,
         controls=design.controls,
         files=code.as_dict(),
-        assets=art.manifest(),
-        images=art.files(),
+        assets=manifest,
+        images=images,
         credits=art.credits,
         levels=levels.script if levels else None,
+        menus=menus.script if menus else None,
     )
     result = play(build_dir, design, cfg, levels)
     return build_dir, {"stage": "playtest", **result}
@@ -821,6 +984,7 @@ def review_art(
     version: int = 1,
     qa: list[QATest] | None = None,
     levels: LevelPack | None = None,
+    menus: MenuPack | None = None,
 ) -> Reviewed:
     """The Art Reviewer looks at all the art together and in the running game, blocking
     issues are fixed once (capped), and the same code is played again with the fixed art (and
@@ -881,7 +1045,7 @@ def review_art(
         fixed_art = replace(art, filled=filled, credits=credits,
                             picks=art.picks | {fx.entity: fx.pick for fx in kept})  # fmt: skip
         log("  playing the game again with the fixed art")
-        build_dir, report = replay(design, fixed_art, outcome.code, cfg, out, levels)
+        build_dir, report = replay(design, fixed_art, outcome.code, cfg, out, levels, menus)
         replayed = {"passed": report["passed"], "reverted": False}
         new_qa = (
             run_qa(build_dir, qa, cfg.game.playtest_fps)
@@ -896,7 +1060,7 @@ def review_art(
             failed = sum(not r["passed"] for r in new_qa)
             replayed["qa"] = {"passed": len(new_qa) - failed, "failed": failed}
         if (outcome.report["passed"] and not report["passed"]) or broke:
-            replay(design, art, outcome.code, cfg, out, levels)  # back to the art that passed
+            replay(design, art, outcome.code, cfg, out, levels, menus)  # back to the art that passed
             replayed["reverted"] = True
             if outcome.report["passed"] and not report["passed"]:
                 why = "reverted: the game failed its playtest with the new art"
@@ -995,6 +1159,42 @@ def save_qa(out: Path, outcome: BuildOutcome, tests: list[QATest], fps: int, not
     return report
 
 
+def menus_report(menus: MenuPack, shots: list[str], errors: list[str], prefix: str = "") -> dict:
+    """report.json "menus": the screens shot, the title art and what code repaired."""
+    return {
+        "screens": [f"{prefix}menus/{sid}.png" for sid in shots],
+        "sheet": f"{prefix}menus.png" if shots else None,
+        "title_art": {**menus.title_art.record(), "title": f"{prefix}menus/title-art.png",
+                      "emblem": f"{prefix}menus/emblem.png"},
+        "theme": menus.spec.theme.model_dump(),
+        "notes": menus.notes,
+        "problems": menus.record.problems,
+        "errors": errors,
+    }  # fmt: skip
+
+
+def menu_files(menus: MenuPack, build: Path, fps: int) -> tuple[dict[str, bytes], list[str], list[str]]:
+    """menus/<screen>.png, menus.png, the title art (and Muse's raw pictures): the files a
+    build's menus leave, with the screens shot and the errors seen."""
+    shots, errors = menu_shots(build, menus.script, fps)
+    files = {f"menus/{sid}.png": data for sid, data in shots.items()}
+    if sheet := menu_sheet(shots):
+        files["menus.png"] = sheet
+    files["menus/title-art.png"] = menus.title_art.title
+    files["menus/emblem.png"] = menus.title_art.emblem
+    files |= {f"menus/{part}-raw.png": data for part, data in menus.title_art.raw.items()}
+    return files, list(shots), errors
+
+
+def save_menus(out: Path, menus: MenuPack, build: Path, fps: int) -> dict:
+    files, shots, errors = menu_files(menus, build, fps)
+    for name, data in files.items():
+        (out / name).parent.mkdir(parents=True, exist_ok=True)
+        (out / name).write_bytes(data)
+    save_json(out / "menus" / "title-art.json", menus.title_art.record())
+    return menus_report(menus, shots, errors)
+
+
 def save_art(out: Path, art: ArtResult) -> None:
     save_json(out / "art.json", art_summary(art))
     if sheet := art_sheet(art.filled):
@@ -1057,10 +1257,23 @@ def make_game(
         save_json(out / "story.json", bible.model_dump())
         (out / "story.md").write_text(story_markdown(bible), encoding="utf-8")
         log(f"  {bible.logline} ({len(bible.characters)} characters)")
+    structure = make_structure(design, None, False)
+    save_json(out / "structure.json", structure.model_dump())
+    (out / "structure.md").write_text(structure_markdown(structure), encoding="utf-8")
+    menus_record = None
+    if cfg.game.menus:
+        log("menus: Menu Designer is writing the menus")
+        menus_record = write_menus(models, design, structure, why="written from the design")
+        save_json(out / "menus.json", menus_record.model_dump())
+        (out / "menus.md").write_text(menus_markdown(menus_record.spec, menus_record.notes,
+                                                     menus_record.problems), encoding="utf-8")  # fmt: skip
+        log(f"  {len(menus_record.spec.screens)} screens"
+            + (f", {len(menus_record.problems)} problem(s) code could not fix" if menus_record.problems else ""))
     qa_tests, qa_note = None, ""
     if cfg.game.qa:
         log("qa: QA Playtester is writing tests from the design")
-        qa_tests, qa_note = write_qa_tests(models, design)
+        flow = menus_script(menus_record.spec, structure, design) if menus_record else None
+        qa_tests, qa_note = write_qa_tests(models, design, flow)
         save_json(out / "qa-tests.json", qa_tests.model_dump())
         log(f"  {len(qa_tests.tests)} QA tests" + (f" ({qa_note})" if qa_note else ""))
 
@@ -1083,15 +1296,20 @@ def make_game(
     for eid, f in art.filled.items():
         log(f"  {eid}: {f.source}")
 
+    menus = None
+    if menus_record:
+        log("menus: the title art (Muse Image in the game's style, else drawn by code)")
+        menus = menu_pack(models, menus_record, design, art, cfg)
+        log(f"  title art: {menus.title_art.source}")
     log("code: Programmer is writing the game")
-    code = write_code(models, design, art.manifest())
+    code = write_code(models, design, game_assets(art, menus)[0])
     outcome = build_and_test(models, design, art, code, cfg, out, log,
-                             qa_tests.tests if qa_tests else None)  # fmt: skip
+                             qa_tests.tests if qa_tests else None, menus=menus)  # fmt: skip
     review = None
     if cfg.game.review and outcome.build:
         log("review: Art Reviewer is looking at the art in the running game")
         review = review_art(models, design, plan, art, outcome, cfg, out, log,
-                            qa=qa_tests.tests if qa_tests else None)  # fmt: skip
+                            qa=qa_tests.tests if qa_tests else None, menus=menus)  # fmt: skip
         art, outcome = review.art, review.outcome
         save_json(out / "art-review.json", review.answer.model_dump())
         for name, data in review.images.items():
@@ -1112,6 +1330,10 @@ def make_game(
     save_json(out / "code.json", outcome.code.model_dump())
     for name, data in motion_previews(art).items():
         (out / name).write_bytes(data)
+    menu_report = None
+    if menus and outcome.build:
+        log("menus: a screenshot of every screen")
+        menu_report = save_menus(out, menus, outcome.build, cfg.game.playtest_fps)
 
     recording = None
     if outcome.build and record:
@@ -1133,6 +1355,7 @@ def make_game(
         "qa": qa,
         "story": bool(story),
         "motion": motion_report(art) if motion else None,
+        "menus": menu_report,
         "recording": recording.summary if recording else None,
         "model_calls": call_summary(store, run.id),
     }

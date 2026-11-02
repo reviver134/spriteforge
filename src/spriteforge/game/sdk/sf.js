@@ -1,10 +1,12 @@
 /* SpriteForge game SDK: generic helpers that generated Phaser 3 games are written against.
    It is not a game: it boots Phaser, loads the build's art, reads input (keyboard or the game's
    own autoplay bot), and exposes the hooks the harness uses to test and record a build:
-   window.sf.{ready, errors, events, counts, state, menu}, window.sfCapture(frames, fps),
+   window.sf.{ready, errors, events, counts, state, menu, settings}, window.sfCapture(frames, fps),
    window.sfRun(seconds, fps, keepGoing) and window.sfShot(fps). QA tests press real keys while
    the harness steps frames (tools/probe_keys.py: Playwright key presses reach sf.input and
-   sf.choose). The model-facing reference is API.md. */
+   sf.choose). The model-facing reference is API.md. A build with menus (L2.5) also loads
+   sfflow.js: the title, menus, pause, results, game over and victory screens and the saved
+   progress; while it pauses the game, sf.paused stops the game clock. */
 (function () {
   'use strict';
   const params = new URLSearchParams(location.search);
@@ -17,7 +19,10 @@
   const sf = (window.sf = {
     ready: false, errors: [], events: [], counts: {}, state: {}, flags, menu: null,
     assets: {screen: [320, 180], scale: 1, background: '#0b0c14', sprites: {}, images: {}},
-    game: null, clock: {now: 0},
+    game: null, clock: {now: 0}, paused: false,
+    // Settings the player picks in the menus (sfflow.js); the game multiplies enemy speed,
+    // damage and spawn rate by `multiplier` (easy 0.75, normal 1, hard 1.35).
+    settings: {difficulty: 'normal', multiplier: 1, fewerFlashes: false},
   });
   const MAX_EVENTS = 400, MAX_TIMES = 300, ONCE = new Set(['attack', 'death', 'die', 'break', 'hurt', 'hit', 'jump', 'land', 'transform']);
 
@@ -51,6 +56,7 @@
   sf.screen = () => [sf.game.config.width, sf.game.config.height];
   const timers = [];  // SDK-owned delayed actions (autoplay menu picks) on the game clock
   function tick(delta) {
+    if (sf.paused) return;  // a menu paused the game (sfflow.js): game time stands still
     sf.clock.now += delta / 1000;
     for (let i = timers.length - 1; i >= 0; i--) {
       if (timers[i].at <= sf.clock.now) { const fn = timers[i].fn; timers.splice(i, 1); fn(); }
@@ -116,7 +122,7 @@
   function activeScene(target) {
     if (target && target.scene) return target.scene;
     const scenes = sf.game ? sf.game.scene.getScenes(true) : [];
-    return scenes.find(s => s.sys.settings.key !== 'sf-boot') || null;
+    return scenes.find(s => !String(s.sys.settings.key).startsWith('sf-')) || null;
   }
   sf.particles = function (scene, x, y, n, colors, speed, seconds) {
     const s = sf.assets.scale || 1;
@@ -151,7 +157,9 @@
     }
     const scene = activeScene(target);
     if (!list.length || !scene || !scene.add) return 0;
-    for (const [key, e] of list) {
+    for (const [key, effect] of list) {
+      // The player asked for fewer flashes (settings): no flash, no screen shake.
+      const e = sf.settings.fewerFlashes ? Object.assign({}, effect, {flash: '', shake: 0}) : effect;
       sf.fxCount[key] = (sf.fxCount[key] || 0) + 1;
       const seconds = Math.max(0.1, e.seconds || 0.3);
       sf.particles(scene, x, y, e.particles, e.colors || ['#ffffff'], e.speed, seconds);
@@ -265,25 +273,28 @@
           });
         }
       }
-      const next = this.scene.manager.scenes.find(s => s !== this);
+      // The game's first scene (the SDK's own scenes are named sf-...).
+      const next = this.scene.manager.scenes.find(s => s !== this && !String(s.sys.settings.key).startsWith('sf-'));
       if (!next) { sf.errors.push('sf.start needs at least one scene'); return; }
-      let booted = false;
+      let created = false;
       next.events.on('create', () => {
-        if (booted) {  // scene.restart(): a new run (QA tests check restart after win/lose)
-          if (sf.level && sf.level.advancing) {  // the next level, not a new run
-            sf.level.advancing = false;
-            return;
-          }
-          sf.menu = null;
-          sf.event('restart');
-          return;
-        }
-        booted = true;
+        if (!created) { created = true; return; }
+        // Created again: the next level, or a new run (scene.restart(), Retry, Start again
+        // from a menu: QA tests check restart after win/lose).
+        if (sf.level && sf.level.advancing) { sf.level.advancing = false; return; }
+        if (!(sf.menu && sf.menu.screen)) sf.menu = null;
+        sf.event('restart');
+      });
+      const ready = () => {
         sf.clock.now = 0;
         if (flags.capture || flags.headless) sf.game.loop.stop();  // the harness steps frames
         sf.ready = true;
         sf.event('boot', {seed: startSeed});
-      });
+      };
+      // With menus the flow decides what comes first (the title, or the game for bots and
+      // ?play=1); it calls ready() when that scene exists.
+      if (sf.flow && sf.flow.boot) { sf.flow.boot(this, next, ready); return; }
+      next.events.once('create', ready);
       this.scene.start(next.sys.settings.key);
     }
   }

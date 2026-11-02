@@ -9,6 +9,8 @@
    next level, win). The game's code supplies the mechanics through `hooks.touch(thing, how)`.
 
    ?level=n starts at level n; ?only=1 stops after it (the playtest plays one level at a time).
+   With menus (sfflow.js, L2.5) the flow shows the level intro, the results between levels and
+   victory; Continue and Level select start at a saved level (sf.level.n).
    In autoplay the SDK's bot follows the route code found for the level (window.sf.bot says
    where it is). */
 (function () {
@@ -156,9 +158,11 @@
       if (level.current === L) level.current = null;
     });
 
-    const label = sf.text(scene, sf.screen()[0] / 2, 30 * s, 'Level ' + L.n + ': ' + L.name,
-                          {originX: 0.5, color: '#f4d35e'});  // fmt: skip
-    scene.time.delayedCall(1800, () => label.destroy());
+    if (!(sf.flow && sf.flow.active)) {  // with menus the flow shows the level's intro
+      const label = sf.text(scene, sf.screen()[0] / 2, 30 * s, 'Level ' + L.n + ': ' + L.name,
+                            {originX: 0.5, color: '#f4d35e'});  // fmt: skip
+      scene.time.delayedCall(1800, () => label.destroy());
+    }
     sf.state.level = L.n;
     sf.bot = {level: L.n, step: 0, steps: d.route.length, status: 'playing', detail: ''};
     L.bot = {i: 0, phase: 'start', t0: 0, retries: 0, resume: 0, frame: -1, out: null, dashed: false,
@@ -300,6 +304,11 @@
     if (L.hooks.complete) L.hooks.complete(L.n);
     const [w, h] = sf.screen();
     const last = L.n >= count;
+    if (sf.flow && sf.flow.active && !level.only) {
+      // The flow shows the results (next level, title) or, after the last level, victory.
+      if (last) { L.over = true; sf.event('win'); } else sf.flow.levelDone(L.n);
+      return;
+    }
     sf.text(scene, w / 2, h / 2, last ? 'YOU WIN!' : 'LEVEL CLEAR', {originX: 0.5, size: 12});
     if (last) {
       L.over = true;
@@ -448,7 +457,7 @@
       const o = t.sprite, lo = (t.patrol[0] + 0.5) * T, hi = (t.patrol[1] + 0.5) * T;
       if (o.x <= lo) t.dir = 1;
       if (o.x >= hi) t.dir = -1;
-      o.body.setVelocityX(t.dir * (t.speed || PATROL_SPEED) * T);
+      o.body.setVelocityX(t.dir * (t.speed || PATROL_SPEED) * T * (sf.settings.multiplier || 1));
       o.setFlipX(t.dir < 0);
       t.x = o.x; t.y = o.y;
     }

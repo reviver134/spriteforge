@@ -35,7 +35,7 @@ from .qa_runtime import KEYS, MAX_TEST_SECONDS, MENU_WAIT, PRESS_FRAMES, describ
 MAX_TESTS, MAX_STEPS, MAX_SUITE = 12, 40, 24
 StepKind = Literal[
     "hold", "press", "wait", "choose", "expect_event", "expect_state", "expect_no_errors",
-    "screenshot",
+    "screenshot", "expect_menu", "select", "reload",
 ]  # fmt: skip
 Key = Literal[tuple(KEYS)]
 Op = Literal["==", "!=", "<", "<=", ">", ">=", ""]
@@ -44,7 +44,11 @@ PATH = re.compile(r"^[A-Za-z_]\w{0,30}(\.[A-Za-z_]\w{0,30}){0,3}$")
 LABEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,39}$")
 # Events every build has: the SDK emits boot, restart, menu and choice; games emit win/lose.
 SDK_EVENTS = ("boot", "restart", "menu", "choice", "win", "lose")
+# A build with menus (L2.5): the SDK's flow emits these too, and sf.state has the difficulty.
+FLOW_EVENTS = ("title", "menu_open", "menu_select", "pause", "resume", "level_start",
+               "level_complete", "level_failed", "game_complete")  # fmt: skip
 STATE_KEYS = ("hp", "x", "y", "time", "level", "score")
+MENU_TEXT = re.compile(r"^[A-Za-z0-9][\w .,:'!?&+-]{0,39}$")
 
 
 def need(ok: bool, message: str) -> None:
@@ -70,15 +74,28 @@ class Step(Contract):
         "test began); else ''"
     )
     label: str = Field(description="screenshot: a short label; else ''")
+    menu: str = Field(
+        description="expect_menu: the screen id (title, main, pause, settings, results, "
+        "game_over, victory ...); select: the item's label as shown; else ''"
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def older(cls, data):
+        """Steps saved before menus existed (L2.5) have no `menu`."""
+        if isinstance(data, dict) and "menu" not in data:
+            data = {**data, "menu": ""}
+        return data
 
     @model_validator(mode="after")
     def check(self):
         do, blank = self.do, {"buttons": [], "seconds": 0.0, "index": 0, "event": "",
                               "min_count": 0, "within_seconds": 0.0, "path": "", "op": "",
-                              "value": "", "label": ""}  # fmt: skip
+                              "value": "", "label": "", "menu": ""}  # fmt: skip
         used = {"hold": {"buttons", "seconds"}, "press": {"buttons"}, "wait": {"seconds"},
                 "choose": {"index"}, "expect_event": {"event", "min_count", "within_seconds"},
-                "expect_state": {"path", "op", "value"}, "screenshot": {"label"}}.get(do, set())  # fmt: skip
+                "expect_state": {"path", "op", "value"}, "screenshot": {"label"},
+                "expect_menu": {"menu"}, "select": {"menu"}}.get(do, set())  # fmt: skip
         if do == "hold":
             need(1 <= len(self.buttons) <= 4, "hold needs 1 to 4 keys")
             need(
@@ -107,6 +124,11 @@ class Step(Contract):
         elif do == "screenshot":
             self.label = self.label.strip()
             need(bool(LABEL.match(self.label)), f"bad screenshot label {self.label!r}")
+        elif do in ("expect_menu", "select"):
+            self.menu = self.menu.strip()
+            if do == "expect_menu":
+                self.menu = self.menu.lower().replace(" ", "_")
+            need(bool(MENU_TEXT.match(self.menu)), f"{do} needs a menu (a screen id or an item label)")
         for name, empty in blank.items():  # what the step does not use stays empty
             if name not in used:
                 setattr(self, name, empty)
@@ -120,6 +142,8 @@ class Step(Contract):
             "expect_event": self.within_seconds,
             "press": (PRESS_FRAMES + 1) / 30,
             "choose": MENU_WAIT + (PRESS_FRAMES + 1) / 30,
+            "expect_menu": MENU_WAIT,
+            "select": MENU_WAIT + 10 * (PRESS_FRAMES + 1) / 30,
         }.get(self.do, 0.0)
 
 
@@ -130,7 +154,19 @@ class QATest(Contract):
         description="true: the player cannot die (hurt, but HP stays >= 1); false for the lose "
         "path and restart after losing"
     )
+    start: Literal["play", "title"] = Field(
+        description="play: the test starts in level 1 (the title is skipped); title: on the "
+        "title screen (tests of the menus)"
+    )
     steps: list[Step]
+
+    @model_validator(mode="before")
+    @classmethod
+    def older(cls, data):
+        """Tests saved before menus existed (L2.5) start in play."""
+        if isinstance(data, dict) and "start" not in data:
+            data = {**data, "start": "play"}
+        return data
 
     @model_validator(mode="after")
     def check(self):
@@ -173,8 +209,51 @@ class QASuite(Contract):
 # --- writing the tests ----------------------------------------------------------------------
 
 
-def qa_prompt(design: GameDesign) -> str:
-    events = sorted({c.event for c in design.checks} | set(SDK_EVENTS))
+def menu_lines(menus: dict) -> str:
+    """The SDK's screens and their items as a QA Playtester reads them."""
+    return "\n".join(
+        f"* {sid}: " + ", ".join(f"'{i['label']}' ({i['action']})" for i in screen["items"])
+        for sid, screen in menus["screens"].items()
+    )
+
+
+def menus_part(menus: dict | None) -> str:
+    if not menus:
+        return ""
+    levels = len(menus.get("levels", [])) or 1
+    between = " and between levels 'results'" if levels > 1 else ""
+    return f"""
+Menus (the SDK draws and runs them; they are data, the same in every build of this game):
+the game opens on its title screen. A test with start "play" skips it and starts in level 1;
+start "title" begins on the title screen. Every test starts with no saved progress.
+* expect_menu: the screen `menu` (a screen id below) is open, waiting up to {MENU_WAIT:g} s
+* select: moves the highlight to the item whose label (or action) is `menu` with the arrow
+  keys and presses Enter (waits up to {MENU_WAIT:g} s for a menu screen)
+* reload: opens the page again on the title screen; saved progress (levels unlocked, best
+  results, settings) is kept; event counts start again
+Escape pauses play (the pause screen; game time stops) and goes back in menus (on pause it
+resumes). Screens and items:
+{menu_lines(menus)}
+Flow events: {", ".join(FLOW_EVENTS)}. sf.state.difficulty is easy, normal or hard (the
+settings item cycles normal -> hard -> easy). After 'lose' the game_over screen opens
+(about a second later); after the last level 'victory'{between}.
+Selecting an item emits menu_select; opening a screen emits menu_open.
+"""
+
+
+def qa_prompt(design: GameDesign, menus: dict | None = None) -> str:
+    """`menus`: the build's menus (`menus.menus_script`), when the game has them."""
+    events = sorted({c.event for c in design.checks} | set(SDK_EVENTS)
+                    | (set(FLOW_EVENTS) if menus else set()))  # fmt: skip
+    flow = (
+        "\n6. the menus: from the title (start title) to play (expect_menu title, press enter, "
+        "expect_menu main, select the start item, expect level_start), pause and resume with "
+        "Escape (expect_menu pause, then expect resume), and a setting that shows in sf.state "
+        "(difficulty); with a way to lose, game_over opens after losing and its retry item "
+        "restarts."
+        if menus
+        else ""
+    )
     return f"""Write QA tests for this game from its design alone (you do not see the code).
 A harness plays each test in a real browser: it presses real keys, steps game time exactly,
 and reads what the game exposes. Each test opens a fresh game.
@@ -190,7 +269,7 @@ Steps (fields a step does not use stay empty or 0):
 * expect_state: sf.state `path` `op` `value`; value '@start' means its value when the test began
 * expect_no_errors: no runtime errors so far
 * screenshot: a picture named `label`
-
+{menus_part(menus)}
 Keys: {", ".join(KEYS)}. Arrows/WASD move; Space/Z/J are the action key; X/K/Shift the second
 action (follow the design's controls).
 
@@ -212,7 +291,7 @@ waits + within_seconds). They must include:
    time the design implies (at most {MAX_TEST_SECONDS - 20} s);
 4. restart after losing: god false; expect 'lose'; press enter; expect 'restart' within 3 s;
    expect time < 5; move and expect no errors;
-5. the HUD state changing: e.g. time grows, hp drops after being hurt, score rises.
+5. the HUD state changing: e.g. time grows, hp drops after being hurt, score rises.{flow}
 Test only what the design promises; do not invent numbers it does not state. Use only the
 event names and sf.state keys listed above.
 
@@ -222,13 +301,65 @@ Design:
 
 def blank_step(**fields) -> Step:
     base = {"buttons": [], "seconds": 0, "index": 0, "event": "", "min_count": 0,
-            "within_seconds": 0, "path": "", "op": "", "value": "", "label": ""}  # fmt: skip
+            "within_seconds": 0, "path": "", "op": "", "value": "", "label": "", "menu": ""}  # fmt: skip
     return Step(**{**base, **fields})
 
 
-def fallback_qa(design: GameDesign) -> QATests:
+def label_of(menus: dict, screen: str, action: str) -> str | None:
+    """The action when the screen has an item for it (`select` finds items by their action
+    too, so these tests survive new labels)."""
+    items = (menus["screens"].get(screen) or {}).get("items", [])
+    return next((action for i in items if i["action"] == action), None)
+
+
+def flow_tests(design: GameDesign, menus: dict) -> list[QATest]:
+    """Tests of the SDK's menus and flow."""
+    s = blank_step
+    start, settings = label_of(menus, "main", "start"), label_of(menus, "main", "settings")
+    resume = label_of(menus, "pause", "resume")
+    tests = []
+    if start and resume:
+        tests.append(QATest(
+            name="title to play, pause and resume", god=True, start="title",
+            purpose="The title leads to play; Escape pauses (time stops) and Resume goes on.",
+            steps=[s(do="expect_menu", menu="title"), s(do="press", buttons=["enter"]),
+                   s(do="expect_menu", menu="main"), s(do="select", menu=start),
+                   s(do="expect_event", event="level_start", min_count=1, within_seconds=2),
+                   s(do="wait", seconds=1), s(do="press", buttons=["escape"]),
+                   s(do="expect_menu", menu="pause"),
+                   s(do="expect_event", event="pause", min_count=1, within_seconds=0),
+                   s(do="screenshot", label="paused"), s(do="select", menu=resume),
+                   s(do="expect_event", event="resume", min_count=1, within_seconds=1),
+                   s(do="hold", buttons=["right"], seconds=0.5), s(do="expect_no_errors")]))  # fmt: skip
+    difficulty = label_of(menus, "settings", "difficulty")
+    if start and settings and difficulty:
+        tests.append(QATest(
+            name="difficulty setting", god=True, start="title",
+            purpose="Settings changes the difficulty the game reads, and it is kept.",
+            steps=[s(do="press", buttons=["enter"]), s(do="select", menu=settings),
+                   s(do="expect_menu", menu="settings"), s(do="select", menu=difficulty),
+                   s(do="expect_state", path="difficulty", op="==", value="hard"),
+                   s(do="reload"), s(do="expect_menu", menu="title"),
+                   s(do="expect_state", path="difficulty", op="==", value="hard"),
+                   s(do="expect_no_errors")]))  # fmt: skip
+    retry = label_of(menus, "game_over", "retry")
+    if retry and design.lose.strip():
+        tests.append(QATest(
+            name="game over and retry", god=False, start="play",
+            purpose="Losing opens game over; Retry starts the level again.",
+            steps=[s(do="expect_event", event="lose", min_count=1, within_seconds=100),
+                   s(do="expect_menu", menu="game_over"), s(do="screenshot", label="game over"),
+                   s(do="select", menu=retry),
+                   s(do="expect_event", event="restart", min_count=1, within_seconds=2),
+                   s(do="expect_state", path="time", op="<", value="5"),
+                   s(do="expect_no_errors")]))  # fmt: skip
+    return tests
+
+
+def fallback_qa(design: GameDesign, menus: dict | None = None) -> QATests:
     """Offline QA Playtester: tests every design can take (movement, no errors, the HUD clock,
-    the first timed check, losing and restarting)."""
+    the first timed check, losing and restarting), and with menus the flow (title to play,
+    pause, a setting kept over a reload, game over and retry)."""
     s = blank_step
     # A side view moves down by falling, not by a key: there, Space jumps (y gets smaller).
     vertical = ([s(do="hold", buttons=["space"], seconds=0.25),
@@ -275,6 +406,8 @@ def fallback_qa(design: GameDesign) -> QATests:
                           s(do="expect_state", path="hp", op=">", value="0"),
                           s(do="expect_no_errors")]),
         ]  # fmt: skip
+    if menus:
+        tests += flow_tests(design, menus)
     return QATests(tests=tests[:MAX_TESTS])
 
 

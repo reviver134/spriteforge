@@ -718,3 +718,164 @@ Full pytest: 365 passed, 4 failed, the same four as in L2.2 and L2.3 (`test_asse
 `test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events`); after the two live
 fixes `test_motion` (14), `test_levels`, `test_game_sdk`, `test_qa_tests` and `test_game_make`
 pass again (50).
+
+## L2.5: structure, flow and menus
+
+A game is a title, its levels in order and the screens around them, designed for the game and
+run by the SDK. The structure is derived by code, the menus are data the Menu Designer writes,
+code fits and checks them, Muse Image draws the title art, the SDK renders everything with its
+own font, and the Programmer writes no screen, menu or pause handling.
+
+### The structure (`game/structure.py`)
+
+`GameStructure` is derived by code from the design and the plan (no model call) and saved per
+design version (`game/design/vK-structure.json/.md`, shown at G2): the levels in order (a game
+with levels as data has the plan's levels, 1-8, unique names; any other game is one level, its
+whole session), what carries over between levels (the abilities held from the start, the score
+when the design has one), what is saved (levels unlocked, the best result per level, settings),
+how the game is won and lost. Feedback that changes the plan's levels changes it.
+
+### Menus as data (`game/menus.py`)
+
+`MenuSpec` (strict; the new Menu Designer role, `llm.reasoning.menus: medium`): the title and
+tagline, a theme (panel, frame, text, highlight and locked colours, panel style), the screens
+with a heading, a subtitle and items (a label and an action), the credits, and what the title
+background and the emblem show. Screens: title (Press Enter), main, pause, settings, controls,
+credits, victory; game over when the game can be lost; results and level select with several
+levels. Actions: main, start, continue, level_select, settings, controls, credits, resume,
+restart, retry, next_level, title, back, difficulty, fewer_flashes. One call at G2 approval,
+with a 1500-token context pack from the bundle; the problems code finds go back once.
+
+* `fit_menu` repairs what code can: actions named by a synonym ("play" is start, "options"
+  settings, "quit" title), screen ids ("gameover"), items not allowed where they are or in
+  this game (continue and level select in a one-level game; a game over screen for a game that
+  cannot be lost), repeats, missing screens and items, a screen nothing opens (main, settings
+  or pause gains the item that opens it), labels too long for the panel, an empty title.
+* `menu_problems` is the validator: unknown screens and actions, an action not allowed on its
+  screen, a missing screen or item, a screen that cannot be reached from the title (through
+  items and through play: Escape pauses, a level ends in results, losing in game over, the last
+  level in victory), a screen with no way out, labels and headings wider than the panel with
+  the SDK's font (a monospace 8/12/16 px font, at most 0.62 em a character, a 260 px panel
+  with 10 px padding: 36 characters an item), theme colours that are no #RRGGBB, text contrast
+  under 4.5 (highlight 3, locked items 1.6) on the panel.
+* `fit_theme` (each build): the panel becomes the darkest colour measured from the locked art
+  (darkened), the highlight the art's colourful colour nearest the designer's, the text the
+  art's lightest; text and highlight are made readable at 4.5 (found in the first mock build:
+  a muted highlight made the selected item look dimmer than the others).
+* The offline Menu Designer (`fallback_menu`) gives every screen its plain items; its revision
+  takes a colour the feedback names (the highlight, or the panel when it speaks of the panel).
+
+### The title art (`game/title_art.py`)
+
+Muse Image draws a title background (1792x1024, a calm area for the title) and an emblem (one
+subject on flat magenta) from the spec's two descriptions, with the game's own Muse sprites as
+style references (library art is never sent) and "no text, no letters" in both prompts: 2 image
+calls through the request cache. The pixel tools clean them (the background cropped to the
+screen by area-mode resizing and limited to 32 colours; the emblem keyed, cropped, fitted to
+56 px and limited to 16 colours) and check them (a flat background, an emblem whose background
+was not removed, or one mostly empty fails). Accepted title art is locked: the next build
+reuses it while its descriptions are the same. Offline, with `game.title_art: false`, or when a
+picture fails, code draws it: a gradient in the theme's colours with the ground tile along the
+bottom, the player sprite enlarged as the emblem. The images go into assets.json with role
+"menu" (the Programmer does not see them).
+
+### The SDK's flow (`sdk/sfflow.js`, `sdk/FLOW.md`)
+
+A build with menus loads `menus.js` (window.SF_MENUS) and `sfflow.js` after `sf.js` and
+`sflevel.js`. The SDK adds its own scene `sf-menu` over the game and runs the flow: title ->
+main -> play; Escape pauses (the game's scenes are paused: update, physics, timers and tweens
+stop, and `sf.paused` stops `sf.clock`); a level finished shows results (time, score, best),
+then the next level; `lose` opens game over about a second later (Retry restarts the scene,
+`restart`); `win` opens victory (Play again, Credits, Quit to title). Keys: arrows/WASD,
+Enter/Space, Escape back (resume on pause, the title after a level ends), digits; the mouse
+too. Events: title, menu_open {screen}, menu_select {screen, item, action}, pause, resume,
+level_start {n} (single-scene games; sflevel emits it for levels), level_complete {n},
+level_failed {n}, game_complete. `sf.menu = {screen, title, options, actions, index}` for tests.
+`sf.progress` (localStorage per game): levels unlocked, the best result per level, settings
+(difficulty easy/normal/hard as `sf.settings.multiplier` 0.75/1/1.35, also in
+`sf.state.difficulty`; fewer flashes turns off `sf.fx` flashes and shakes); `?reset=1` clears
+it. `?play=1`, `?level=n` and autoplay skip the title; in autoplay a screen that ends a level
+picks its first item by itself, so recordings play on. The level engine's patrols take the
+difficulty multiplier. `sf.flow.preview(screen)` opens any screen for screenshots.
+
+`sf.js` changed little: a pause stops the clock, `sf.settings` exists in every build, boot
+hands over to the flow when there is one, and `restart` is emitted whenever the game's scene
+starts again (Retry, Play again, Start after quitting to the title), never for the next level.
+
+The Programmer's contract (`FLOW.md` and one requirement, only when the build has menus): no
+title scene, menus, pause key or game-over screen; the first scene starts in play; `win` and
+`lose` as before; enemy speed, damage and spawn rate times `sf.settings.multiplier`.
+
+### QA
+
+QA tests gain `start` ("play": the title skipped, the default and what older tests load as;
+"title") and three steps: `expect_menu` (a screen opens within 3 s), `select` (the item whose
+label, or action, is given: the highlight moved there with real arrow keys, then Enter; a
+locked or missing item fails with the items listed) and `reload` (the page again on the title,
+saved progress kept). Every test starts with `?reset=1`. The QA Playtester sees the screens
+and their items; the offline tests add "title to play, pause and resume", "difficulty setting"
+(kept over a reload) and, with a way to lose, "game over and retry". `select` matches actions
+too, so the tests survive a menu revision that renames items.
+
+### G3, G4 and the bundle
+
+* G2 approval writes menus v1 (`game/menus/v1.json/.md`), the QA tests with the menus, and
+  build v1 with them. After the first build with menus **G3** opens: `menus.png` (every screen
+  as the player sees it: title, main, level select, settings, controls, credits, pause,
+  results, game over, victory), the title art and the emblem, the level previews, the menus
+  spec. Feedback goes to the Menu Designer (menus v2) and the same code, art, levels and QA
+  suite are built again as v2 (no Programmer call), then G3 again. Empty feedback approves the
+  menus (they and the structure become human-reviewed in the bundle; the build does not) and
+  opens G4 for that build. G3 is passed once; later menu feedback at G4 reaches the Menu
+  Designer through the Director's `menu_changes` (the offline Director: a text about menus, the
+  title screen or the emblem). A design change refits the menus by code to the new structure
+  (no call).
+* `game/vN/menus/<screen>.png`, `menus.png`, `menus/title-art.png`, `emblem.png`,
+  `title-art.json` (source, prompts, the build that drew it); report.json "menus" (screens,
+  title art, theme, notes, problems, errors) and `menus_version`. G4 shows `menus.png` too.
+* The bundle gains `design/structure` (type Game Structure), `menus/overview` (type Menus:
+  theme, title art, screens, who wrote them, a `# Schema` of `/references/menus.json`) and
+  `menus/<screen>` (type Menu Screen) with `/references/menus/<screen>.png`; the title art is
+  `/references/art/title.png` and `emblem.png`. Decisions include G3 ("G3 menus (build v1)").
+* `game make` writes `structure.json/.md`, `menus.json/.md`, `menus/` and `menus.png`.
+  `game.menus: false` builds without menus (the old flow); `tools/game_live.py --until menus`
+  stops at G3, `--menus-feedback TEXT` answers it once.
+
+### Tests
+
+`tests/test_menus.py`: the structure (the plan's levels, or one; 1-8 unique names); the offline
+menus hold for an arena and a platformer and have exactly the screens each needs; the validator
+finds an unreachable screen, missing items, an unknown action, an action not allowed there, an
+overlong label, unreadable text and an unknown screen; fit repairs synonyms, repeats, unknown
+actions, screens the game does not need or lacks, unreachable screens, styles and contrast; the
+theme takes the art's colours and stays readable; problems go back to the Menu Designer once;
+the offline revision takes a named colour; the title art is code-drawn offline, drawn by Muse
+twice and then locked (no call) until its description changes, never with library art as a
+reference; a build carries the title art (role menu) and the Programmer's prompt has the flow
+contract only with menus.
+
+`tests/test_game_flow.py`, in a browser: title -> main -> play with real keys; Escape pauses
+(the clock and the player stand still) and resumes; idling loses, game over opens, Retry
+restarts; Quit to title from pause; settings change `sf.settings` and survive a reload,
+`?reset=1` clears them; a win opens victory and Play again restarts; the bot playtest skips the
+title and passes as before; every screen is shot at game size with every label inside its
+panel; the menu QA steps pass and fail as they should (by label and action, a missing item, the
+wrong screen, a reload); older QA tests load; a two-level platformer with menus: the per-level
+playtest is unchanged, the bot's run shows results and goes on to level 2 by itself, level 2 is
+unlocked, and a human sees Continue and picks level 2 in Level select; a gated mock run shows
+the structure at G2, opens G3 with the menus after build v1 (every flow QA test passing), "make
+the menus red" makes menus v2 and build v2 with the same code and locked art, approval promotes
+the menus (not the build) and opens G4, the bundle conforms, and menu feedback at G4 reaches the
+Menu Designer without a Programmer call.
+
+Full pytest: 383 passed, 7 failed; three were expectations L2.5 changes on purpose (G2 also
+shows the structure; G3 adds a gate and a decision before G4) and pass after updating them;
+the other four are the same four as in L2.2-L2.4 (`test_asset_production` (2) and
+`test_asset_ui` on the uncommitted asset-pipeline changes, and
+`test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events`).
+
+### Not done yet
+
+The live acceptance run (a live build whose menus use its palette and Muse title art, G3
+showing every screen, the menu QA tests passing) has not been made; it needs the go-ahead to
+spend (about $0.05 for the menus and the title art on top of a build).

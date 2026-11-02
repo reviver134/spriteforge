@@ -171,6 +171,7 @@ def create_app(
                         "assets",
                         "gameplay",
                         "design",
+                        "menus",
                         "playtest",
                     }:
                         raise ValueError("Changes can be requested at the concept review")

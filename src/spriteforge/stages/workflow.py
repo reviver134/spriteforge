@@ -101,7 +101,7 @@ def _step(store, run_id):
     ):
         return False
     history = gates.all(run_id)
-    if history and history[-1].stage in {"design", "playtest"}:
+    if history and history[-1].stage in {"design", "menus", "playtest"}:
         from .game import game_step
 
         return game_step(store, run_id)

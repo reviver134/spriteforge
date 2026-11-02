@@ -250,11 +250,21 @@ def test_plan_problems_go_back_to_the_game_designer_once(budget):
 def answer(store, ident, **kwargs):
     ScriptedHuman([Feedback(action="approve", **kwargs)]).answer(Gates(store), ident)
     workflow_step(store, ident)
+    through_menus(store, ident)
+
+
+def through_menus(store, ident):
+    """G3 (the menus, L2.5) opens before the first G4: approve it (tested in test_game_flow)."""
+    gate = Gates(store).pending(ident)
+    if gate is not None and gate.stage == "menus":
+        ScriptedHuman([Feedback(action="submit", text="")]).answer(Gates(store), ident)
+        workflow_step(store, ident)
 
 
 def submit(store, ident, text=""):
     ScriptedHuman([Feedback(action="submit", text=text)]).answer(Gates(store), ident)
     workflow_step(store, ident)
+    through_menus(store, ident)
 
 
 def names_of(store, ident, ids) -> list[str]:
@@ -282,7 +292,8 @@ def test_g2_shows_research_then_plan_then_design(tmp_path):
     gate = Gates(store).pending(ident)
     assert gate.stage == "design" and "Read the research, the game plan" in gate.title
     assert names_of(store, ident, gate.artifacts_to_show) == [
-        "game/research.json", "game/plan/v1.json", "game/design/v1.json"]  # fmt: skip
+        "game/research.json", "game/plan/v1.json", "game/design/v1.json",
+        "game/design/v1-structure.json"]  # fmt: skip
     plan = read(store, ident, "game/plan/v1.json")
     assert plan["problems"] == [] and len(plan["plan"]["levels"]) == 3
     assert plan["kinematics"]["max_gap"] >= 1
@@ -297,7 +308,8 @@ def test_g2_shows_research_then_plan_then_design(tmp_path):
     submit(store, ident, "Make the levels longer")
     gate = Gates(store).pending(ident)
     assert names_of(store, ident, gate.artifacts_to_show) == [
-        "game/research.json", "game/plan/v2.json", "game/design/v2.json"]  # fmt: skip
+        "game/research.json", "game/plan/v2.json", "game/design/v2.json",
+        "game/design/v2-structure.json"]  # fmt: skip
     assert sum(a.name == "game/research.json" for a in store.artifacts(ident)) == 1
 
 

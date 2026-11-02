@@ -7,9 +7,16 @@ in fixed frames of game time (`sfRun` on the build's SDK, logic only), and `expe
 Playwright: the harness runs it, and the exporter copies it word for word into each build's
 `tests/test_game_qa.py`, so the user runs exactly what the harness ran.
 
-Event counts are since the test started (every test opens a fresh page). A pressed key stays
-down for a few frames, because games read keys once per frame. The game keeps running after
-`win` or `lose`, so a test can press Enter and check the restart.
+Event counts are since the test started (every test opens a fresh page; a `reload` step
+starts them again). A pressed key stays down for a few frames, because games read keys once
+per frame. The game keeps running after `win` or `lose`, so a test can press Enter and check
+the restart.
+
+A build with menus (L2.5) opens on its title screen; a test starts in play (`?play=1`) unless
+its `start` is "title". Every test starts with no saved progress (`?reset=1`); `reload` opens
+the page again on the title with the progress kept. `expect_menu` waits for a screen of the
+SDK's menus (sf.menu.screen) and `select` moves the highlight to an item with real arrow keys
+and picks it with Enter.
 """
 
 import base64
@@ -44,7 +51,7 @@ OPS = ("==", "!=", "<", "<=", ">", ">=")
 MAX_TEST_SECONDS = 120  # game seconds a test may run
 CHUNK = 1.0  # game seconds per browser call while holding or waiting
 PRESS_FRAMES = 3  # frames a pressed key stays down
-MENU_WAIT = 3.0  # game seconds `choose` waits for a menu to open
+MENU_WAIT = 3.0  # game seconds `choose`, `expect_menu` and `select` wait for a menu to open
 
 
 def describe_step(step: dict) -> str:
@@ -65,6 +72,12 @@ def describe_step(step: dict) -> str:
         return f"expect state {step['path']} {step['op']} {step['value']}"
     if do == "expect_no_errors":
         return "expect no errors"
+    if do == "expect_menu":
+        return f"expect the {step['menu']} menu"
+    if do == "select":
+        return f"select '{step['menu']}' in the open menu"
+    if do == "reload":
+        return "reload the page (progress kept)"
     return f"screenshot {step['label']}"
 
 
@@ -121,12 +134,23 @@ def booted(page, timeout: float = 30) -> bool:
 class Game:
     """One open build in one page: steps game time, presses keys, reads the SDK."""
 
-    def __init__(self, page, url: str, god: bool, fps: int):
-        self.page, self.fps, self.errors = page, fps, []
+    def __init__(self, page, url: str, god: bool, fps: int, start: str = "play"):
+        self.page, self.fps, self.errors, self.url, self.god = page, fps, [], url, god
         page.on("pageerror", lambda e: self.errors.append(str(e)))
-        page.goto(f"{url}/index.html?headless=1" + ("&god=1" if god else ""))
-        if not booted(page):
+        play = "&play=1" if start != "title" else ""
+        self.open(f"{url}/index.html?headless=1&reset=1{play}" + ("&god=1" if god else ""))
+        self.start = self.now()
+        self.offset = 0.0  # game time before the last reload
+
+    def open(self, address: str) -> None:
+        self.page.goto(address)
+        if not booted(self.page):
             raise RuntimeError("the game never finished booting (sf.ready stayed false within 30 s)")
+
+    def reload(self) -> None:
+        """The page again, on its title screen, with the saved progress kept."""
+        self.offset += self.elapsed()
+        self.open(f"{self.url}/index.html?headless=1" + ("&god=1" if self.god else ""))
         self.start = self.now()
 
     def now(self) -> float:
@@ -134,6 +158,10 @@ class Game:
 
     def elapsed(self) -> float:
         return self.now() - self.start
+
+    def total(self) -> float:
+        """Game time since the test began, over reloads."""
+        return getattr(self, "offset", 0.0) + self.elapsed()
 
     def run(self, seconds: float) -> None:
         while seconds > 1e-9:
@@ -149,6 +177,19 @@ class Game:
 
     def menu(self):
         return self.page.evaluate("window.sf.menu")
+
+    def screen_menu(self, wait: float):
+        """The open screen of the SDK's menus (waiting up to `wait` game seconds), or None.
+        Game time may stand still under a menu, so the wait counts frames stepped."""
+        waited = 0.0
+        while True:
+            menu = self.menu()
+            if menu and menu.get("screen"):
+                return menu
+            if waited >= wait - 1e-9:
+                return None
+            self.run(0.1)
+            waited += 0.1
 
     def all_errors(self) -> list:
         return list(dict.fromkeys(self.errors + list(self.page.evaluate("window.sf.errors"))))
@@ -234,6 +275,46 @@ def do_step(game: Game, step: dict, start_state: dict, shots: list) -> str | Non
     if do == "expect_no_errors":
         errors = game.all_errors()
         return f"runtime errors: {' | '.join(map(str, errors[:3]))}" if errors else None
+    if do == "expect_menu":
+        want, waited = step["menu"], 0.0
+        while True:
+            menu = game.menu() or {}
+            if menu.get("screen") == want:
+                return None
+            if waited >= MENU_WAIT - 1e-9:
+                shown = menu.get("screen") or ("an sf.choose menu" if menu else "no menu")
+                return f"the {want} menu did not open within {MENU_WAIT:g} s ({shown} is showing)"
+            game.run(0.1)
+            waited += 0.1
+    if do == "select":
+        menu = game.screen_menu(MENU_WAIT)
+        if menu is None:
+            return f"no menu screen opened within {MENU_WAIT:g} s"
+        want = step["menu"].strip().lower()
+        labels = [str(o).lower() for o in menu["options"]]
+        actions = [str(a).lower() for a in menu.get("actions") or []]
+        found = next((i for i, o in enumerate(labels) if o == want), None)
+        if found is None:  # the item's action ('start', 'resume'): survives a new label
+            found = next((i for i, a in enumerate(actions) if a == want.replace(" ", "_")), None)
+        if found is None:
+            found = next((i for i, o in enumerate(labels) if o.startswith(want) or want in o), None)
+        if found is None:
+            return f"the {menu['screen']} menu has no item '{step['menu']}' (items: {', '.join(menu['options'])})"
+        for _ in range(len(labels) + 1):  # real arrow keys move the highlight
+            index = int((game.menu() or {}).get("index", 0))
+            if index == found:
+                break
+            game.press("down" if (found - index) % len(labels) <= len(labels) // 2 else "up")
+        if int((game.menu() or {}).get("index", -1)) != found:
+            return f"the arrow keys did not move the highlight to '{menu['options'][found]}'"
+        before = game.count("menu_select")
+        game.press("enter")
+        if game.count("menu_select") <= before:
+            return f"Enter did not pick '{menu['options'][found]}' (it may be locked)"
+        return None
+    if do == "reload":
+        game.reload()
+        return None
     shots.append({"label": step["label"], "png": game.shot()})
     return None
 
@@ -246,7 +327,7 @@ def run_test(page, url: str, test: dict, fps: int = 30) -> dict:
               "steps": [], "state": {}, "events": {}, "errors": [], "game_seconds": 0.0,
               "screenshots": []}  # fmt: skip
     try:
-        game = Game(page, url, bool(test.get("god")), fps)
+        game = Game(page, url, bool(test.get("god")), fps, test.get("start") or "play")
     except Exception as exc:  # noqa: BLE001 -- a build that does not boot fails the test
         result["failure"] = f"the game did not boot: {str(exc).splitlines()[0][:200]}"
         return result
@@ -260,7 +341,7 @@ def run_test(page, url: str, test: dict, fps: int = 30) -> dict:
         errors = game.all_errors()
         if why is None and len(errors) > known and step["do"] != "expect_no_errors":
             why = f"runtime error: {errors[known]}"
-        if why is None and game.elapsed() > MAX_TEST_SECONDS + 1:
+        if why is None and game.total() > MAX_TEST_SECONDS + 1:
             why = f"the test ran past {MAX_TEST_SECONDS} game seconds"
         result["steps"].append(
             {"step": describe_step(step), "ok": why is None, "detail": why or ""}
@@ -280,7 +361,7 @@ def run_test(page, url: str, test: dict, fps: int = 30) -> dict:
             k: v["count"] for k, v in game.page.evaluate("window.sf.counts").items()
         }
         result["errors"] = game.all_errors()[:10]
-        result["game_seconds"] = round(game.elapsed(), 1)
+        result["game_seconds"] = round(game.total(), 1)
     except Exception:  # noqa: BLE001, S110 -- the page may be gone after a crash
         pass
     return result

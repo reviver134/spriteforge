@@ -14,12 +14,22 @@ from spriteforge.stages.workflow import start_run, workflow_step
 def answer(store, ident, **kwargs):
     ScriptedHuman([Feedback(action="approve", **kwargs)]).answer(Gates(store), ident)
     workflow_step(store, ident)
+    through_menus(store, ident)
+
+
+def through_menus(store, ident):
+    """G3 (the menus, L2.5) opens before the first G4: approve it (tested in test_game_flow)."""
+    gate = Gates(store).pending(ident)
+    if gate is not None and gate.stage == "menus":
+        ScriptedHuman([Feedback(action="submit", text="")]).answer(Gates(store), ident)
+        workflow_step(store, ident)
 
 
 def submit(store, ident, text=""):
     """The single feedback box: text asks for a new version, empty approves."""
     ScriptedHuman([Feedback(action="submit", text=text)]).answer(Gates(store), ident)
     workflow_step(store, ident)
+    through_menus(store, ident)
 
 
 def read(store, ident, name):
@@ -202,7 +212,8 @@ def test_no_story_unless_asked_and_the_game_record(tmp_path, monkeypatch):
     assert tiers["code/modules/game"] == tiers["builds/v1"] == tiers["entities/hero"] == "unverified"
     assert {"art/assets/hero", "code/overview", "qa/suite", "qa/tests/loses-when-idle"} <= set(tiers)
     report = read(store, ident, "game/v1/report.json")
-    assert report["game_db"]["concepts"] == len(tiers)
+    # G3's decision (the menus approved) was recorded after build v1's report.
+    assert report["game_db"]["concepts"] == len(tiers) - 1 and "decisions/2" in tiers
     root = db.root
     built = tmp_path / "runs" / ident / "game/v1/build/game.js"  # (text: the build has CRLF)
     assert (root / "references/code/game.js").read_text("utf-8") == built.read_text("utf-8")
@@ -215,12 +226,12 @@ def test_no_story_unless_asked_and_the_game_record(tmp_path, monkeypatch):
     assert gate.stage == "playtest" and gate.title.startswith("G4 Playtest v1")
     assert not any(n.startswith("game/v2/") for n in names())
     story = [n for n in names() if n.startswith("game/story/") and n.endswith(".json")]
-    assert story == ["game/story/v1-gate-5.json"]
+    assert story == ["game/story/v1-gate-6.json"]  # gate 6: G3 (the menus) is gate 5
     assert {a.id for a in store.artifacts(ident) if a.name == story[0]} <= set(gate.artifacts_to_show)
     assert "properties" not in gate.form_schema or "story" not in gate.form_schema["properties"]
     ids = {e.id for e in db.scan()[0]}
-    assert {"story/overview", "story/canon", "characters/hero", "decisions/3"} <= ids
-    assert "story changed" in next(e for e in db.scan()[0] if e.id == "decisions/3").body
+    assert {"story/overview", "story/canon", "characters/hero", "decisions/4"} <= ids
+    assert "story changed" in next(e for e in db.scan()[0] if e.id == "decisions/4").body
 
     submit(store, ident)  # approve G4: the whole record is human-reviewed
     assert store.get_run(ident).status == "completed"
@@ -304,6 +315,10 @@ def test_play_route_serves_only_the_build(tmp_path):
     store, ident = to_design_gate(tmp_path)
     with TestClient(create_app(store)) as client:
         gate = Gates(store).pending(ident)
+        r = client.post(f"/api/runs/{ident}/gates/{gate.id}", json={"action": "submit", "text": ""})
+        assert r.status_code == 200, r.text
+        gate = Gates(store).pending(ident)
+        assert gate.stage == "menus"  # G3 first (L2.5): approved through the API too
         r = client.post(f"/api/runs/{ident}/gates/{gate.id}", json={"action": "submit", "text": ""})
         assert r.status_code == 200, r.text
         assert Gates(store).pending(ident).stage == "playtest"
