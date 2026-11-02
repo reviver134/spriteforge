@@ -809,3 +809,18 @@ python -m spriteforge game db context workspace/runs/<id> --focus "level 2: a ha
 python -m spriteforge game db mcp workspace/runs/<id>    # game_index, game_search, game_show, game_context
 python -m spriteforge game db sync workspace/runs/<id>   # rebuild a bundle from a run's artifacts
 ```
+
+# Level 2 / L2.2: research and the game plan
+
+Before designing, the Game Designer studies similar games with live web search (Muse Spark's
+`web_search` tool on the Responses API; G1 asks **Research similar games?**, default yes, up to
+8 searches) and writes a **game plan**: your requirements numbered and kept word for word,
+movement numbers (code derives the jump physics: gravity, the widest gap, the highest
+platform), abilities, mechanics, challenges, per-level teaching goals and new ideas, feel,
+animation rows and risks. Code checks the plan (every requirement yours and covered, movement
+consistent, every level with a teaching goal and a new idea, difficulty never dropping) and
+asks once more when it fails; the design is written from it. G2 shows the research (sources,
+patterns), the plan, then the design; feedback revises the plan and the design. The bundle
+gains `research/*` and `plan/*`. A design change at G4 keeps every existing entity's locked
+art (only new entities are planned), and the UI always shows the latest playable build.
+Details and live results: `docs/level-2.md`.

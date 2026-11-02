@@ -34,13 +34,17 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from spriteforge.agents.roles import load_roles
 from spriteforge.config import Config
 from spriteforge.core.cost import Budget, ledger
 from spriteforge.core.state import Store
-from spriteforge.providers.base import ChatRequest, Message, chat_json
+from spriteforge.providers.base import ChatRequest, Message, SearchRequest, SearchResult, chat_json
+from spriteforge.providers.http import ProviderError
 from spriteforge.providers.mock import MockImageProvider, MockLLMProvider
 from spriteforge.providers.muse_image import MuseImageProvider
+from spriteforge.providers.muse_search import MuseSearchProvider
 from spriteforge.providers.muse_spark import MuseSparkProvider
 
 from .art import (
@@ -86,6 +90,16 @@ from .dbsource import folder_record
 from .design import GameDesign, design_markdown, design_prompt, fallback_design
 from .gamedb import open_db, sync_record
 from .image_cache import ImageCache
+from .plan import (
+    GamePlan,
+    PlanRecord,
+    fallback_plan,
+    make_record,
+    plan_brief,
+    plan_prompt,
+    plan_revision_prompt,
+    retry_prompt,
+)
 from .playtest import failure_summary, playtest, review_times
 from .qa import (
     QATest,
@@ -99,6 +113,14 @@ from .qa import (
     write_export,
 )
 from .record import record_game
+from .research import (
+    Research,
+    ResearchRecord,
+    fallback_research,
+    fit_research,
+    research_prompt,
+    structure_prompt,
+)
 from .story import (
     StoryBible,
     fallback_story,
@@ -116,8 +138,9 @@ def role_prompt(role: str) -> str:
 
 class Models:
     """Model access for one build: live Muse Spark / Muse Image, or offline stand-ins.
-    `provider` (tests) replaces the chat model for every role, `images` the image model.
-    `cache_dir`: where identical Muse requests are cached (None: no cache)."""
+    `provider` (tests) replaces the chat model for every role, `images` the image model,
+    `search` the web research model. `cache_dir`: where identical Muse requests are cached
+    (None: no cache)."""
 
     def __init__(
         self,
@@ -127,9 +150,11 @@ class Models:
         provider=None,
         images=None,
         cache_dir: Path | None = None,
+        search=None,
     ):
         self.cfg, self.budget, self.mock = cfg, budget, mock
         self.provider, self.images, self.cache_dir = provider, images, cache_dir
+        self.search = search
 
     @property
     def name(self) -> str:
@@ -165,6 +190,29 @@ class Models:
             return chat_json(provider, request, schema)
         finally:
             if provider is not self.provider and hasattr(provider, "close"):
+                provider.close()
+
+    @property
+    def can_search(self) -> bool:
+        """Live web search (or an injected search provider in tests)."""
+        return self.search is not None or not self.mock
+
+    def web_research(self, role: str, prompt: str, schema, task: str = "research") -> SearchResult:
+        """One Muse Spark call with web search (Responses API) answering in `schema`."""
+        provider = self.search or MuseSearchProvider(self.cfg.llm, self.cfg.research, self.budget)
+        try:
+            return provider.research(
+                SearchRequest(
+                    instructions=role_prompt(role),
+                    prompt=prompt,
+                    json_schema=schema.model_json_schema(),
+                    max_searches=self.cfg.research.max_searches,
+                    reasoning_effort=self.cfg.llm.reasoning.get(task),
+                    cache_key=f"spriteforge-{task}",
+                )
+            )
+        finally:
+            if provider is not self.search and hasattr(provider, "close"):
                 provider.close()
 
     def image_generator(self) -> tuple[Callable, Callable]:
@@ -224,10 +272,64 @@ def save_json(path: Path, data) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
-def write_design(models: Models, request: str) -> GameDesign:
-    return models.ask(
-        "Game Designer", design_prompt(request), GameDesign, fallback_design(request), "design"
-    )
+def write_design(models: Models, request: str, plan: PlanRecord | None = None) -> GameDesign:
+    """The design for a request, written from the game plan when there is one."""
+    prompt = design_prompt(request, plan_brief(plan) if plan else "")
+    return models.ask("Game Designer", prompt, GameDesign, fallback_design(request), "design")
+
+
+def write_research(models: Models, request: str, genre: str, genre_body: str,
+                   side_view: bool) -> ResearchRecord:  # fmt: skip
+    """The Game Designer studies similar games with live web search (one call; a second,
+    structuring call only when the searched answer does not fit the schema). Offline, or when
+    the search fails, the stand-in from the genre notes is used and the record says so."""
+    fallback = fallback_research(genre_body, side_view)
+    prompt = research_prompt(request, genre)
+    if not models.can_search:
+        answer = models.ask("Game Designer", prompt, Research, fallback, "research")
+        return fit_research(answer, None, "offline stand-in from the genre notes (no web search)")
+    try:
+        found = models.web_research("Game Designer", prompt, Research)
+    except ProviderError as exc:
+        record = fit_research(fallback, None, "offline stand-in: the web search failed")
+        record.notes.append(f"web search failed: {str(exc)[:300]}")
+        return record
+    by = f"{models.cfg.llm.model} with web search"
+    try:
+        research = Research.model_validate_json(found.content or "")
+    except ValidationError:
+        research = models.ask("Game Designer", structure_prompt(found.text, found.sources),
+                              Research, fallback, "research")  # fmt: skip
+        by += " (structured in a second call)"
+    return fit_research(research, found, by)
+
+
+def write_plan(models: Models, request: str, notes: list[str], research: str,
+               side_view: bool) -> PlanRecord:  # fmt: skip
+    """The Game Designer's plan from the human's words and the research; code fits and checks
+    it, and the problems it cannot repair go back to the Game Designer once."""
+    prompt = plan_prompt(request, research)
+    plan = models.ask("Game Designer", prompt, GamePlan, fallback_plan(notes, side_view), "plan")
+    return checked_plan(models, plan, prompt, request)
+
+
+def revise_plan(models: Models, record: PlanRecord, changes: str, words: str,
+                said: str = "") -> PlanRecord:  # fmt: skip
+    """The plan revised for feedback (the offline stand-in keeps it). `changes`: what to
+    change; `said`: the human's own words at the gate (new requirements are copied from them;
+    at G4 `changes` is the Director's summary, not the human's words)."""
+    prompt = plan_revision_prompt(record.plan, changes, words, said)
+    plan = models.ask("Game Designer", prompt, GamePlan, record.plan, "plan")
+    return checked_plan(models, plan, prompt, words)
+
+
+def checked_plan(models: Models, plan: GamePlan, prompt: str, words: str) -> PlanRecord:
+    record = make_record(plan, words)
+    if not record.problems:
+        return record
+    again = models.ask("Game Designer", retry_prompt(prompt, record.problems), GamePlan,
+                       record.plan, "plan")  # fmt: skip
+    return make_record(again, words, retried=True, notes=record.notes)
 
 
 def write_story(models: Models, design: GameDesign, request: str) -> tuple[StoryBible, list[str]]:
@@ -265,6 +367,21 @@ def write_qa_tests(models: Models, design: GameDesign) -> tuple[QATests, str]:
 def plan_art(models: Models, design: GameDesign) -> ArtPlan:
     prompt = art_prompt(design, library_context(design.camera, design))
     return models.ask("Art Director", prompt, ArtPlan, keyword_plan(design), "art_plan")
+
+
+def plan_new_art(models: Models, design: GameDesign, previous: ArtPlan) -> ArtPlan:
+    """The art plan after a design change: every entity that still exists keeps its pick (so
+    its locked art is reused); only entities new to the design go to the Art Director (no call
+    when there are none). Entities the feedback names are redrawn by `apply_art_changes`."""
+    ids = {e.id for e in design.entities}
+    kept = [p for p in previous.picks if p.entity in ids]
+    known = {p.entity for p in kept}
+    new = [e for e in design.entities if e.id not in known]
+    if not new:
+        return previous.model_copy(update={"picks": kept})
+    extra = plan_art(models, design.model_copy(update={"entities": new}))
+    added = [p for p in extra.picks if p.entity in {e.id for e in new}]
+    return previous.model_copy(update={"picks": kept + added})
 
 
 def muse_options(cfg: Config, **changes) -> MuseOptions:

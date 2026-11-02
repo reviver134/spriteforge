@@ -46,6 +46,9 @@ QA tests play the build with real key presses and read `sf.state` and the events
   value starts over (the SDK emits `restart`).
 * `sf.choose` emits `menu` when it opens and `choice` when an option is picked (the SDK does
   both).
+* A player who presses nothing can lose (when the design has a way to lose): attacks, shots
+  and dodges happen only on key presses or in the autoplay policy, never automatically. A QA
+  test stands still and expects `lose`.
 
 ## God mode (tests)
 If `sf.flags.god` is true the player still takes hits (emit the hurt event) but HP never drops

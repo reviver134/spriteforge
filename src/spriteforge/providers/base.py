@@ -40,6 +40,32 @@ class ChatResult(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
+class SearchRequest(BaseModel):
+    """A research question answered with live web search (Responses API, `web_search`)."""
+
+    instructions: str  # the role prompt
+    prompt: str
+    json_schema: dict | None = None
+    max_searches: int = Field(default=8, ge=1)
+    reasoning_effort: str | None = None
+    cache_key: str | None = None
+
+
+class WebSource(BaseModel):
+    url: str
+    title: str = ""
+
+
+class SearchResult(BaseModel):
+    content: str | None = None  # the last message's text (the structured answer)
+    text: str = ""  # every message's text, in order
+    queries: list[str] = Field(default_factory=list)  # what the model searched for
+    sources: list[WebSource] = Field(default_factory=list)  # pages the searches returned
+    cited: list[WebSource] = Field(default_factory=list)  # url_citation annotations
+    searches: int = 0  # web_search_call items (searches and page opens)
+    metadata: dict = Field(default_factory=dict)
+
+
 class ImageProvider(Protocol):
     def generate(self, request: ImageRequest) -> ImageResult: ...
     def edit(self, request: ImageRequest) -> ImageResult: ...
@@ -47,6 +73,10 @@ class ImageProvider(Protocol):
 
 class LLMProvider(Protocol):
     def chat(self, request: ChatRequest) -> ChatResult: ...
+
+
+class SearchProvider(Protocol):
+    def research(self, request: SearchRequest) -> SearchResult: ...
 
 
 def chat_json(provider: LLMProvider, request: ChatRequest, schema: type[BaseModel]) -> BaseModel:

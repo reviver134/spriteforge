@@ -1,13 +1,23 @@
 """G2 design gate and G4 playtest gate: Muse Spark writes the game from the brief.
 
 After the G1 questions:
-  game/design/vK.json/.md    Game Designer: rules, entities, progression, difficulty, checks
+  game/research.json/.md     Game Designer with web search (when G1 says research, the
+                             default): reference games with the pages the searches returned,
+                             patterns, feel numbers, pitfalls; code marks each reference URL
+                             verified only when a search returned it (once per run)
+  game/plan/vK.json/.md      Game Designer: the game plan for design vK: the human's requirements
+                             word for word, movement numbers and the kinematics code derives,
+                             abilities, mechanics, challenges, levels, feel, animations,
+                             coverage, risks, and the problems code found (asked again once)
+  game/design/vK.json/.md    Game Designer: rules, entities, progression, difficulty, checks,
+                             written from plan vK
   game/design/vK-story.json/.md  Game Designer: the story bible (characters tied to entities,
                              world, arc, canon), shown at G2 and revised with the design
   game/db/                   the game database: the canon as OKF entries (story, characters with
                              their locked art, world, gameplay, art, levels), written from the
                              artifacts; approvals promote it to human-reviewed
-  gate "design"              text -> design v(K+1); empty -> build v1 from the approved design
+  gate "design"              text -> plan and design v(K+1); empty -> build v1 from the
+                             approved design
   game/vN/art-plan.json      Art Director: library first, Muse Image for whatever is missing
   game/vN/art/<id>.*         each entity's art (+ Muse raw and request, so art stays locked)
   game/vN/art.png            contact sheet
@@ -25,7 +35,9 @@ After the G1 questions:
                              build/tests/, so the play route serves it)
   game/vN/poster.png         (+ demo.mp4 with ffmpeg)
   game/vN/report.json        what was built and by whom, art sources, warnings, attempts, play link
-  gate "playtest"            text -> Director splits it into design/art/code changes -> v(N+1);
+  gate "playtest"            text -> Director splits it into design/art/code changes -> v(N+1)
+                             (a design change revises the plan too; entities that still exist
+                             keep their locked art, only new ones are planned);
                              Apply on an art-review suggestion (form apply_suggestion=n) -> that
                              entity is redrawn as the suggestion says (no Director call);
                              "ignore the restart test" -> that QA test is dropped (Revision);
@@ -50,17 +62,23 @@ from spriteforge.game.pipeline import (
     build_and_test,
     call_summary,
     plan_art,
+    plan_new_art,
     produce_art,
     qa_report,
     review_art,
+    revise_plan,
     revise_story,
     write_code,
     write_design,
+    write_plan,
     write_qa_tests,
+    write_research,
     write_story,
 )
+from spriteforge.game.plan import PlanRecord, plan_brief, plan_markdown
 from spriteforge.game.qa import QASuite, QATests, merge_suite, screenshot_files, write_export
 from spriteforge.game.record import record_game
+from spriteforge.game.research import ResearchRecord, research_brief, research_markdown
 from spriteforge.game.revision import ArtChange, Revision, fallback_revision
 from spriteforge.game.revision import revision_prompt as director_prompt
 from spriteforge.game.story import StoryBible, story_markdown
@@ -68,6 +86,7 @@ from spriteforge.game.story import StoryBible, story_markdown
 from .asset_store import ProductionStore
 from .game_record import (
     REPORT,
+    RESEARCH,
     next_story_name,
     run_record,
     shown,
@@ -139,6 +158,68 @@ def request_text(brief: GameBrief) -> str:
     )
 
 
+def human_words(ctx: GameContext) -> str:
+    """Everything the human said: the G1 request and their words at every G2 and G4 gate (the
+    plan's requirements are copied from these)."""
+    said = [g.response.text.strip() for g in Gates(ctx.store).all(ctx.run_id)
+            if g.stage in STAGES and g.response and (g.response.text or "").strip()]  # fmt: skip
+    return request_text(ctx.brief) + "".join(f"\n- {w}" for w in said)
+
+
+def side_view(ctx: GameContext) -> bool:
+    text = ctx.brief.perspective + " " + ctx.brief.genre
+    return bool(re.search(r"side|platform", text, re.IGNORECASE))
+
+
+def ensure_research(ctx: GameContext) -> ResearchRecord | None:
+    """The research, once per run, only when the G1 brief asks for it."""
+    if RESEARCH not in ctx.artifacts:
+        if not ctx.brief.wants_research:
+            return None
+        ctx.log("Game Designer")("studying similar games with web search")
+        genre = ctx.read("genre.json") if "genre.json" in ctx.artifacts else {}
+        title = genre.get("title") or ctx.brief.genre.rsplit("/", 1)[-1]
+        record = write_research(ctx.models, request_text(ctx.brief), title,
+                                genre.get("body", ""), side_view(ctx))  # fmt: skip
+        ctx.save(RESEARCH, record.model_dump(), "Game Designer")
+        ctx.save(RESEARCH.removesuffix(".json") + ".md", research_markdown(record).encode(),
+                 "Game Designer", "text/markdown")  # fmt: skip
+    return ResearchRecord.model_validate(ctx.read(RESEARCH))
+
+
+def plan_name(version: int) -> str:
+    return f"game/plan/v{version}.json"
+
+
+def load_plan(ctx: GameContext, version: int) -> PlanRecord | None:
+    """The plan of design `version` (runs before L2.2 have none)."""
+    name = plan_name(version)
+    return PlanRecord.model_validate(ctx.read(name)) if name in ctx.artifacts else None
+
+
+def ensure_plan(ctx: GameContext, version: int, make) -> PlanRecord:
+    """Plan v`version`, written once (`make()`), with its Markdown."""
+    name = plan_name(version)
+    if name not in ctx.artifacts:
+        record = make()
+        ctx.save(name, record.model_dump(), "Game Designer")
+        ctx.save(name.removesuffix(".json") + ".md", plan_markdown(record).encode(),
+                 "Game Designer", "text/markdown")  # fmt: skip
+    return PlanRecord.model_validate(ctx.read(name))
+
+
+def next_plan(ctx: GameContext, version: int, old: int, changes: str,
+              said: str) -> PlanRecord | None:  # fmt: skip
+    """Plan v`version` revised from plan v`old` for `changes`, with what the human `said` at
+    the gate (none when v`old` had none)."""
+    previous = load_plan(ctx, old)
+    if previous is None:
+        return None
+    ctx.log("Game Designer")(f"revising the game plan (v{version})")
+    return ensure_plan(ctx, version, lambda: revise_plan(
+        ctx.models, previous, changes, human_words(ctx), said))  # fmt: skip
+
+
 def design_versions(ctx: GameContext) -> int:
     """Design versions only (not the vK-story.json or vK-qa-tests.json beside them)."""
     return sum(1 for n in ctx.artifacts if re.fullmatch(r"game/design/v\d+\.json", n))
@@ -198,12 +279,19 @@ def story_names_shown(ctx: GameContext) -> list[str]:
 
 def open_design_gate(ctx: GameContext, version: int) -> None:
     design = load_design(ctx, version)
+    plan = load_plan(ctx, version)
     story = "" if latest_story(ctx) else " (no story: choose Add a story to get one)"
+    problems = (f" The plan has {len(plan.problems)} problem(s) code could not fix (listed in "
+                "the plan)." if plan and plan.problems else "")  # fmt: skip
     title = (
-        f"G2 Game design v{version}: {design.title}{story}. Read the rules, entities and checks; "
-        "type what to change, or leave feedback empty and submit to approve and build the game"
+        f"G2 Game design v{version}: {design.title}{story}. Read the "
+        + ("research, the " if RESEARCH in ctx.artifacts else "")
+        + ("game plan, then the " if plan else "")
+        + "rules, entities and checks; type what to change, or leave feedback empty and submit "
+        "to approve and build the game." + problems
     )
-    names = [f"game/design/v{version}.json", *story_names_shown(ctx)]
+    names = [n for n in (RESEARCH, plan_name(version)) if n in ctx.artifacts]
+    names += [f"game/design/v{version}.json", *story_names_shown(ctx)]
     extra = {} if latest_story(ctx) else {"form_schema": STORY_FORM}
     Gates(ctx.store).open(
         ctx.run_id,
@@ -530,12 +618,14 @@ def game_step(store, run_id) -> bool:
     if last.stage == "design" and last.status == "changes_requested":
         version = design_versions(ctx) + 1
         previous = load_design(ctx, version - 1)
+        feedback = feedback or "Try a different take."
+        plan = next_plan(ctx, version, version - 1, feedback, feedback)
         design = ctx.once(
             f"game/design/v{version}.json",
             GameDesign,
             lambda: ctx.models.ask(
                 "Game Designer",
-                revision_prompt(previous, feedback or "Try a different take."),
+                revision_prompt(previous, feedback, plan_brief(plan) if plan else ""),
                 GameDesign,
                 previous,
                 "design",
@@ -604,14 +694,17 @@ def game_step(store, run_id) -> bool:
             ctx.save(f"game/v{version}/revision.json", revision.model_dump(), role)
         changed = bool(revision.design_changes.strip())
         if changed:
-            old = design
+            old, old_version = design, design_version
             design_version = design_versions(ctx) + 1
+            game_plan = next_plan(ctx, design_version, old_version, revision.design_changes,
+                                  feedback)
+            brief = plan_brief(game_plan) if game_plan else ""
             design = ctx.once(
                 f"game/design/v{design_version}.json",
                 GameDesign,
                 lambda: ctx.models.ask(
                     "Game Designer",
-                    revision_prompt(old, revision.design_changes),
+                    revision_prompt(old, revision.design_changes, brief),
                     GameDesign,
                     old,
                     "design",
@@ -624,11 +717,13 @@ def game_step(store, run_id) -> bool:
             ensure_story(ctx, f"design-v{design_version}", design, ask)
         elif revision.story_changes.strip():
             ensure_story(ctx, f"gate-{n}", design, revision.story_changes)
+        # A design change keeps every existing entity's art (locked); only new entities are
+        # planned, and entities the feedback names are redrawn (apply_art_changes).
         base_plan = (
             ctx.once(
                 f"game/v{version}/art-plan-new.json",
                 ArtPlan,
-                lambda: plan_art(ctx.models, design),
+                lambda: plan_new_art(ctx.models, design, last_plan(ctx, version - 1)),
                 "Art Director",
             )
             if changed
@@ -653,12 +748,20 @@ def game_step(store, run_id) -> bool:
         open_playtest_gate(ctx, version, names)
         return False
 
-    # Entering from the G1 follow-ups: write design v1 (and the story, only when the brief asks
-    # for one) and ask the human to approve it.
+    # Entering from the G1 follow-ups: the research (when the brief asks for it), the game plan,
+    # design v1 written from the plan (and the story, only when the brief asks for one); then
+    # ask the human to approve them.
+    plan = None
+    if "game/design/v1.json" not in ctx.artifacts:  # runs from before L2.2 have no plan
+        research = ensure_research(ctx)
+        ctx.log("Game Designer")("writing the game plan")
+        plan = ensure_plan(ctx, 1, lambda: write_plan(
+            ctx.models, request_text(ctx.brief), ctx.brief.notes,
+            research_brief(research) if research else "", side_view(ctx)))  # fmt: skip
     design = ctx.once(
         "game/design/v1.json",
         GameDesign,
-        lambda: write_design(ctx.models, request_text(ctx.brief)),
+        lambda: write_design(ctx.models, request_text(ctx.brief), plan),
         "Game Designer",
     )
     save_design(ctx, 1, design)

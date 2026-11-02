@@ -16,7 +16,9 @@ from spriteforge.game.bundle import Build, Decision, GameRecord
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.dbsource import build_manifest, credits, read_art
 from spriteforge.game.design import GameDesign
+from spriteforge.game.plan import PlanRecord
 from spriteforge.game.qa import QASuite
+from spriteforge.game.research import ResearchRecord
 from spriteforge.game.revision import Revision
 from spriteforge.game.story import StoryBible
 
@@ -24,6 +26,8 @@ LEGACY_STORY = re.compile(r"game/design/v(\d+)-story\.json")
 STORY = re.compile(r"game/story/v(\d+)-([a-z0-9-]+)\.json")
 REPORT = re.compile(r"game/v(\d+)/report\.json")
 DESIGN = re.compile(r"game/design/v(\d+)\.json")
+PLAN = re.compile(r"game/plan/v(\d+)\.json")
+RESEARCH = "game/research.json"
 
 
 def story_names(names) -> list[str]:
@@ -68,7 +72,9 @@ def decisions(ctx) -> list[Decision]:
     brief = ctx.brief
     out = [Decision(
         gate="G1 brief", outcome="approved", words="\n".join(n for n in brief.notes if n.strip()),
-        changed=f"Genre {brief.genre}; camera {brief.perspective}; story: {brief.story}",
+        changed=f"Genre {brief.genre}; camera {brief.perspective}; story: {brief.story}; "
+                + (f"research by {ctx.read(RESEARCH)['by']}" if RESEARCH in ctx.artifacts
+                   else "no research"),
     )]  # fmt: skip
     for n, g in enumerate(Gates(ctx.store).all(ctx.run_id), 1):
         if g.response is None or g.stage not in {"design", "playtest"}:
@@ -120,6 +126,13 @@ def run_record(ctx, pending: tuple[int, dict] | None = None) -> GameRecord:
                      design_source=f"game/design/v{k}.json")  # fmt: skip
     if stories := story_names(names):
         rec.story, rec.story_source = StoryBible.model_validate(ctx.read(stories[-1])), stories[-1]
+    if RESEARCH in names:
+        rec.research, rec.research_source = ResearchRecord.model_validate(ctx.read(RESEARCH)), RESEARCH
+    # The plan of the current design (the latest one at or before it).
+    plans = sorted(int(m[1]) for n in names if (m := PLAN.fullmatch(n)) and int(m[1]) <= k)
+    if plans:
+        name = f"game/plan/v{plans[-1]}.json"
+        rec.plan, rec.plan_source = PlanRecord.model_validate(ctx.read(name)), name
     reports = {int(m[1]): ctx.read(n) for n in names if (m := REPORT.fullmatch(n))}
     if pending:
         reports[pending[0]] = pending[1]

@@ -230,6 +230,9 @@ def requirements(design: GameDesign) -> str:
   a restart resets it), plus level and score when the design has them: QA tests read them.
 * After 'win' or 'lose', Enter restarts the run with this.scene.restart() and everything starts
   over: QA tests press real keys (arrows/WASD, Space, Enter, digits for sf.choose menus).
+* A player who presses nothing can lose (when the design has a way to lose): no auto-fire,
+  auto-attack or auto-dodge outside the autoplay policy. A QA test stands still and expects
+  'lose' (QA caught auto-fire that made an idle player unbeatable in 2 of 3 live builds).
 * No network, no modules, no eval, no URLs, no Date.now/performance.now."""
 
 

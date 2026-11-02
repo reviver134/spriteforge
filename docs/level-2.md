@@ -117,3 +117,170 @@ Full pytest: 318 passed, 4 failed. Two `test_asset_production` failures are know
 `test_asset_ui` fails on an uncommitted change in the old asset pipeline (hero walk 2 to 4
 frames). `test_qa_regression_across_versions` failed once while the full suite ran (a QA
 timing flake also seen in M11) and passes when run alone.
+
+## L2.2: research and the game plan
+
+After the L2.1 playtest the order changed (level_2.md, "Revised order"): research and a game
+plan first, so every later agent gets concrete numbers and challenge ideas instead of
+adjectives.
+
+### Web search, probed first
+
+`tools/probe_web_search.py` (2026-11-02, three calls, about $0.07) decided the path before any code:
+
+* Chat Completions rejects `{"type": "web_search"}` (HTTP 400 "tools[0] did not match any
+  supported type"); `POST /v1/responses` accepts it.
+* Citations: `url_citation` annotations on `output_text` are few (one per answer); with
+  `include: ["web_search_call.action.sources"]` every search lists the pages it returned
+  (11-12 each).
+* `text.format` json_schema (strict) and `web_search` work in one call. The answer comes as
+  several `message` items: progress lines first, the JSON last. A URL inside the JSON is not
+  always one a search returned (the probe's Shovel Knight link was not), so code checks them.
+* Searches are not in `usage`. Each `web_search_call` item (a search or an `open_page`) is
+  counted as one search and charged at Meta's documented $2.50 per 1,000
+  (`budget.web_search_cost`); `max_tool_calls` caps them (`research.max_searches`, 8).
+
+Endpoint, caps and price are in `config.yaml` (`research`, `budget.web_search_cost`,
+`llm.reasoning.research` / `plan`).
+
+### Research (G1 to G2, one call)
+
+* G1 asks **Research similar games?** ("Yes: study similar games on the web first", the
+  default, or "No research").
+* `providers/muse_search.py` sends one Responses call (role prompt as `instructions`, the
+  `Research` schema, `web_search`, the sources included). If the last message does not fit the
+  schema, one Chat Completions call structures the notes (using only the pages found).
+* `Research`: 3-6 reference games (title, a page, what to learn), patterns (teaching a
+  mechanic safely, gating, combining abilities, risk and reward, pacing: how good games do it
+  and how this game could), feel numbers in tiles and seconds, pitfalls. The prompt says
+  references teach patterns and the game never copies a game's levels, characters, story or
+  art.
+* Code (`game/research.py`): a reference URL is **verified** only when a search returned that
+  page (scheme, `www.` and trailing slash ignored); other URLs are kept, marked and noted;
+  non-web URLs are dropped; lists are bounded. A failed search falls back to the offline
+  stand-in (from the genre notes, no references) and says so.
+* Saved once per run: `game/research.json` and `.md`.
+
+### The game plan (`game/plan.py`)
+
+`GamePlan` (strict, Game Designer, `llm.reasoning.plan: high`): the human's requirements
+numbered R1.. and copied word for word; style; movement (move speed, jump height and air
+time, dash distance and cooldown, coyote time); abilities; mechanics with what each is for;
+a challenge vocabulary; per level a teaching goal, its one new idea, its challenges, the
+abilities it needs and a difficulty 1-10; feel (what the player sees and hears per event);
+animation rows per entity (frames, what they show, loop or once); coverage (which plan parts
+fulfil each requirement: `movement`, `style`, `ability:<name>`, `mechanic:<name>`,
+`challenge:<name>`, `level:<n>`, `feel:<event>`, `animation:<entity>`); risks.
+
+Code decides what holds:
+
+* **Kinematics** from the movement numbers: gravity `8h/T²`, take-off speed `4h/T`, the
+  distance covered in the air, the highest platform a jump reaches (`max_rise`), the widest
+  gap a running jump clears (`max_gap`, and `max_gap_with_dash`), coyote distance. L2.3's
+  reachability check uses these numbers.
+* `fit_plan` repairs ids (R1.., levels 1..), clamps difficulty, zeroes negative numbers.
+* `check_plan` lists what code cannot repair: a requirement that is not in the human's words
+  or not covered, a coverage part that does not exist, movement out of range (jump 0.5-10
+  tiles, air time 0.2-2 s, gravity 200-5000 px/s², a jump without air time, a dash without a
+  cooldown), 1-8 levels, a level without a teaching goal or a new idea, a repeated new idea,
+  unknown challenges or abilities, a level easier than the one before.
+* Problems go back to the Game Designer once (`retry_prompt`); what remains is shown at G2.
+
+The design is written from the plan (`design_prompt(request, plan_brief(...))`: its numbers,
+abilities, mechanics, levels, feel and animations, with the kinematics). Plans are numbered
+with the design they belong to: `game/plan/vK.json` and `.md` for design vK. G2 feedback
+revises the plan (new requests added as requirements copied from the feedback), then the
+design from it; a design change at G4 revises the plan too.
+
+### G2 and the bundle
+
+* G2 shows the research (references with their pages, a warning on an unverified one,
+  patterns, feel numbers, pitfalls, what was searched), the plan (requirements with what
+  covers each, movement and kinematics, abilities, mechanics, challenges, levels, feel,
+  animations, risks, problems), then the design.
+* Bundle: `research/overview` (how it was made, patterns, feel, pitfalls; verified pages as
+  OKF `sources`), `research/references/<slug>` (the lesson and the page, tagged verified or
+  unverified), `plan/overview` (requirements and coverage, risks, problems),
+  `plan/movement` (a `# Schema` table of the numbers and the derived kinematics),
+  `plan/mechanics`, `plan/feel`, `plan/levels/<n>`. The context pack always includes
+  `plan/movement`.
+
+### Fixes from the L2.1 live runs
+
+* **Art stays locked on a design change.** The L2.1 jump-height feedback re-planned the whole
+  art set; the new plan's Muse prompts differed, so 8 locked sprites were redrawn. Now
+  `plan_new_art` keeps every pick of an entity that still exists and asks the Art Director
+  only about entities new to the design (no call when there are none); entities the feedback
+  names are still redrawn (`apply_art_changes`).
+* **Play stays visible.** `/api/runs/<id>` returns `play` (the newest build with a play link)
+  and the UI shows "Play the latest build (vN)" above the gate, also while the next build runs.
+* **An idle player can lose** is a Programmer requirement (`requirements()` and `API.md`):
+  attacks, shots and dodges happen only on key presses or in the autoplay policy.
+
+### Tests
+
+`tests/test_game_plan.py`: the Responses answer read as the probe recorded it (last message,
+sources of searches and page opens, citations, search count); the request contract
+(`/v1/responses`, `web_search`, `max_tool_calls`, `include`, strict json_schema, reasoning)
+and the search cost in the ledger; reference URLs verified only against the pages searched;
+research in one call, a structuring second call, the offline stand-in; kinematics; the
+offline plan's requirements are the human's sentences and pass; the checks (paraphrased or
+uncovered requirement, unknown part, floaty jump, missing teaching goal, unknown challenge,
+repeated idea, difficulty drop, jump without air time); `fit_plan` renumbering; problems sent
+back once; a gated mock run showing research, plan and design at G2, the plan and design
+revised by G2 feedback, the bundle conforming; "No research" at G1; the art lock (no Art
+Director call without new entities, only the new entity planned) and a G4 design change that
+revises the plan and redraws nothing; the Play link; the idle-player requirement.
+
+### Live (2026-11-02)
+
+The slime game (`workspace/l22-slime`, `tools/game_live.py`; G1 from flags with research on,
+G2 approved by the test operator, then one G4 design change by the test operator).
+
+**Research** (one Responses call, 8 searches, 65.7k input + 3.5k output tokens, $0.091 of
+which $0.02 searches): Celeste, Super Mario Bros. Wonder and Shovel Knight: Treasure Trove,
+each with a page a search returned (all 3 verified); patterns for teaching safely, gating,
+combining abilities, risk and reward and pacing, each with a use for this game; feel numbers
+(6 tiles/s, 3-3.5-tile jump, 0.55-0.65 s air time, 4-tile dash with 0.8 s cooldown, 0.1 s
+coyote time, 0.12 s jump buffer); six pitfalls. 30 source pages recorded.
+
+**Plan v1** ($0.043, no problems, no retry): 14 requirements copied word for word, all
+covered; movement 6 tiles/s, jump 3.2 tiles in 0.6 s, dash 4 tiles every 0.8 s, so code
+derived gravity 1138 px/s², gaps up to 3 tiles (7 with a dash) and platforms up to 3 tiles;
+three levels with distinct new ideas (dissolving crates, acid kills, metal breaks walls) at
+difficulty 2, 5, 7; eight feel events; animation rows for the slime (idle, move, jump with
+stretch and squash, dash, transform, hurt), the enemy, the crate (break), the cracked wall
+(break), coin and exit. Design v1 was written from it (the player text carries the
+kinematics). Two requirements ("side-scrolling-platformer", "side-scroll") are copies of the
+genre and camera lines `request_text` adds, not the human's prose.
+
+G2 total: 6 Spark calls, $0.175 (intake $0.015, research $0.091, plan $0.043, design $0.026).
+Research and plan together add about $0.13 per run, above the $0.05-0.10 the plan estimated:
+the search context is large (`research.search_context_size: low` would cut it).
+
+**Build v1**: all 12 design checks pass after two repairs; QA 6/6. The Art Director again
+chose the library "flying eye" sprite for the slime (as in L2.1). Run total $0.70.
+
+**G4 design change** ("The slime's jump is too low: make the jump higher, about 4 tiles, and
+the dash a bit longer."): the Director split it into a design change and a code change; plan
+v2 (jump 4 tiles, dash 4.5, gravity 1422 px/s², platforms up to 4 tiles, gaps up to 8 with a
+dash), design v2, build v2 with all checks passing in one attempt and QA 9/9. **No art was
+redrawn for the design change**: `art-plan-new.json` equals v1's picks (no Art Director
+call) and every Muse entity reports "muse (locked, from v1)". The one image call of v2 was the
+Art Reviewer's capped fix of the crate (it reviews every build). Run total $0.93.
+
+Found live and fixed: at G4 the plan revision got only the Director's summary, and the Game
+Designer copied that summary as R15, which is not the human's words. Code flagged it, asked
+once more (one extra call) and the problem stayed. Plan revisions now get the human's own
+words at the gate as well (`plan_revision_prompt(..., said)`); the same revision called live
+afterwards copied R15 word for word from the human with no problems ($0.033).
+
+Bundle after v2: 54 concepts and 24 files; our validator and the conformance test report
+nothing. A "level 2: acid corridor with patrolling enemies" context pack is 1971 tokens
+(budget 2000) and includes `plan/movement` and `plan/levels/2`.
+
+Full pytest: 333 passed, 4 failed. All four fail the same way on the previous commit with the
+uncommitted asset-pipeline changes (a clean worktree baseline): `test_asset_production` (2)
+and `test_asset_ui` (that uncommitted change), and
+`test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events` ("Write batch failed
+corpus validation").

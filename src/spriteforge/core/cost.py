@@ -26,6 +26,7 @@ class Usage(BaseModel):
     output_tokens: int | None = Field(default=None, ge=0)
     cached_input_tokens: int | None = Field(default=None, ge=0)
     reasoning_tokens: int | None = Field(default=None, ge=0)
+    web_searches: int | None = Field(default=None, ge=0)  # Responses API web search calls
 
 
 def ledger(db, run_id):
@@ -47,15 +48,18 @@ def ledger(db, run_id):
 
 
 def spark_tokens(raw):
+    """Token counts of a Chat Completions usage (prompt_tokens ...) or a Responses usage
+    (input_tokens ...); {} when they are missing or inconsistent."""
     if not isinstance(raw, dict):
         return {}
-    prompt = raw.get("prompt_tokens_details") or {}
-    completion = raw.get("completion_tokens_details") or {}
+    responses = "input_tokens" in raw
+    prompt = raw.get("input_tokens_details" if responses else "prompt_tokens_details") or {}
+    completion = raw.get("output_tokens_details" if responses else "completion_tokens_details") or {}
     if not isinstance(prompt, dict) or not isinstance(completion, dict):
         return {}
     values = {
-        "input_tokens": raw.get("prompt_tokens"),
-        "output_tokens": raw.get("completion_tokens"),
+        "input_tokens": raw.get("input_tokens" if responses else "prompt_tokens"),
+        "output_tokens": raw.get("output_tokens" if responses else "completion_tokens"),
         "cached_input_tokens": prompt.get("cached_tokens", 0),
         "reasoning_tokens": completion.get("reasoning_tokens", 0),
     }
@@ -137,14 +141,19 @@ class Budget:
             elif usage.provider == "meta" and not usage.image:
                 values = spark_tokens(raw)
                 usage = usage.model_copy(update=values)
+                cfg = self.config
                 if values:
-                    cfg = self.config
                     usage.estimated_cost = (
                         (usage.input_tokens - usage.cached_input_tokens)
                         * cfg.spark_input_per_million
                         + usage.cached_input_tokens * cfg.spark_cached_input_per_million
                         + usage.output_tokens * cfg.spark_output_per_million
                     ) / 1_000_000
+                searches = raw.get("web_searches") if isinstance(raw, dict) else None
+                if type(searches) is int and searches >= 0:
+                    # Charged on top of the tokens, whether or not the tokens were reported.
+                    usage.web_searches = searches
+                    usage.estimated_cost += searches * cfg.web_search_cost
             self.store._event(
                 db,
                 self.run_id,

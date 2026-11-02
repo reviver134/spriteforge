@@ -203,6 +203,11 @@ Then L2.5 (structure, flow and menus: the old L2.2 and L2.3) and L2.6 as written
 2. Web search spend: about 8 searches per research (cost measured by the probe). Research every
    run, or only when you ask at G1 ("Research similar games?", default yes)?
 
+L2.2 (2026-11-02) went ahead in this order and, for question 2, built the G1 question
+("Research similar games?", default yes; `--no-research` in tools/game_live.py). Measured: one
+research is 8 searches plus about 66k input tokens, about $0.09. Change the default if you
+prefer research only on request.
+
 ---
 
 ## L2.2: Game structure: screens, flow and progress (game design)

@@ -16,7 +16,7 @@ h1{color:#9ae6b4}select{padding:8px;max-width:100%}li{padding:8px;border-bottom:
 <label>Tool name (server.tool) <input id="mcp-tool"></label><label>Tool arguments (JSON)<textarea id="mcp-arguments">{}</textarea></label><button id="mcp-call" type="button">Request tool call</button>
 </details><section id="mcp-confirmations" aria-label="MCP confirmations"></section>
 <label>Run <select id="runs" aria-label="Select run"></select></label>
-<p id="status" role="status">Connecting…</p><p id="usage"></p><p id="error" role="alert"></p>
+<p id="status" role="status">Connecting…</p><p id="usage"></p><p id="play"></p><p id="error" role="alert"></p>
 <section id="preview-panel" hidden aria-label="Gameplay preview history"><p id="preview-summary"></p><details id="preview-warnings"><summary>Processing warnings</summary><ul id="preview-warning-list"></ul></details><nav id="preview-history" aria-label="Preview versions"></nav></section>
 <section id="production-panel" hidden aria-label="Production assets"><h2>Asset production</h2><p id="production-mode"></p><p id="set-review"></p><div id="production-assets"></div></section>
 <section id="gate-panel" hidden aria-labelledby="gate-title">
@@ -69,6 +69,28 @@ async function renderArtifact(a,container){
  list('Entities',d.entities.map(e=>e.id+' ('+e.role+', '+e.width+'x'+e.height+'): '+e.look+' — '+e.behaviour));
  list('Checks the playtest will verify',d.checks.map(c=>c.event+' ≥ '+c.min_count+(c.by_second?' by '+c.by_second+' s':'')+' — '+c.description));
  fig.append(box);cap.textContent='Game design doc · '+a.name;}
+ else if(a.mime==='application/json'&&a.name==='game/research.json'){const rec=await(await fetch('/api/artifacts/'+a.id)).json(),r=rec.research;const box=document.createElement('div');
+ const list=(title,items)=>{const t=document.createElement('h4');t.textContent=title;const ul=document.createElement('ul');for(const i of items){const li=document.createElement('li');if(i instanceof Node)li.append(i);else li.textContent=i;ul.append(li);}box.append(t,ul);};
+ box.append(Object.assign(document.createElement('h3'),{textContent:'Research: how similar games do it'}),Object.assign(document.createElement('p'),{textContent:rec.by+' · '+rec.searches+' search call(s) · '+rec.sources.length+' pages found'}));
+ list('Reference games (patterns only; the game stays original)',r.references.map((ref,i)=>{const span=document.createElement('span');span.append(ref.title+': '+ref.learn+' ');if(ref.url&&/^https?:\/\//.test(ref.url)){const link=document.createElement('a');link.href=ref.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=ref.url;span.append(link);}if(ref.url&&!rec.verified[i])span.append(' ⚠ not among the pages the searches returned');return span;}));
+ list('Patterns',r.patterns.map(x=>x.name+': '+x.how+' For this game: '+x.use));
+ list('Feel numbers players expect',r.feel.map(f=>f.name+': '+f.value+' ('+f.why+')'));
+ list('Pitfalls',r.pitfalls);if(rec.queries.length)list('Searched for',rec.queries);if(rec.notes.length)list('Notes',rec.notes);
+ fig.append(box);cap.textContent='Research (Game Designer with web search) · '+a.name;}
+ else if(a.mime==='application/json'&&/^game\/plan\/v\d+\.json$/.test(a.name)){const rec=await(await fetch('/api/artifacts/'+a.id)).json(),p=rec.plan,k=rec.kinematics,m=p.movement;const box=document.createElement('div');
+ const list=(title,items)=>{const t=document.createElement('h4');t.textContent=title;const ul=document.createElement('ul');for(const i of items){const li=document.createElement('li');li.textContent=i;ul.append(li);}box.append(t,ul);};
+ box.append(Object.assign(document.createElement('h3'),{textContent:'Game plan'}),Object.assign(document.createElement('p'),{textContent:'Style: '+p.style}));
+ if(rec.problems.length)list('⚠ Problems code found (the plan was '+(rec.retried?'asked for again once':'not retried')+')',rec.problems);
+ list('Your requirements (your words) and what covers each',p.requirements.map(r=>r.id+'. "'+r.text+'" → '+(p.coverage.filter(c=>c.requirement===r.id).map(c=>c.parts.join(', ')+': '+c.how).join('; ')||'NOT COVERED')));
+ list('Movement',[m.move_speed+' tiles/s','jump '+m.jump_height+' tiles, '+m.air_time+' s in the air'+(k?' → gravity '+k.gravity+' px/s², clears gaps up to '+k.max_gap+' tiles ('+k.max_gap_with_dash+' with a dash), platforms up to '+k.max_rise+' tiles high':''),'dash '+m.dash_distance+' tiles, cooldown '+m.dash_cooldown+' s','coyote time '+m.coyote_time+' s']);
+ list('Abilities',p.abilities.map(x=>x.name+': '+x.does+(x.numbers?' ('+x.numbers+')':'')+' · from '+x.unlocked_by));
+ list('Mechanics',p.mechanics.map(x=>x.name+': '+x.what+' — for '+x.purpose));
+ list('Challenges',p.challenges.map(c=>c.name+': '+c.tests));
+ list('Levels',p.levels.map(l=>l.n+'. '+l.name+' (difficulty '+l.difficulty+'): teaches '+l.teaching_goal+' · new idea: '+l.new_idea+' · challenges: '+(l.challenges.join(', ')||'-')+' · needs: '+(l.abilities.join(', ')||'-')));
+ list('Feel',p.feel.map(f=>f.event+': '+f.see+(f.hear?' · '+f.hear:'')));
+ list('Animations',p.animations.map(x=>x.entity+': '+x.rows.map(r=>r.name+' '+r.frames+'f '+(r.loop?'loop':'once')+' ('+r.shows+')').join('; ')));
+ list('Risks',p.risks);
+ fig.append(box);cap.textContent='Game plan: the design is written from it · '+a.name;}
  else if(a.mime==='application/json'&&/^game\/(design\/v\d+-story|story\/v\d+-[a-z0-9-]+)\.json$/.test(a.name)){const s=await(await fetch('/api/artifacts/'+a.id)).json();const box=document.createElement('div');
  const list=(title,items)=>{const t=document.createElement('h4');t.textContent=title;const ul=document.createElement('ul');for(const i of items){const li=document.createElement('li');li.textContent=i;ul.append(li);}box.append(t,ul);};
  const h=document.createElement('h3');h.textContent=s.title+' — story bible';box.append(h);
@@ -144,6 +166,7 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  artifactIds=Object.fromEntries(d.artifacts.map(a=>[a.name,a.id]));
  $('status').textContent=d.run.status+' · checkpoint '+d.run.cursor;
  $('error').textContent=d.error||'';
+ $('play').replaceChildren();if(d.play){const a=document.createElement('a');a.href=d.play.url;a.target='_blank';a.rel='noopener';a.textContent='▶ Play the latest build (v'+d.play.version+')';$('play').append(a);}
  const u=d.usage, dollars=v=>v==null?'unknown':'$'+v.toFixed(6);
  $('usage').textContent=u?`${u.image_calls} / ${u.cap} image calls (${dollars(u.estimated_image_cost)}) · Spark: ${u.spark.calls} calls, ${u.spark.input_tokens ?? 'unknown'} input / ${u.spark.output_tokens ?? 'unknown'} output tokens, ${u.spark.cached_input_tokens ?? 'unknown'} cached input (${dollars(u.spark.estimated_cost)}) · total estimate ${dollars(u.estimated_total_cost)} · failed attempts: ${u.failed_attempts} (excluded)${u.spark.missing_usage_calls ? ' · token usage unavailable for '+u.spark.missing_usage_calls+' calls' : ''}`:'';
  renderProduction(d);

@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 
 from spriteforge.core.cost import Budget
 
-from .base import ChatRequest, ChatResult, ImageRequest, ImageResult
+from .base import ChatRequest, ChatResult, ImageRequest, ImageResult, SearchRequest, SearchResult
 
 
 class MockImageProvider:
@@ -84,3 +84,20 @@ class MockLLMProvider:
                 if isinstance(response, ChatResult)
                 else ChatResult(content=json.dumps(response), metadata={"provider": "mock"})
             )
+
+
+class MockSearchProvider:
+    """Scripted web research: each answer is a SearchResult (its sources stand for the pages
+    the searches returned). No network, no search cost."""
+
+    def __init__(self, budget: Budget, responses: list[SearchResult]):
+        self.budget = budget
+        self.responses = deque(responses)
+        self.requests: list[SearchRequest] = []
+
+    def research(self, request: SearchRequest) -> SearchResult:
+        with self.budget.attempt("mock", "scripted-search"):
+            self.requests.append(request)
+            if not self.responses:
+                raise RuntimeError("Mock script exhausted")
+            return self.responses.popleft()

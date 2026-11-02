@@ -21,6 +21,17 @@ STORY_WORDS = re.compile(
 )
 
 
+# Research (L2.2): before designing, the Game Designer studies similar games with web search.
+RESEARCH_YES = "Yes: study similar games on the web first (up to 8 searches, about $0.05)"
+RESEARCH_NO = "No research"
+RESEARCH_CHOICES = [RESEARCH_YES, RESEARCH_NO]
+
+
+def research_choice(value: str) -> str:
+    """'no', 'No research' -> RESEARCH_NO; anything else (yes, empty) -> RESEARCH_YES."""
+    return RESEARCH_NO if re.match(r"\s*no\b", str(value or ""), re.IGNORECASE) else RESEARCH_YES
+
+
 def story_choice(value: str) -> str:
     """'yes', 'Yes: ...', 'Add a story' -> YES_STORY; anything else -> NO_STORY."""
     return YES_STORY if re.match(r"\s*(yes|add)\b", str(value), re.IGNORECASE) else NO_STORY
@@ -44,6 +55,8 @@ class GameBrief(BaseModel):
     references: str = "No specific reference games"
     # Only when the human asks: a story means named characters, a world and an arc.
     story: str = NO_STORY
+    # Research similar games with web search before the plan and design (default yes).
+    research: str = RESEARCH_YES
     answers: dict[str, str] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
     screen: tuple[Literal[320], Literal[180]] = (320, 180)
@@ -53,9 +66,18 @@ class GameBrief(BaseModel):
     def normalise_story(cls, value):
         return story_choice(value or NO_STORY)
 
+    @field_validator("research", mode="before")
+    @classmethod
+    def normalise_research(cls, value):
+        return research_choice(value)
+
     @property
     def wants_story(self) -> bool:
         return self.story == YES_STORY
+
+    @property
+    def wants_research(self) -> bool:
+        return self.research == RESEARCH_YES
 
 
 class GenrePick(Contract):
@@ -303,6 +325,15 @@ def brief_form(body, draft):
         "the game is described by its design alone.",
         "enum": STORY_CHOICES,
         "default": story_choice(draft.story),
+    }
+    properties["research"] = {
+        "type": "string",
+        "title": "Research similar games?",
+        "description": "Before the plan and the design, the Game Designer studies 3-6 published "
+        "games of this genre with web search and shows the sources and patterns at G2. "
+        "References teach patterns only; the game stays original.",
+        "enum": RESEARCH_CHOICES,
+        "default": RESEARCH_YES,
     }
     for name, rule in properties.items():
         if "enum" not in rule:

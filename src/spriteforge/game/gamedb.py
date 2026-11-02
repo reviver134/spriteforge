@@ -12,6 +12,12 @@ Every later agent (level and menu designers, the Director) reads this bundle, no
     qa/suite, qa/tests/<slug>    the QA tests: # Schema of a step; each test and its last result
     builds/v<N>                  verdict, attempts, QA, art review, cost, what changed and why
     decisions/<n>                the human's words at a gate and what they changed
+    research/overview            similar games studied with web search: patterns, feel, pitfalls
+    research/references/<slug>   one reference game, its page (an OKF source) and the lesson
+    plan/overview                the human's requirements word for word and what covers each
+    plan/movement                # Schema: movement numbers and the kinematics code derived
+    plan/mechanics, plan/feel    abilities, mechanics, challenges; feedback and animation rows
+    plan/levels/<n>              per level: teaching goal, new idea, challenges, difficulty
     story/*, characters/*, world/*   only when the human asked for a story
 
 Files sit under `references/` (`art/<id>.png`, `code/<file>.js`, `tests/test_game_qa.py`);
@@ -135,7 +141,7 @@ def excerpt(text: str, tokens: int) -> str:
 
 
 ALWAYS = [("game", 160), ("design/rules", 320), ("story/overview", 300), ("story/canon", 200),
-          ("story/arc", 160), ("PLAYER", 200), ("art/style", 180)]  # fmt: skip
+          ("story/arc", 160), ("PLAYER", 200), ("plan/movement", 200), ("art/style", 180)]  # fmt: skip
 # Concepts about the build history, not the game's canon: found only when the focus asks.
 HISTORY = ("builds/", "decisions/", "qa/tests/")
 

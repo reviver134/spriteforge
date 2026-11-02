@@ -39,7 +39,19 @@ class BudgetConfig(Schema):
     spark_input_per_million: float = Field(default=1.25, ge=0)
     spark_cached_input_per_million: float = Field(default=0.15, ge=0)
     spark_output_per_million: float = Field(default=4.25, ge=0)
+    # Muse Spark web search: "$2.50 per 1,000 search queries, in addition to the request's
+    # token cost" (https://dev.meta.ai/docs/pricing-rate-limits, 2026-11-02).
+    web_search_cost: float = Field(default=0.0025, ge=0)
     max_estimated_cost: float = Field(default=5, ge=0)
+
+
+class ResearchConfig(Schema):
+    """Muse Spark web search for the Game Designer's research (L2.2), on the Responses API."""
+
+    path: str = "/v1/responses"
+    # Built-in tool calls per research (searches and page opens; `max_tool_calls`).
+    max_searches: int = Field(default=8, ge=1, le=20)
+    search_context_size: Literal["low", "medium", "high"] = "medium"
 
 
 class MemoryConfig(Schema):
@@ -117,6 +129,7 @@ class Config(Schema):
     router: RouterConfig = Field(default_factory=RouterConfig)
     image: ImageConfig
     llm: LLMConfig
+    research: ResearchConfig = Field(default_factory=ResearchConfig)
     budget: BudgetConfig = Field(default_factory=BudgetConfig)
 
 

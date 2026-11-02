@@ -22,8 +22,10 @@ from .art_review import sheet_image, thumb
 from .codegen import GameCode
 from .codeinfo import Module, read_code
 from .design import GameDesign
+from .plan import PlanRecord
 from .qa import SDK_EVENTS, STATE_KEYS, QASuite, Step
 from .qa_runtime import describe_step
+from .research import ResearchRecord
 from .story import StoryBible
 
 WITHHELD = "withheld from the record: it looked like a credential"
@@ -94,6 +96,10 @@ class GameRecord:
     qa_export: bytes | None = None  # test_game_qa.py
     decisions: list[Decision] = field(default_factory=list)
     play: str | None = None
+    research: ResearchRecord | None = None  # L2.2: similar games studied with web search
+    research_source: str = ""
+    plan: PlanRecord | None = None  # L2.2: the game plan of the current design
+    plan_source: str = ""
 
     @property
     def latest(self) -> Build | None:
@@ -143,7 +149,13 @@ def code_span(text: str) -> str:
 
 def game_concept(rec: GameRecord, modules: list[Module]) -> Entry:
     d, b = rec.design, rec.latest
-    sections = [
+    sections = []
+    if rec.research:
+        sections.append("[Research](/research/overview.md): similar games, patterns, feel numbers")
+    if rec.plan:
+        sections.append("[Game plan](/plan/overview.md): the human's requirements, movement "
+                        "numbers, mechanics, levels, feel and animations")  # fmt: skip
+    sections += [
         "[Rules](/design/rules.md): controls, rules, progression, difficulty, win and lose",
         "[Events and state](/design/events.md): what every build emits and exposes",
         "[Entities](/entities/index.md): everything the player sees",
@@ -737,6 +749,182 @@ The [arc](/story/arc.md) and the [canon](/story/canon.md) no later level may bre
     return entries
 
 
+def web_page(url: str) -> str:
+    """A reference URL as it may go into the record ('' when it looks like a secret)."""
+    return url if url and safe_text(url) == url else ""
+
+
+def research_concepts(rec: GameRecord) -> list[Entry]:
+    record, src = rec.research, rec.research_source
+    if record is None:
+        return []
+    r = record.research
+    refs, entries = [], []
+    for ref, ok in record.references:
+        ident = f"research/references/{slug(ref.title)}"
+        url = web_page(ref.url)
+        checked = ("a search returned this page" if ok else
+                   "NOT among the pages the searches returned: check it before trusting it"
+                   if url else "no page")  # fmt: skip
+        refs.append(f"- [{ref.title}](/{ident}.md): {ref.learn}")
+        body = f"""
+# What to learn
+{ref.learn}
+
+# Page
+{f"<{url}>" if url else "-"} ({checked})
+
+# Use
+A reference teaches patterns only: never copy its levels, characters, story or art.
+"""
+        entry = make_entry(ident, "Reference Game", ref.title, ref.learn,
+                           ["research", "reference", "verified" if ok else "unverified"], body, [src])  # fmt: skip
+        if url:
+            entry.metadata.sources.append(Source(resource=url, title=ref.title))
+        entries.append(entry)
+    pats = "\n".join(f"- **{x.name}**: {x.how} For this game: {x.use}" for x in r.patterns)
+    feel = "\n".join(f"| {f.name} | {f.value} | {f.why} |" for f in r.feel)
+    queries = ", ".join(f"`{q}`" for q in record.queries)
+    body = f"""
+# How it was made
+{record.by}; {record.searches} search call(s){f": {queries}" if queries else ""}. {len(record.sources)} pages returned.
+
+# Reference games
+{chr(10).join(refs) or "- (none)"}
+
+# Patterns
+{pats or "- (none)"}
+
+# Feel numbers players expect
+| what | value | why |
+| --- | --- | --- |
+{feel}
+
+# Pitfalls
+{bullets(r.pitfalls)}
+"""
+    overview = make_entry("research/overview", "Research", f"{rec.design.title}: research",
+                          f"{len(r.references)} reference games, {len(r.patterns)} patterns",
+                          ["research", "patterns", "feel"], body, [src])  # fmt: skip
+    for ref, ok in record.references:
+        if ok and (url := web_page(ref.url)):
+            overview.metadata.sources.append(Source(resource=url, title=ref.title))
+    return [overview, *entries]
+
+
+def plan_concepts(rec: GameRecord) -> list[Entry]:
+    record, src = rec.plan, rec.plan_source
+    if record is None:
+        return []
+    p, k, m, title = record.plan, record.kinematics, record.plan.movement, rec.design.title
+    covers = {}
+    for c in p.coverage:
+        covers.setdefault(c.requirement, []).append(f"{', '.join(c.parts)}: {c.how}")
+    reqs = "\n".join(f"- **{r.id}** \"{safe_text(r.text)}\": " + ("; ".join(covers.get(r.id, []))
+                     or "not covered") for r in p.requirements)  # fmt: skip
+    levels = "\n".join(f"- [Level {lv.n}: {lv.name}](/plan/levels/{lv.n}.md): {lv.new_idea}"
+                       for lv in p.levels)  # fmt: skip
+    overview = f"""
+# Requirements (the human's words)
+{reqs or "- (none)"}
+
+# Style
+{p.style}
+
+# Parts
+- [Movement](/plan/movement.md): numbers and the jump physics code derived from them
+- [Abilities, mechanics and challenges](/plan/mechanics.md)
+- [Feel and animations](/plan/feel.md)
+
+# Levels
+{levels or "- (none)"}
+
+# Risks
+{bullets(p.risks)}
+
+# Problems code found
+{bullets(record.problems, "- none")}
+"""
+    rows = [("move_speed", m.move_speed, "tiles/s", "running speed"),
+            ("jump_height", m.jump_height, "tiles", "the highest jump; 0 = no jump"),
+            ("air_time", m.air_time, "s", "take-off to landing at the same height"),
+            ("dash_distance", m.dash_distance, "tiles", "0 = no dash"),
+            ("dash_cooldown", m.dash_cooldown, "s", "time between dashes"),
+            ("coyote_time", m.coyote_time, "s", "a jump still works after leaving a ledge")]  # fmt: skip
+    if k:
+        rows += [("gravity", k.gravity, "px/s^2", "8 * jump height / air time^2 (code)"),
+                 ("jump_velocity", k.jump_velocity, "px/s", "take-off speed, 4h / T (code)"),
+                 ("jump_distance", k.jump_distance, "px", "covered in the air at full speed (code)"),
+                 ("max_rise", k.max_rise, "tiles", "the highest platform top a jump reaches (code)"),
+                 ("max_gap", k.max_gap, "tiles", "the widest gap a running jump clears (code)"),
+                 ("max_gap_with_dash", k.max_gap_with_dash, "tiles", "with one dash in the air (code)"),
+                 ("coyote", k.coyote, "px", "ledge forgiveness at full speed (code)")]  # fmt: skip
+    table = "\n".join(f"| `{n}` | {v:g} | {u} | {w} |" for n, v, u, w in rows)
+    movement = f"""
+# Movement
+{m.move_speed:g} tiles/s; {f"jump {m.jump_height:g} tiles in {m.air_time:g} s" if k else "no jump"}; {f"dash {m.dash_distance:g} tiles every {m.dash_cooldown:g} s" if m.dash_distance else "no dash"}. Tiles are {k.tile if k else 16} px.
+
+# Schema
+| field | value | unit | meaning |
+| --- | --- | --- | --- |
+{table}
+
+Levels are checked against these numbers: a platform higher than `max_rise` or a gap wider than
+`max_gap` (`max_gap_with_dash` once the dash is available) cannot be crossed.
+"""
+    abilities = "\n".join(f"- **{a.name}**: {a.does}" + (f" ({a.numbers})" if a.numbers else "")
+                          + f"; from {a.unlocked_by}" for a in p.abilities)  # fmt: skip
+    mechanics = "\n".join(f"- **{x.name}**: {x.what} For: {x.purpose}" for x in p.mechanics)
+    challenges = "\n".join(f"- **{c.name}**: {c.tests}" + (f" Needs: {', '.join(c.needs)}." if c.needs else "")
+                           for c in p.challenges)  # fmt: skip
+    feel = "\n".join(f"| {f.event} | {f.see} | {f.hear or '-'} |" for f in p.feel)
+    anims = "\n".join(f"| {a.entity} | {r.name} | {r.frames} | {'loop' if r.loop else 'once'} | {r.shows} |"
+                      for a in p.animations for r in a.rows)  # fmt: skip
+    entries = [
+        make_entry("plan/overview", "Game Plan", f"{title}: game plan",
+                   f"{len(p.requirements)} requirements, {len(p.levels)} levels",
+                   ["plan", "requirements"], overview, [src]),
+        make_entry("plan/movement", "Movement", f"{title}: movement and kinematics",
+                   f"{m.move_speed:g} tiles/s" + (f", jump {m.jump_height:g} tiles, gaps up to {k.max_gap} tiles" if k else ""),
+                   ["plan", "movement", "kinematics"], movement, [src]),
+        make_entry("plan/mechanics", "Mechanics", f"{title}: abilities, mechanics, challenges",
+                   f"{len(p.abilities)} abilities, {len(p.mechanics)} mechanics, {len(p.challenges)} challenges",
+                   ["plan", "mechanics", "abilities", "challenges"],
+                   f"# Abilities\n{abilities or '- (none)'}\n\n# Mechanics\n{mechanics or '- (none)'}\n\n"
+                   f"# Challenge vocabulary\n{challenges or '- (none)'}", [src]),
+        make_entry("plan/feel", "Feel", f"{title}: feel and animations",
+                   "what the player sees and hears; animation rows per entity", ["plan", "feel", "animation"],
+                   "# Feedback\n| event | see | hear |\n| --- | --- | --- |\n" + feel
+                   + "\n\n# Animations\n| entity | row | frames | plays | shows |\n| --- | --- | --- | --- | --- |\n"
+                   + anims, [src]),
+    ]  # fmt: skip
+    vocabulary = {c.name.casefold(): c for c in p.challenges}
+    for lv in p.levels:
+        tests = "\n".join(f"- **{name}**: " + (vocabulary[name.casefold()].tests
+                          if name.casefold() in vocabulary else "(not in the vocabulary)")
+                          for name in lv.challenges)  # fmt: skip
+        body = f"""
+# Teaches
+{lv.teaching_goal}
+
+# New idea
+{lv.new_idea}
+
+# Challenges
+{tests or "- (none)"}
+
+# Needs
+{", ".join(lv.abilities) or "-"}. See [movement](/plan/movement.md) for what a jump can cross.
+
+# Difficulty
+{lv.difficulty} of 10
+"""
+        entries.append(make_entry(f"plan/levels/{lv.n}", "Level Plan", f"Level {lv.n}: {lv.name}",
+                                  f"teaches {lv.teaching_goal}; new: {lv.new_idea}",
+                                  ["plan", "level", f"level-{lv.n}"], body, [src]))  # fmt: skip
+    return entries
+
+
 def bundle(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
     """Every concept and file of a game's record."""
     modules = read_code(rec.code.as_dict()) if rec.code else []
@@ -745,7 +933,8 @@ def bundle(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
     qa, qa_files, _ = qa_concepts(rec)
     entries = [game_concept(rec, modules), rules_concept(rec), events_concept(rec, modules),
                *entity_concepts(rec), *art, *code, *qa, *build_concepts(rec),
-               *decision_concepts(rec), *story_concepts(rec)]  # fmt: skip
+               *decision_concepts(rec), *story_concepts(rec), *research_concepts(rec),
+               *plan_concepts(rec)]  # fmt: skip
     return entries, art_files | code_files | qa_files
 
 

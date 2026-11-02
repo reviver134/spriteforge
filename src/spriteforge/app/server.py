@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
@@ -15,6 +16,20 @@ from spriteforge.core.usage import usage_report
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 from spriteforge.stages.workflow import advance_until_gate as advance_intake
 from spriteforge.stages.workflow import workflow_step as intake_step
+
+
+def latest_play(store, run_id) -> dict | None:
+    """The newest game build that can be played (its report has a play link): shown even while
+    the next build runs and no gate is open."""
+    reports = {}
+    for a in store.artifacts(run_id):
+        if m := re.fullmatch(r"game/v(\d+)/report\.json", a.name):
+            reports[int(m[1])] = a
+    for version in sorted(reports, reverse=True):
+        play = json.loads(reports[version].data).get("play")
+        if play:
+            return {"version": version, "url": play}
+    return None
 
 
 def create_app(
@@ -122,6 +137,7 @@ def create_app(
             }
         return {
             "run": run.model_dump(),
+            "play": latest_play(store, id),
             "production": production,
             "preview": preview,
             "error": next(

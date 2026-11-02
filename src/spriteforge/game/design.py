@@ -80,7 +80,9 @@ class GameDesign(Contract):
         return self
 
 
-def design_prompt(request: str) -> str:
+def design_prompt(request: str, plan: str = "") -> str:
+    """`plan`: the game plan (L2.2) the design is written from: its numbers, abilities,
+    mechanics, levels, feel and animations."""
     return (
         "Write the game design document for this request. Keep every rule, number and mechanic "
         "the human asked for; fill gaps with the simplest choice that fits; invent nothing that "
@@ -92,15 +94,27 @@ def design_prompt(request: str) -> str:
         "the moment it happens, plus 'win' (or 'lose' for endless games). A bot that cannot die "
         "plays the full session, so every check must be reachable by simple play. Use by_second "
         "for rules about timing (e.g. first spawn within 5 s, difficulty rises by 120 s).\n"
-        f"\nRequest:\n{request.strip()}"
+        + (
+            "* The game plan below is approved groundwork: keep its numbers (movement, jump, "
+            "dash), abilities, mechanics, levels, feel and animations; the player's stats and "
+            "the progression come from it.\n"
+            f"\nGame plan:\n{plan.strip()}\n"
+            if plan.strip()
+            else ""
+        )
+        + f"\nRequest:\n{request.strip()}"
     )
 
 
-def revision_prompt(design: "GameDesign", feedback: str) -> str:
+def revision_prompt(design: "GameDesign", feedback: str, plan: str = "") -> str:
+    """`plan`: the game plan revised for the same feedback (the design follows it)."""
     return (
         "Revise this game design document. Change only what the feedback asks for and keep "
         "everything else identical, including entity ids and check event names that still "
-        f"apply.\n\nFeedback:\n{feedback.strip()}\n\nCurrent design:\n{design.model_dump_json()}"
+        f"apply.\n\nFeedback:\n{feedback.strip()}\n\n"
+        + (f"The game plan, revised for this feedback (keep its numbers):\n{plan.strip()}\n\n"
+           if plan.strip() else "")
+        + f"Current design:\n{design.model_dump_json()}"
     )
 
 
