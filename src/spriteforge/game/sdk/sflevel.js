@@ -253,7 +253,12 @@
         if (o.body) o.body.enable = false;
         const key = o.texture.key, scene = o.scene;
         const anim = ['break', 'die', 'death', 'open'].find(a => scene && scene.anims.exists(key + ':' + a));
-        if (anim) { sf.play(o, anim); o.once('animationcomplete', () => o.destroy()); } else o.destroy();
+        if (!anim) { o.destroy(); continue; }
+        // Played once whatever the animation's own repeat says (a looping 'die' left beaten
+        // enemies dying forever, live 2026-11-02), and removed at the end; a timer makes sure.
+        o.anims.play({key: key + ':' + anim, repeat: 0});
+        o.once('animationcomplete', () => o.destroy());
+        scene.time.delayedCall(2000, () => { if (o.active) o.destroy(); });
       }
     },
     drop(t) {  // what a crate holds appears where it was

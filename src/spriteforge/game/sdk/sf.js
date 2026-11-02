@@ -19,7 +19,7 @@
     assets: {screen: [320, 180], scale: 1, background: '#0b0c14', sprites: {}, images: {}},
     game: null, clock: {now: 0},
   });
-  const MAX_EVENTS = 400, MAX_TIMES = 300, ONCE = new Set(['attack', 'death', 'hurt', 'hit', 'jump']);
+  const MAX_EVENTS = 400, MAX_TIMES = 300, ONCE = new Set(['attack', 'death', 'die', 'break', 'hurt', 'hit', 'jump', 'land', 'transform']);
 
   // Every script error, rejected promise and console.error reaches the playtest report.
   window.addEventListener('error', e => sf.errors.push(String(e.message || e)));

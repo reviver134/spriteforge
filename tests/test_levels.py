@@ -5,6 +5,7 @@ import json
 
 import pytest
 from PIL import Image
+from playwright.sync_api import sync_playwright
 from test_game_db import conformance
 
 from spriteforge.config import load_config
@@ -40,6 +41,7 @@ from spriteforge.game.plan import (
 )
 from spriteforge.game.playtest import playtest_levels
 from spriteforge.game.reach import Grid, Motion, Thing, gap_limits, solve
+from spriteforge.game.record import READY, serve, wait_until
 from spriteforge.game.revision import fallback_revision
 from spriteforge.memory.okf.validate import validate
 from spriteforge.providers.mock import MockLLMProvider
@@ -388,6 +390,32 @@ def test_coins_in_the_air_are_no_floor_and_a_checkpoint_needs_no_art(tmp_path):
     level = report["levels"][0]
     assert level["cleared"] and report["errors"] == [], level
     assert level["events"]["checkpoint"] >= 1 and level["events"].get("respawn", 0) == 0
+
+
+def test_a_beaten_enemy_plays_its_death_once_and_is_gone(tmp_path):
+    """Live 2026-11-02: a looping 'die' row left beaten enemies in their dying motion."""
+    design, plan = slime_design(), slime_plan()
+    records = [check(GATED, n=1)]
+    build = built(tmp_path, design, plan, records)
+    manifest = json.loads((build / "assets.json").read_text(encoding="utf-8"))
+    walker = manifest["sprites"]["walker"]
+    walker["anims"]["die"] = walker["anims"].get("walk") or [0, 2]  # several frames: it used to loop
+    text = json.dumps(manifest)
+    (build / "assets.json").write_text(text, encoding="utf-8")
+    (build / "assets.js").write_text(f"window.SF_ASSETS = {text};\n", encoding="utf-8")
+    with serve(build) as url, sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(f"{url}/index.html?autoplay=1&headless=1&god=1&only=1&level=1")
+        assert wait_until(page, READY)
+        for _ in range(60):
+            page.evaluate("window.sfRun(1, 30)")
+            if page.evaluate("!!window.sf.counts.level_complete"):
+                break
+        beaten = page.evaluate("window.sf.level.current.list.filter(t => t.kind === 'enemy')"
+                               ".map(t => ({open: t.open, active: t.sprite.active}))")  # fmt: skip
+        browser.close()
+    assert beaten and all(e["open"] and not e["active"] for e in beaten), beaten
 
 
 def test_a_mechanic_that_does_not_work_gets_the_bot_stuck(tmp_path):
