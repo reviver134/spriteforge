@@ -2,6 +2,9 @@
 
     design.json/.md     Game Designer (Muse Spark): rules, entities, checks
     story.json/.md      Game Designer: the story bible, only with --story (the human asked)
+    motion.json/.md     Art Director: the motion design (rows per entity with what each frame
+                        shows, fps and loop; forms; effects), fitted by code (L2.4);
+                        motion.png/.gif every animated row as filmstrips and playing
     art-plan.json       Art Director (Muse Spark): a library pick or a Muse request per entity
     art.json, art.png   what each entity actually got (library / tile set / Muse / placeholder)
     attempts/N/         each Programmer answer (files + notes) and its static/playtest report
@@ -102,6 +105,19 @@ from .levels import (
     level_revision_prompt,
     levels_script,
     player_body,
+)
+from .motion import (
+    AnimationBrief,
+    MotionRecord,
+    breaks_from_design,
+    breaks_of,
+    brief_prompt,
+    fallback_brief,
+    filmstrips,
+    keep_rows,
+    make_motion,
+    motion_gif,
+    motion_markdown,
 )
 from .plan import (
     GamePlan,
@@ -457,12 +473,67 @@ def write_qa_tests(models: Models, design: GameDesign) -> tuple[QATests, str]:
         return fallback, note
 
 
-def plan_art(models: Models, design: GameDesign) -> ArtPlan:
-    prompt = art_prompt(design, library_context(design.camera, design))
+def plan_art(models: Models, design: GameDesign, motion: MotionRecord | None = None) -> ArtPlan:
+    prompt = art_prompt(design, library_context(design.camera, design), motion)
     return models.ask("Art Director", prompt, ArtPlan, keyword_plan(design), "art_plan")
 
 
-def plan_new_art(models: Models, design: GameDesign, previous: ArtPlan) -> ArtPlan:
+def write_motion(models: Models, design: GameDesign, plan: PlanRecord | None = None,
+                 levels: list[LevelRecord] | None = None,
+                 previous: MotionRecord | None = None) -> MotionRecord:  # fmt: skip
+    """The Art Director's motion design (L2.4): rows per entity, forms, effects; fitted and
+    checked by code. `levels`: what they open decides which entities need a break or die row.
+    `previous` (a design change): entities that still exist keep their rows (their locked art
+    is not redrawn); no call when every entity has rows already."""
+    breaks = breaks_of(levels) if levels else breaks_from_design(design)
+    offline = fallback_brief(design, plan, breaks)
+    if previous is not None:
+        have = set(previous.entities) | {r.entity for r in previous.brief.rows}
+        new = [e for e in design.entities if e.id not in have and e.role != "background"]
+        if not new:
+            brief = keep_rows(previous, AnimationBrief(rows=[], forms=[], effects=[]), design)
+            return make_motion(brief, design, plan, breaks, ["rows kept from the previous design"])
+        ids = {e.id for e in new}
+        part = design.model_copy(update={"entities": new})
+        offline = AnimationBrief(rows=[r for r in offline.rows if r.entity in ids], forms=[], effects=[])
+        answer = models.ask("Art Director", brief_prompt(part, plan, breaks), AnimationBrief,
+                            offline, "motion")  # fmt: skip
+        return make_motion(keep_rows(previous, answer, design), design, plan, breaks,
+                           [f"rows kept for every entity but {', '.join(e.id for e in new)}"])  # fmt: skip
+    answer = models.ask("Art Director", brief_prompt(design, plan, breaks), AnimationBrief,
+                        offline, "motion")  # fmt: skip
+    return make_motion(answer, design, plan, breaks)
+
+
+def motion_previews(art: ArtResult) -> dict[str, bytes]:
+    """motion.png (every animated row as a filmstrip) and motion.gif (them playing)."""
+    sprites = {}
+    for eid, f in art.filled.items():
+        if f.kind == "sprite":
+            sprites[eid] = (f.png, f.meta)
+        for lid, (data, meta) in f.extra.items():
+            if "anims" in meta:
+                sprites[lid] = (data, meta)
+    out = {}
+    if strip := filmstrips(sprites):
+        out["motion.png"] = strip
+    if gif := motion_gif(sprites):
+        out["motion.gif"] = gif
+    return out
+
+
+def motion_report(art: ArtResult) -> dict:
+    """report.json "motion": each entity's rows as checked by code (problems, repairs)."""
+    return {
+        "rows": [{**c.model_dump(), "source": f.source} for f in art.filled.values() for c in f.checks],
+        "breaks": sorted(lid for f in art.filled.values() for lid, (_, m) in f.extra.items() if "anims" in m),
+        "forms": art.forms() if art.motion else {},
+        "effects": [x.name for x in art.motion.brief.effects] if art.motion else [],
+    }
+
+
+def plan_new_art(models: Models, design: GameDesign, previous: ArtPlan,
+                 motion: MotionRecord | None = None) -> ArtPlan:
     """The art plan after a design change: every entity that still exists keeps its pick (so
     its locked art is reused); only entities new to the design go to the Art Director (no call
     when there are none). Entities the feedback names are redrawn by `apply_art_changes`."""
@@ -472,7 +543,7 @@ def plan_new_art(models: Models, design: GameDesign, previous: ArtPlan) -> ArtPl
     new = [e for e in design.entities if e.id not in known]
     if not new:
         return previous.model_copy(update={"picks": kept})
-    extra = plan_art(models, design.model_copy(update={"entities": new}))
+    extra = plan_art(models, design.model_copy(update={"entities": new}), motion)
     added = [p for p in extra.picks if p.entity in {e.id for e in new}]
     return previous.model_copy(update={"picks": kept + added})
 
@@ -497,6 +568,7 @@ def produce_art(
     plan: ArtPlan,
     cfg: Config,
     previous: Callable[[str], dict | None] = lambda eid: None,
+    motion: MotionRecord | None = None,
 ) -> ArtResult:
     generate, close = models.image_generator()
     try:
@@ -509,6 +581,7 @@ def produce_art(
             previous=previous,
             options=options,
             cache=models.image_cache(),
+            motion=motion,
         )
     finally:
         close()
@@ -760,16 +833,19 @@ def review_art(
     shots = [screenshot(s["png"]) for s in outcome.screenshots]
     images = {"sheet.png": sheet, "sheet-4x.png": zoomed}
     images |= {f"shot-{i + 1}.png": data for i, data in enumerate(shots)}
+    strips = motion_previews(art).get("motion.png") if art.motion else None
+    if strips:  # the motion design's rows as filmstrips (L2.4)
+        images["motion.png"] = strips
     offline = fallback_review(slots, findings, design)
     failed, start = None, models.budget.spent()
     try:
         answer = models.ask(
             "Art Reviewer",
-            review_prompt(design, art, slots, findings, len(shots)),
+            review_prompt(design, art, slots, findings, len(shots), rows=bool(strips)),
             ArtReview,
             offline,
             "review",
-            images=[sheet, zoomed, *shots],
+            images=[sheet, zoomed, *shots, *([strips] if strips else [])],
         )
     except Exception as exc:  # noqa: BLE001 -- the review is advice; the build stands without it
         failed = f"{type(exc).__name__}: {str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ''}"
@@ -988,11 +1064,19 @@ def make_game(
         save_json(out / "qa-tests.json", qa_tests.model_dump())
         log(f"  {len(qa_tests.tests)} QA tests" + (f" ({qa_note})" if qa_note else ""))
 
+    motion = None
+    if cfg.game.motion:
+        log("motion: Art Director is designing how each thing moves and reacts")
+        motion = write_motion(models, design)
+        save_json(out / "motion.json", motion.model_dump())
+        (out / "motion.md").write_text(motion_markdown(motion), encoding="utf-8")
+        log(f"  {len(motion.brief.rows)} rows, {len(motion.brief.forms)} forms, "
+            f"{len(motion.brief.effects)} effects")  # fmt: skip
     log("art: Art Director is choosing library art (Muse Image for anything missing)")
-    plan = plan_art(models, design)
+    plan = plan_art(models, design, motion)
     save_json(out / "art-plan.json", plan.model_dump())
     start = time.perf_counter()
-    art = produce_art(models, design, plan, cfg)
+    art = produce_art(models, design, plan, cfg, motion=motion)
     art_seconds = round(time.perf_counter() - start, 1)
     log(f"  art took {art_seconds} s")
     save_art(out, art)
@@ -1026,6 +1110,8 @@ def make_game(
         log(f"  QA: {qa['passed']} of {qa['passed'] + qa['failed']} tests pass")
 
     save_json(out / "code.json", outcome.code.model_dump())
+    for name, data in motion_previews(art).items():
+        (out / name).write_bytes(data)
 
     recording = None
     if outcome.build and record:
@@ -1046,6 +1132,7 @@ def make_game(
         "art_review": review.report if review else None,
         "qa": qa,
         "story": bool(story),
+        "motion": motion_report(art) if motion else None,
         "recording": recording.summary if recording else None,
         "model_calls": call_summary(store, run.id),
     }

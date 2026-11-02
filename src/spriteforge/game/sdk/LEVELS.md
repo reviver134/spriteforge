@@ -45,10 +45,17 @@ design says, following the data (the bot's route relies on it):
 * enemy: when it can be beaten by the same rule: `sf.level.open(thing)`; otherwise the
   design's hurt rule (e.g. `sf.level.respawn('enemy')`, or knockback with a short cooldown).
 
-Helpers: `sf.level.open(t)` (plays its `break`/`die` animation when it has one, then removes
-it), `sf.level.drop(t)`, `sf.level.take(t)`, `sf.level.respawn(cause)`, `sf.level.current`
+Helpers: `sf.level.open(t)` (plays its break or die row once with the break or kill effect,
+then removes it), `sf.level.drop(t)`, `sf.level.take(t)` (the pickup effect; a pickup that
+gives a form ability turns the player into it), `sf.level.form(ability)` (the player shows
+that form: its row, or a tint with particles; `sf.level.form('')` ends it, e.g. when a timed
+form runs out), `sf.level.respawn(cause)`, `sf.level.current`
 (= L): `L.player`, `L.dashing`, `L.grounded`, `L.facing`, `L.n`, `L.name`, `L.tile` (pixels per
-tile), `L.data` (the level). The SDK plays the player's idle/walk/jump/dash animations; set
-`L.autoAnim = false` to play them yourself (e.g. a transform). `sf.level.data.abilities` lists
+tile), `L.data` (the level). The SDK plays the player's rows by what they are for (idle, move,
+jump, fall, land, dash, the current form's row), squashes on landing, stretches on jumps and
+plays the motion design's effects at jumps, landings, dashes, breaks, kills, pickups,
+transforms, respawns, checkpoints and the exit: do not add your own. `L.player` is the physics
+body; what is drawn copies its frame, tint, alpha and visibility. Set `L.autoAnim = false` only
+to play rows yourself. `sf.level.data.abilities` lists
 what the player holds at the start of every level (the plan's abilities from the start). Emit the design's own events
 with `sf.event(...)` in your hooks (a kill, a pickup, a break).

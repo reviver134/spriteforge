@@ -12,6 +12,7 @@ from pathlib import Path
 from .bundle import ArtInfo, Build, Decision, GameRecord, art_info, portrait_of
 from .codegen import CodeFile, GameCode
 from .design import GameDesign
+from .motion import MotionRecord
 from .qa import QASuite, QATests
 from .story import StoryBible
 
@@ -99,6 +100,9 @@ def folder_record(out: Path, request: str | None = None) -> GameRecord:
         rec.screen = tuple(manifest.get("screen") or art_json.get("screen") or (320, 180))
         rec.scale = int(manifest.get("scale") or art_json.get("scale") or 1)
         rec.credits = credits(build)
+    if motion := load(out / "motion.json"):
+        rec.motion, rec.motion_source = MotionRecord.model_validate(motion), "motion.json"
+        rec.motion_gif = (out / "motion.gif").read_bytes() if (out / "motion.gif").is_file() else None
     code = load(out / "code.json")
     rec.code = GameCode.model_validate(code) if code else build_code(build)
     tests = load(out / "qa-tests.json")

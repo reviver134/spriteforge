@@ -51,7 +51,7 @@ from .bundle import (  # noqa: F401 -- the record types are part of this module'
 
 CATEGORIES = {"design", "entities", "art", "code", "qa", "builds", "decisions"}
 STORY_CATEGORIES = {"story", "characters", "world"}
-RESOURCES = {".png", ".js", ".py", ".json"}
+RESOURCES = {".png", ".gif", ".js", ".py", ".json"}  # .gif: the motion preview (L2.4)
 ACTOR = "spriteforge/game-db"
 REVIEWER = "human:reviewer"
 

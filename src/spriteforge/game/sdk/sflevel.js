@@ -107,6 +107,7 @@
     p.body.reset(p.x, (d.start[1] + 1) * T - (p.body.bottom - p.y));
     p.setDepth(10);
     L.spawnAt = [p.x, p.y];
+    dressPlayer(scene, L);
     scene.physics.add.collider(p, layer);
     scene.physics.add.collider(L.groups.enemy, layer);
     const touch = (_, o) => touched(L, o.getData('thing'));
@@ -166,6 +167,73 @@
     return L;
   }
 
+  /* The player's skin (L2.4): what is drawn. L.player keeps its physics body, its animations
+     and whatever the game sets on it (tint, alpha, visible, flip); the skin copies them every
+     frame and adds what must not touch the body: the squash and stretch of jumps and landings,
+     the lift of a hop's airborne frames, a form's tint and particles, flashes. */
+  function rowsOf(key) { return ((sf.assets.sprites[key] || {}).rows) || {}; }
+  function dressPlayer(scene, L) {
+    const p = L.player;
+    const skin = (L.skin = scene.add.sprite(p.x, p.y, p.texture.key, p.frame.name).setOrigin(0.5, 1));
+    skin.setDepth(p.depth + 1);
+    p.willRender = () => false;
+    L.squash = {a: 0, t0: 0, dur: 1};
+    L.flash = {color: 0, until: -1};
+    L.form = null;
+    L.wasGrounded = true;
+    L.landUntil = -1;
+    L.dripAt = 0;
+    skin.sfFx = e => {
+      const now = sf.clock.now;
+      if (e.squash) L.squash = {a: e.squash, t0: now, dur: Math.max(0.1, e.seconds || 0.25)};
+      if (e.flash) L.flash = {color: parseInt(e.flash.slice(1), 16), until: now + 0.09};
+    };
+    const onPost = () => dress(L);
+    scene.events.on('postupdate', onPost);
+    scene.events.once('shutdown', () => scene.events.off('postupdate', onPost));
+  }
+  function dress(L) {
+    const p = L.player, k = L.skin;
+    if (!p || !k || !p.active || !k.active) return;
+    if (k.texture.key !== p.texture.key) k.setTexture(p.texture.key, p.frame.name);
+    else if (k.frame.name !== p.frame.name) k.setFrame(p.frame.name);
+    k.setFlipX(p.flipX).setVisible(p.visible).setAlpha(p.alpha);
+    const now = sf.clock.now, s = L.squash;
+    const a = s.a * Math.max(0, 1 - (now - s.t0) / s.dur);
+    k.setScale(p.scaleX * (1 + a), p.scaleY * (1 - a));
+    let lift = 0;
+    const cur = p.anims && p.anims.currentAnim, frame = p.anims && p.anims.currentFrame;
+    if (cur && frame) {
+      const row = rowsOf(p.texture.key)[cur.key.split(':').pop()];
+      if (row && row.lift) lift = row.lift[frame.index - 1] || 0;
+    }
+    k.x = p.x;
+    k.y = p.y + (1 - p.originY) * p.displayHeight - lift;
+    if (L.flash.until >= now) k.setTintFill(L.flash.color);
+    else if (L.form && !L.form.row && L.form.tint) k.setTint(parseInt(L.form.tint.slice(1), 16));
+    else if (p.isTinted) k.setTint(p.tintTopLeft, p.tintTopRight, p.tintBottomLeft, p.tintBottomRight);
+    else k.clearTint();
+    if (L.form && !L.form.row && L.form.particles && now >= L.dripAt) {  // a form without its row
+      L.dripAt = now + 0.25;
+      sf.particles(k.scene, k.x, k.y - k.displayHeight / 2, 2, [L.form.particles], 25, 0.5);
+    }
+  }
+  // The row the player shows: the form's row while a form lasts, else the row that plays
+  // that way (move, jump, fall, land, dash, idle), else the older names.
+  function playerAnim(scene, L, grounded, moving, now) {
+    const key = L.player.texture.key, rows = rowsOf(key);
+    const has = n => n && scene.anims.exists(key + ':' + n);
+    const by = kind => Object.keys(rows).find(n => rows[n].plays === kind && !rows[n].form);
+    if (L.form && has(L.form.row)) return L.form.row;
+    const vy = L.player.body.velocity.y;
+    const pick = (...names) => names.find(has) || names[names.length - 1];
+    if (L.dashing) return pick(by('dash'), 'dash', by('move'), 'walk');
+    if (!grounded) return vy > 0 ? pick(by('fall'), by('jump'), 'jump') : pick(by('jump'), 'jump');
+    if (now < L.landUntil) return pick(by('land'), 'idle');
+    if (moving) return pick(by('move'), 'walk', 'move', 'run', 'walk');
+    return pick(by('idle'), 'idle');
+  }
+
   function flag(scene, T) {  // a checkpoint the design gave no art: a pole and a flag
     const key = '__sf_flag_' + T;
     if (!scene.textures.exists(key)) {
@@ -190,7 +258,8 @@
     if (t.kind === 'enemy') {
       b.setAllowGravity(true);
       o.y = (r + 1) * T - (b.bottom - o.y) - 1;
-      sf.play(o, 'walk');
+      const rows = rowsOf(o.texture.key);
+      sf.play(o, Object.keys(rows).find(n => rows[n].plays === 'move') || 'walk');
       return o;
     }
     b.setAllowGravity(false);
@@ -217,6 +286,7 @@
     L.checkpoint = t;
     L.bot.resume = L.bot.i;
     sf.play(t.sprite, 'active');
+    sf.fx('checkpoint', t.sprite.x, t.sprite.y, t.sprite);
     sf.event('checkpoint', {n: L.n, id: t.id});
     if (L.hooks.checkpoint) L.hooks.checkpoint(t);
   }
@@ -225,6 +295,7 @@
     if (L.done) return;
     L.done = true;
     L.player.body.setVelocity(0, 0);
+    sf.fx('exit', L.player.x, L.player.y, L.skin);
     sf.event('level_complete', {n: L.n});
     if (L.hooks.complete) L.hooks.complete(L.n);
     const [w, h] = sf.screen();
@@ -249,10 +320,22 @@
     open(t) {  // a crate dissolved, a wall broken, an enemy beaten
       if (!t || t.open) return;
       t.open = true;
+      t.sprites.forEach((o, i) => {
+        if (i === 0 || i === t.sprites.length - 1) sf.fx(t.kind === 'enemy' ? 'kill' : 'break', o.x, o.y, o, t.entity + ' ' + t.needs + ' ' + t.kind);
+      });
       for (const o of t.sprites) {
         if (o.body) o.body.enable = false;
-        const key = o.texture.key, scene = o.scene;
-        const anim = ['break', 'die', 'death', 'open'].find(a => scene && scene.anims.exists(key + ':' + a));
+        const scene = o.scene;
+        // The row that plays when it goes: break or die (the motion design), else older names;
+        // a breakable tile (an image) shows its crumble sprite `<entity>_break`.
+        const rowed = key => Object.keys(rowsOf(key)).find(n => ['break', 'die'].includes(rowsOf(key)[n].plays));
+        let key = o.texture.key;
+        if (!rowed(key) && !['break', 'die', 'death', 'open'].some(a => scene && scene.anims.exists(key + ':' + a))
+            && sf.has(t.entity + '_break') && scene) {
+          key = t.entity + '_break';
+          o.setTexture(key, 0);
+        }
+        const anim = [rowed(key), 'break', 'die', 'death', 'open'].find(a => a && scene && scene.anims.exists(key + ':' + a));
         if (!anim) { o.destroy(); continue; }
         // Played once whatever the animation's own repeat says (a looping 'die' left beaten
         // enemies dying forever, live 2026-11-02), and removed at the end; a timer makes sure.
@@ -273,17 +356,32 @@
       t.drop = d;
       return d;
     },
-    take(t) {  // a pickup collected
+    take(t) {  // a pickup collected; one that gives a form ability turns the player into it
       if (!t || t.taken) return;
       t.taken = true;
       t.open = true;
+      const forms = sf.assets.forms || {};
+      if (t.gives && forms[t.gives]) level.form(t.gives);
+      else if (t.sprite) sf.fx('pickup', t.sprite.x, t.sprite.y, null, t.entity + ' ' + (t.gives || ''));
       for (const o of t.sprites) o.destroy();
+    },
+    form(ability) {  // the player shows a form (its row, or a tint with particles); '' ends it
+      const L = level.current;
+      if (!L || !L.skin) return;
+      const f = ability ? (sf.assets.forms || {})[ability] : null;
+      const name = f ? ability : '';
+      if ((L.form ? L.form.name : '') === name) return;
+      L.form = f ? Object.assign({name}, f) : null;
+      sf.state.form = name;
+      sf.fx('transform', L.player.x, L.player.y, L.skin, name);
+      sf.event('form', {ability: name});
     },
     respawn(cause) {  // back to the last checkpoint (or the start)
       const L = level.current;
       if (!L || L.done) return;
       const p = L.player, T = L.tile, c = L.control;
       const at = L.checkpoint ? [(L.checkpoint.col + 0.5) * T, (L.checkpoint.row + 1) * T] : null;
+      sf.fx('hurt', p.x, p.y, L.skin, cause);
       c.dashSteps = 0; L.dashing = false; p.body.setAllowGravity(true);
       if (at) p.body.reset(at[0], at[1] - (p.body.bottom - p.y));
       else p.body.reset(L.spawnAt[0], L.spawnAt[1]);
@@ -313,6 +411,7 @@
       b.setVelocityY(-v0);
       c.buffer = -1; c.lastGround = -1; c.rising = true;
       sf.event('jump');
+      sf.fx('jump', p.x, b.bottom, L.skin);
     }
     if (c.rising && !jump && b.velocity.y < 0) { b.setVelocityY(b.velocity.y * 0.5); c.rising = false; }
     if (b.velocity.y >= 0) c.rising = false;
@@ -326,13 +425,17 @@
       b.setVelocity(c.dashDir * dashSpeed, 0);
       L.dashing = true;
       sf.event('dash');
+      sf.fx('dash', p.x, b.center.y, L.skin);
     }
     c.prevA = jump; c.prevB = inp.action2;
+    if (grounded && !L.wasGrounded && b.velocity.y >= 0) {  // landed: squash, dust, the land row
+      const land = Object.entries(rowsOf(p.texture.key)).find(([, r]) => r.plays === 'land');
+      if (land) L.landUntil = now + (land[1].lift || [0]).length / Math.max(1, land[1].fps);
+      sf.fx('land', p.x, b.bottom, L.skin);
+    }
+    L.wasGrounded = grounded;
     if (L.autoAnim) {
-      const moving = Math.abs(b.velocity.x) > 1;
-      const anim = L.dashing ? 'dash' : !grounded ? 'jump'
-        : moving ? ['walk', 'move', 'run'].find(a => scene.anims.exists(p.texture.key + ':' + a)) || 'walk' : 'idle';
-      sf.play(p, anim);
+      sf.play(p, playerAnim(scene, L, grounded, Math.abs(b.velocity.x) > 1, now));
       p.setFlipX(L.facing < 0);
     }
     // Pits and hazards send the player back to the last checkpoint.

@@ -824,3 +824,22 @@ patterns), the plan, then the design; feedback revises the plan and the design. 
 gains `research/*` and `plan/*`. A design change at G4 keeps every existing entity's locked
 art (only new entities are planned), and the UI always shows the latest playable build.
 Details and live results: `docs/level-2.md`.
+
+# Level 2 / L2.4: art and animation design
+
+Things move and react like what they are. Once per design version the Art Director writes a
+**motion design** (`game/design/vK-motion.json/.md`): per entity the animation rows with what
+each frame shows (a slime hops: squashed, stretched, in the air, landing), when the game plays
+each row (idle, move, jump, dash, break, die, a form ...), fps and loop or once; per form
+ability how the player looks in it; per feel event an effect (particles, flash, shake,
+squash). Muse Image draws the rows as sheets; code checks every row (a moving row whose frames
+do not differ would slide; frames that change size or leave the ground line; a loop that
+jumps; a break or die row that does not end empty) and repairs what it can (squash and
+stretch from the first frame, the last frame emptied, a breakable tile crumbled from its own
+pixels, a failed form row shown as a tint with particles). A library actor that cannot show
+the rows is drawn by Muse. The SDK plays the rows by what they are for, squashes and stretches
+the player on jumps and landings, shows the current form and plays the effects (`sf.fx`); the
+Programmer no longer improvises them. G4 shows every row playing (`motion.gif`), the Art
+Reviewer sees them as filmstrips, and the bundle gains `art/motion`. `game.motion: false`
+returns to the design's animation names. Details and live results: `docs/level-2.md`.
+

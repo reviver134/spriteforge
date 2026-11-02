@@ -75,6 +75,18 @@ from .actors import (
 )
 from .design import Entity, GameDesign
 from .image_cache import ImageCache
+from .motion import (
+    ACTOR_SOURCES,
+    GONE,
+    MAX_ROWS,
+    MotionRecord,
+    MotionRow,
+    Pose,
+    RowCheck,
+    crumble_frames,
+    finish_rows,
+    row_problems,
+)
 from .tilesets import backdrop_layers, load_tilesets, pick_variant, tile_ids, tile_image
 
 MAX_OBJECT_PX = 128
@@ -125,7 +137,9 @@ class Filled:
     meta: dict  # assets.json entry (minus file)
     kind: str = "sprite"  # sprite | image
     record: dict = field(default_factory=dict)  # Muse request + raw bytes, for locking/edits
-    extra: dict[str, tuple[bytes, dict]] = field(default_factory=dict)  # backdrop layers
+    # backdrop layers (images), or a breakable tile's break sprite (meta with "anims")
+    extra: dict[str, tuple[bytes, dict]] = field(default_factory=dict)
+    checks: list[RowCheck] = field(default_factory=list)  # motion checks of its rows (L2.4)
 
 
 def png(img: Image.Image) -> bytes:
@@ -313,12 +327,19 @@ def actor_frame(actor: Actor) -> Image.Image:
     return frames[0]
 
 
-def art_prompt(design: GameDesign, library: str) -> str:
+def art_prompt(design: GameDesign, library: str, motion: MotionRecord | None = None) -> str:
+    """`motion`: the motion design; each entity lists its rows (a library actor is kept only
+    when it can show them: code sends it to Muse otherwise)."""
+    rows = lambda e: (", ".join(f"{r.name} ({r.plays}{': ' + r.form if r.form else ''})"
+                                for r in motion.rows(e.id)) if motion else "")  # fmt: skip
     entities = "\n".join(
-        f"* `{e.id}` ({e.role}, {e.width}x{e.height}, animations: {', '.join(e.animations) or '-'}): "
-        f"{e.look}"
+        f"* `{e.id}` ({e.role}, {e.width}x{e.height}, animations: "
+        f"{(rows(e) or ', '.join(e.animations)) or '-'}): {e.look}"
         for e in design.entities
     )
+    if motion and motion.brief.forms:
+        entities += ("\nForms (the player's look changes; no library actor has them, so the player "
+                     "is drawn by Muse): " + "; ".join(f"{f.ability}: {f.looks}" for f in motion.brief.forms))  # fmt: skip
     return (
         "Choose art for every entity of this game. The local library comes first: whenever it "
         "has the same kind of creature or object for the game's camera, use it even if details "
@@ -514,8 +535,22 @@ def hue_mismatch(text: str, image: Image.Image) -> str | None:
     return hued[0] if gap > 45 else None
 
 
-def resolve_plan(plan: ArtPlan, design: GameDesign) -> tuple[dict[str, ArtPick], list[str]]:
-    """One valid pick per entity. Invalid library picks become Muse requests."""
+def actor_lacks(actor: Actor, rows: list[MotionRow]) -> list[str]:
+    """Rows of the motion design a library actor cannot show: a form (the library has no
+    transformed variants), a move or jump row it has no such animation for."""
+    have = set(actor.anims)
+    return [r.name for r in rows
+            if r.plays == "form"
+            or (r.plays == "move" and not have & {"walk", "run", "fly"})
+            or (r.plays in {"jump", "fall"} and not have & {"jump", "fall"})]  # fmt: skip
+
+
+def resolve_plan(
+    plan: ArtPlan, design: GameDesign, motion: MotionRecord | None = None
+) -> tuple[dict[str, ArtPick], list[str]]:
+    """One valid pick per entity. Invalid library picks become Muse requests, and so does a
+    library actor that cannot show the motion design's rows (L2.4: a recoloured flying eye
+    stood in for a hopping, transforming slime)."""
     entities = {e.id: e for e in design.entities}
     view = "side" if design.camera == "side-view" else "topdown"
     actors, objects = actor_index(), whole_objects()
@@ -571,12 +606,19 @@ def resolve_plan(plan: ArtPlan, design: GameDesign) -> tuple[dict[str, ArtPick],
             # colour): the flat wall top undid the Art Director's choice of Muse for a rusty
             # metal wall with hazard stripes, live 2026-11-01.
             continue
+        if lib.source == "actor" and motion and actor_lacks(actors[lib.asset], motion.rows(e.id)):
+            continue
         if lib.source != "muse" and lib.reason != GENERIC_HERO:
             out[e.id] = lib
             warnings.append(
                 f"{e.id}: the library has {lib.asset} ({lib.reason}); "
                 "used it instead of Muse (library first)"
             )
+    for e in design.entities:  # the motion design asks for rows the actor does not have
+        p = out[e.id]
+        if p.source == "actor" and motion and (lacks := actor_lacks(actors[p.asset], motion.rows(e.id))):
+            out[e.id] = to_muse(p, f"library actor {p.asset} cannot show the motion design's "
+                                   f"{', '.join(lacks)} row(s)")  # fmt: skip
     # Library art must look like what the design asks for (models propose, code enforces): a
     # flat tile is not used for a look that asks for bricks or moss, a tile far from the colour
     # the look names is recoloured, an actor or object of another hue is hue-shifted.
@@ -686,19 +728,113 @@ def anchor_for(role: str) -> str:
 
 
 def sprite_meta(e: Entity, frame: tuple[int, int], anims: dict[str, list[int]], **extra) -> dict:
-    return {"role": e.role, "frame": list(frame), "anims": anims, **extra}
+    return {"role": e.role, "frame": list(frame), "anims": anims,
+            **{k: v for k, v in extra.items() if v is not None}}  # fmt: skip
 
 
-def single_frame(e: Entity, image: Image.Image, source: str, reasons, record=None) -> Filled:
-    """A one-frame sprite (Muse or a still object): every animation shows that frame."""
+LIFT = 0.2  # an airborne frame of a ground row (a hop) is shown this share of its height up
+
+
+def row_meta(rows: list[MotionRow], counts: list[int], height: int) -> dict:
+    """How the SDK plays each row: when (plays), fps, loop, the form it shows, and how far up
+    each frame is drawn (airborne frames of a hop; the body stays on the ground)."""
+    out = {}
+    for r, n in zip(rows, counts, strict=True):
+        lift = [round(height * LIFT) if p.airborne and r.plays in {"move", "form"} else 0
+                for p in r.frames][:n]  # fmt: skip
+        out[r.name] = {"plays": r.plays, "fps": r.fps, "loop": r.loop, "form": r.form,
+                       "lift": lift + [0] * (n - len(lift))}  # fmt: skip
+    return out
+
+
+def aliases(e: Entity, anims: dict[str, list[int]], meta: dict) -> dict[str, list[int]]:
+    """The design's animation names the rows do not use point at the row that plays the same
+    way (the Programmer may play 'walk' when the motion design calls it 'hop'), else idle."""
+    from .motion import plays_of
+
+    out = dict(anims)
+    for name in ["idle", *e.animations]:
+        if name in out or not out:
+            continue
+        kind = plays_of(name)
+        row = next((n for n, m in meta.items() if m["plays"] == kind), None) or next(iter(out))
+        out[name] = out[row]
+    return out
+
+
+def rows_art(e: Entity, rows: list[MotionRow], parts: list[list[Image.Image]], palette: bool = True):
+    """The rows' frames as one strip, checked and repaired by code (motion.finish_rows):
+    (strip, anims, rows meta, checks). `parts`: each row's frames, all the same size."""
+    counts = [len(p) for p in parts]
+    frames, checks = finish_rows([f for p in parts for f in p], rows, e.role, counts)
+    w, h = frames[0].size
+    strip = Image.new("RGBA", (w * len(frames), h))
+    for i, f in enumerate(frames):
+        strip.paste(f, (i * w, 0))
+    if palette:
+        strip = limit_palette(strip)
+    anims, at = {}, 0
+    for r, n in zip(rows, counts, strict=True):
+        anims[r.name] = [at, n]
+        at += n
+    meta = row_meta(rows, counts, h)
+    return strip, aliases(e, anims, meta), meta, checks
+
+
+def from_frames(e: Entity, rows: list[MotionRow], source: list[Image.Image]) -> list[list[Image.Image]]:
+    """Each row's frames when the art has none of its own: the art's frames (or its one frame
+    repeated, which `finish_rows` turns into squash and stretch for a moving row), and for a
+    break or die row the art crumbled by code."""
+    return [crumble_frames(source[0], max(2, len(r.frames))) if r.plays in GONE
+            else (source[: len(r.frames)] if len(source) >= len(r.frames) else [source[0]] * len(r.frames))
+            for r in rows]  # fmt: skip
+
+
+def check_notes(checks: list[RowCheck]) -> tuple[list[str], list[str]]:
+    """(reasons: what code repaired, warnings: problems left) for an entity's rows."""
+    reasons = [f"{c.row}: {r}" for c in checks for r in c.repaired]
+    left = [p for c in checks for p in c.problems
+            if not any(k in p for k in ("same picture", "does not end empty"))
+            or not c.repaired]  # fmt: skip
+    return reasons, left
+
+
+def single_frame(e: Entity, image: Image.Image, source: str, reasons, record=None,
+                 rows: list[MotionRow] | None = None) -> Filled:  # fmt: skip
+    """A one-frame sprite (Muse or a still object): every animation shows that frame; with
+    motion rows, moving rows squash and stretch and break rows crumble (made by code)."""
     if e.role in {"tile", "background"}:
         meta = {"role": e.role, "size": list(image.size)}
         return Filled(png(image), source, reasons, meta, "image", record or {})
+    if rows:
+        strip, anims, meta, checks = rows_art(e, rows, from_frames(e, rows, [image]), palette=False)
+        made, _ = check_notes(checks)
+        return Filled(png(strip), source, [*reasons, *made], sprite_meta(e, image.size, anims, rows=meta),
+                      "sprite", record or {}, checks=checks)  # fmt: skip
     anims = {a: [0, 1] for a in (e.animations or ["idle"])}
     anims.setdefault("idle", [0, 1])
     return Filled(
         png(image), source, reasons, sprite_meta(e, image.size, anims), "sprite", record or {}
     )
+
+
+def tile_break(e: Entity, f: Filled, rows: list[MotionRow]) -> None:
+    """A breakable tile keeps its image (it tiles) and gains a `<id>_break` sprite: the tile
+    crumbled by code from its own pixels, which the SDK plays when the thing breaks."""
+    row = next((r for r in rows if r.plays in GONE), None)
+    if row is None or f.kind != "image":
+        return
+    tile = Image.open(io.BytesIO(f.png)).convert("RGBA")
+    n = max(2, len(row.frames))
+    frames = crumble_frames(tile, n)
+    strip = Image.new("RGBA", (tile.width * n, tile.height))
+    for i, fr in enumerate(frames):
+        strip.paste(fr, (i * tile.width, 0))
+    meta = {"role": "prop", "frame": list(tile.size), "anims": {row.name: [0, n], "idle": [0, 1]},
+            "rows": row_meta([row], [n], tile.height)}  # fmt: skip
+    meta["rows"][row.name]["loop"] = False
+    f.extra[f"{e.id}_break"] = (png(strip), meta)
+    f.reasons.append(f"{row.name}: crumbled by code from the tile ({e.id}_break, {n} frames)")
 
 
 def recolour_tile(tile: Image.Image, target: str) -> Image.Image:
@@ -730,8 +866,16 @@ def recolour_sprite(strip: Image.Image, phrase: str) -> Image.Image | None:
     return recolor(strip, COLORS[word], value)
 
 
-def actor_art(e: Entity, actor: Actor, size, topdown: bool, faces: str, hue: str) -> Filled:
-    wanted = e.animations or ["idle", "walk"]
+def cut(strip: Image.Image, w: int) -> list[Image.Image]:
+    return [strip.crop((i * w, 0, (i + 1) * w, strip.height)) for i in range(strip.width // w)]
+
+
+def actor_art(e: Entity, actor: Actor, size, topdown: bool, faces: str, hue: str,
+              rows: list[MotionRow] | None = None) -> Filled:  # fmt: skip
+    """A library actor's animations; with motion rows, each row from the actor animation that
+    plays the same way (`motion.ACTOR_SOURCES`), checked and repaired like Muse rows."""
+    sources = {r.name: ACTOR_SOURCES.get(r.plays, "idle") for r in rows or []}
+    wanted = list(dict.fromkeys(sources.values())) if rows else (e.animations or ["idle", "walk"])
     if "idle" not in wanted:
         wanted = ["idle", *wanted]
     strip, counts, body = adapt(
@@ -745,11 +889,22 @@ def actor_art(e: Entity, actor: Actor, size, topdown: bool, faces: str, hue: str
     for name, n in counts.items():
         anims[name] = [start, n]
         start += n
+    if rows:
+        frames = cut(strip, size[0])
+        parts = [crumble_frames(frames[anims["idle"][0]], max(2, len(r.frames)))
+                 if r.plays in GONE and sources[r.name] not in actor.anims
+                 else frames[anims[sources[r.name]][0] : sum(anims[sources[r.name]])]
+                 for r in rows]  # fmt: skip
+        strip, anims, meta, checks = rows_art(e, rows, parts, palette=False)
+        made, _ = check_notes(checks)
+        meta = sprite_meta(e, size, anims, body=list(body), rows=meta)
+        return Filled(png(strip), f"library {actor.key}", [*reasons, *made], meta, checks=checks)
     meta = sprite_meta(e, size, anims, body=list(body))
     return Filled(png(strip), f"library {actor.key}", reasons, meta)
 
 
-def object_art(e: Entity, asset: dict, size, hue: str = "") -> Filled:
+def object_art(e: Entity, asset: dict, size, hue: str = "",
+               rows: list[MotionRow] | None = None) -> Filled:  # fmt: skip
     frames = [fit_sprite(f, size, anchor_for(e.role)) for f in asset_frames(asset)][:8]
     strip = Image.new("RGBA", (size[0] * len(frames), size[1]))
     for i, f in enumerate(frames):
@@ -758,6 +913,12 @@ def object_art(e: Entity, asset: dict, size, hue: str = "") -> Filled:
     if hue and (shifted := recolour_sprite(strip, hue)) is not None:
         strip = shifted
         reasons.append(f"recoloured {hue}")
+    if rows:
+        out, anims, meta, checks = rows_art(e, rows, from_frames(e, rows, cut(strip, size[0])),
+                                            palette=False)  # fmt: skip
+        made, _ = check_notes(checks)
+        return Filled(png(out), f"library {asset['id']}", [*reasons, *made],
+                      sprite_meta(e, size, anims, rows=meta), checks=checks)  # fmt: skip
     anims = {a: [0, len(frames)] for a in (e.animations or ["idle"])}
     anims.setdefault("idle", [0, len(frames)])
     return Filled(png(strip), f"library {asset['id']}", reasons, sprite_meta(e, size, anims))
@@ -999,25 +1160,39 @@ def palette_line(spec: ArtSpec) -> str:
 
 
 def sheet_prompt(
-    spec: ArtSpec, pick: ArtPick, cols: int, rows: int, frames: list[str], has_ref: bool = False
+    spec: ArtSpec, pick: ArtPick, cols: int, rows: int, frames: list[str], has_ref: bool = False,
+    labels: list[str] | None = None, forms: bool = False,
 ) -> str:
     """Several small frames of one subject in one image: a sprite sheet read like a slide
     show, left to right, top to bottom. Each frame gets a slot of the image, so Muse draws it
-    with fewer, bigger pixels than a sprite that fills the whole image."""
+    with fewer, bigger pixels than a sprite that fills the whole image. `labels`: one per row
+    (the motion design's rows: the frames are then listed row by row); `forms`: some rows
+    show the subject transformed (its colours and surface change there)."""
     w, h = spec.grid
-    listed = " ".join(f"{i + 1}. {f.strip().rstrip('.')}." for i, f in enumerate(frames))
+    if labels:
+        listed = " ".join(
+            f"Row {r + 1} ({labels[r]}): "
+            + " ".join(f"{r * cols + c + 1}. {frames[r * cols + c].strip().rstrip('.')}."
+                       for c in range(cols))
+            for r in range(rows))  # fmt: skip
+    else:
+        listed = " ".join(f"{i + 1}. {f.strip().rstrip('.')}." for i, f in enumerate(frames))
+    same = ("the subject has the same size and design in every frame (a row marked as a form "
+            "changes only its colours and surface, as described)" if forms
+            else "the subject has the same size, colours and design in every frame")  # fmt: skip
     return (
         f"Pixel art sprite sheet for a 2D game: {len(frames)} frames of the same subject, "
         f"{pick.prompt.strip().rstrip('.')}. Lay them out as {cols} columns by {rows} rows of "
         "equal cells on one flat pure magenta (#FF00FF) background, no grid lines, no borders. "
-        "Each frame sits whole inside its own cell, centred, with magenta space around it; "
-        "the subject has the same size, colours and design in every frame, standing on the "
-        f"same baseline. Each frame is a tiny sprite drawn on a {w}×{h} grid of big square "
+        f"Each frame sits whole inside its own cell, centred, with magenta space around it; {same}, "
+        f"standing on the same baseline. Each frame is a tiny sprite drawn on a {w}×{h} grid of big square "
         "pixels, one solid colour per cell, no anti-aliasing, no gradients inside a cell. "
-        f"Frames, left to right, top to bottom: {listed} "
+        + ("Each row is one animation; consecutive frames show visibly different poses. "
+           if labels else "")
+        + f"Frames, left to right, top to bottom: {listed} "
         + (TINY_STYLE + " " if tiny(spec.grid) else "")
         + f"{spec_details(spec, has_ref)} No text, no numbers, no lettering, no drop shadow."
-    )
+    )  # fmt: skip
 
 
 def read_sprite(
@@ -1288,22 +1463,42 @@ class ArtResult:
     picks: dict[str, ArtPick]
     warnings: list[str]
     credits: list[str]
+    motion: MotionRecord | None = None  # the motion design the rows follow (L2.4)
 
     def manifest(self) -> dict:
-        """assets.json: what the SDK loads and the Programmer may reference."""
+        """assets.json: what the SDK loads and the Programmer may reference; with a motion
+        design also `fx` (effects by name, `sf.fx`) and `forms` (how the player shows each form
+        ability: its row, or a tint with particles when the row is missing or failed)."""
         sprites, images = {}, {}
         for eid, f in self.filled.items():
             entry = {"file": f"assets/{eid}.png", **f.meta, "source": f.source}
             (sprites if f.kind == "sprite" else images)[eid] = entry
             for lid, (_, meta) in f.extra.items():
-                images[lid] = {"file": f"assets/{lid}.png", **meta, "source": f.source}
-        return {
+                kind = sprites if "anims" in meta else images
+                kind[lid] = {"file": f"assets/{lid}.png", **meta, "source": f.source}
+        out = {
             "screen": list(self.screen),
             "scale": self.scale,
             "background": self.background,
             "sprites": sprites,
             "images": images,
         }
+        if self.motion:
+            out["fx"] = {x.name: x.model_dump(exclude={"name"}) for x in self.motion.brief.effects}
+            out["forms"] = self.forms()
+        return out
+
+    def forms(self) -> dict[str, dict]:
+        player = next((eid for eid, f in self.filled.items() if f.meta.get("role") == "player"), None)
+        f = self.filled.get(player)
+        failed = {c.row for c in (f.checks if f else []) if c.form_fallback}
+        rows = (f.meta.get("rows") or {}) if f else {}
+        out = {}
+        for look in self.motion.brief.forms if self.motion else []:
+            row = next((n for n, m in rows.items() if m.get("form") == look.ability), "")
+            out[look.ability] = {"row": "" if row in failed else row, "tint": look.tint,
+                                 "particles": look.particles}  # fmt: skip
+        return out
 
     def files(self) -> dict[str, bytes]:
         out = {f"assets/{eid}.png": f.png for eid, f in self.filled.items()}
@@ -1321,9 +1516,12 @@ def make_art(
     previous: Callable[[str], dict | None] = lambda eid: None,
     options: "MuseOptions | None" = None,
     cache: ImageCache | None = None,
+    motion: MotionRecord | None = None,
 ) -> ArtResult:
     """Resolve the plan and produce every entity's art. `previous(entity)` returns an earlier
     version's Muse record ({"prompt", "reference", "size", "raw", "png", "version"}).
+    `motion`: the motion design (L2.4): Muse sheets draw its rows, library art is cut into
+    them, code checks and repairs every row, a breakable tile gets a crumble sprite.
 
     Library picks and locked art resolve first. The remaining Muse jobs get their first call
     slot in PRIORITY order *before* any is sent (so the cap is never exceeded and the same
@@ -1331,7 +1529,9 @@ def make_art(
     must be safe to call from several threads. Results and warnings are assembled in entity
     order, so the outcome does not depend on which call finishes first."""
     options = options or MuseOptions()
-    picks, warnings = resolve_plan(plan, design)
+    picks, warnings = resolve_plan(plan, design, motion)
+    rows_of = (lambda eid: motion.rows(eid)) if motion else (lambda eid: [])
+    forms = {f.ability: f.looks for f in motion.brief.forms} if motion else {}
     tilesets = {ts["id"]: ts for ts in load_tilesets(design.camera)}
     used_sets = {
         p.asset.split("/", 1)[0] for p in picks.values() if p.source in {"tile", "backdrop"}
@@ -1360,11 +1560,12 @@ def make_art(
         if p.source == "actor":
             actor = actors[p.asset]
             filled[e.id] = actor_art(
-                e, actor, size, design.camera == "top-down", packs[actor.pack].faces, p.recolor
+                e, actor, size, design.camera == "top-down", packs[actor.pack].faces, p.recolor,
+                rows_of(e.id) or None,
             )
             used_packs.add(actor.pack)
         elif p.source == "object":
-            filled[e.id] = object_art(e, objects[p.asset], size, p.recolor)
+            filled[e.id] = object_art(e, objects[p.asset], size, p.recolor, rows_of(e.id) or None)
             used_packs.add(objects[p.asset]["pack"])
         elif p.source == "tile":
             ts, name = tile_ids(list(tilesets.values()))[p.asset]
@@ -1398,7 +1599,8 @@ def make_art(
             )
             used_packs.add(ts["pack"])
         else:
-            muse = muses[e.id] = Muse(generate, previous, slots, options, hero_px, cache)
+            muse = muses[e.id] = Muse(generate, previous, slots, options, hero_px, cache,
+                                      brief=rows_of(e.id), forms=forms)  # fmt: skip
             box = screen if e.role == "background" else size
             if (locked := muse.locked(e, p, box)) is not None:
                 filled[e.id] = locked
@@ -1414,6 +1616,9 @@ def make_art(
                     filled[e.id] = muse.greybox(e, box, f"image-call cap ({max_calls}) reached")
     filled.update(run_jobs(jobs, options.workers))
     filled = {e.id: filled[e.id] for e in order}
+    for e in order:  # a breakable tile crumbles (code, from its own pixels)
+        if e.role == "tile" and (rows := rows_of(e.id)):
+            tile_break(e, filled[e.id], rows)
     for e in order:
         warnings += muses[e.id].warnings if e.id in muses else []
     credits = [
@@ -1424,7 +1629,7 @@ def make_art(
     ]
     if any(f.source.startswith("muse") for f in filled.values()):
         credits.append(MUSE_CREDIT)
-    return ArtResult(screen, scale, background, filled, picks, warnings, credits)
+    return ArtResult(screen, scale, background, filled, picks, warnings, credits, motion)
 
 
 def run_jobs(jobs: list[tuple["Muse", "MuseJob"]], workers: int) -> dict[str, Filled]:
@@ -1506,18 +1711,46 @@ class Muse:
     hero_px: int
     cache: ImageCache | None = None
     warnings: list[str] = field(default_factory=list)
+    brief: list[MotionRow] = field(default_factory=list)  # the motion design's rows (L2.4)
+    forms: dict[str, str] = field(default_factory=dict)  # form ability -> how it looks
+
+    def drawn(self, e: Entity) -> list[MotionRow]:
+        """The motion rows the sheet draws: the brief's (at most `sheet_frames` frames each);
+        a tiny sprite draws one shine row. [] without a brief (the design's names are used)."""
+        n = self.options.sheet_frames
+        if not self.brief or n <= 1 or e.role in {"tile", "background"}:
+            return []
+        if tiny((e.width, e.height)):
+            first = self.brief[0]
+            return [MotionRow(entity=e.id, name=first.name if first.plays in {"idle", "pickup"} else "idle",
+                              plays="pickup" if e.role == "pickup" else "idle", form="",
+                              frames=[Pose(shows=p, airborne=False) for p in TINY_POSES[:n]],
+                              fps=6, loop=True)]  # fmt: skip
+        return [r.model_copy(update={"frames": r.frames[:n]}) for r in self.brief[:MAX_ROWS]]
+
+    def label(self, r: MotionRow) -> str:
+        name = r.name.replace("_", " ")
+        return f"{name}, in {r.form}: {self.forms[r.form]}" if r.form in self.forms else name
 
     def rows(self, e: Entity) -> list[tuple[str, list[str]]]:
         n = self.options.sheet_frames
+        if self.brief:
+            return [(r.name, [f"{r.name.replace('_', ' ')}: {p.shows}" + (", off the ground" if p.airborne else "")
+                              for p in r.frames]) for r in self.drawn(e)]  # fmt: skip
         return sheet_rows(e, n) if n > 1 and e.role not in {"tile", "background"} else []
 
     def request_key(self, e: Entity, p: ArtPick, size) -> dict:
         rows = self.rows(e)
+        sheet = None
+        if rows:
+            sheet = ([self.options.sheet_frames, [[self.label(r), list(poses)]
+                                                  for r, (_, poses) in zip(self.drawn(e), rows, strict=True)]]
+                     if self.brief else [self.options.sheet_frames, len(rows)])  # fmt: skip
         return {
             "prompt": p.prompt,
             "reference": p.reference,
             "size": list(size),
-            "sheet": [self.options.sheet_frames, len(rows)] if rows else None,
+            "sheet": sheet,
         }
 
     def locked(self, e: Entity, p: ArtPick, size) -> Filled | None:
@@ -1531,25 +1764,33 @@ class Muse:
                   "frame_size": old.get("frame_size")}  # fmt: skip
         source = f"muse (locked, from v{old['version']})"
         if old.get("anims"):
-            meta = sprite_meta(e, tuple(old.get("frame_size") or size), old["anims"])
+            meta = sprite_meta(e, tuple(old.get("frame_size") or size), old["anims"],
+                               rows=old.get("rows_meta"))  # fmt: skip
+            checks = [RowCheck.model_validate(c) for c in old.get("motion") or []]
             return Filled(old["png"], source, reasons, meta, "sprite",
-                          {**record, "anims": old["anims"]})  # fmt: skip
+                          {**record, "anims": old["anims"], "rows_meta": old.get("rows_meta"),
+                           "motion": old.get("motion")}, checks=checks)  # fmt: skip
         image = Image.open(io.BytesIO(old["png"])).convert("RGBA")
-        return single_frame(e, image, source, reasons, record)
+        return single_frame(e, image, source, reasons, record, rows=self.brief or None)
 
     def job(self, e: Entity, design: GameDesign, p: ArtPick, size) -> MuseJob:
         old = self.previous(e.id)
-        n, rows = self.options.sheet_frames, self.rows(e)
+        rows = self.rows(e)
         ref = reference_image(p.reference) if p.reference else None
         spec = art_spec(e, design, tuple(size), self.hero_px, self.options.sizes, ref,
                         p.prompt.strip() or e.look)  # fmt: skip
         if rows:
+            n = max(len(poses) for _, poses in rows)  # columns: the longest row
             layout = (size[0] * n, size[1] * len(rows))
             spec = spec.model_copy(
                 update={"request_size": request_size(layout, self.options.sizes)}
             )
-            poses = [pose for _, row in rows for pose in row]
-            prompt = sheet_prompt(spec, p, n, len(rows), poses, ref is not None)
+            poses = [pose for name, row in rows
+                     for pose in row + [f"{name.replace('_', ' ')}: the same as the frame before"] * (n - len(row))]  # fmt: skip
+            drawn = self.drawn(e)
+            labels = [self.label(r) for r in drawn] if drawn else None
+            prompt = sheet_prompt(spec, p, n, len(rows), poses, ref is not None, labels,
+                                  forms=any(r.form for r in drawn))  # fmt: skip
         else:
             prompt = muse_prompt(spec, p, ref is not None)
         refs = [png(ref)] if ref is not None else []
@@ -1587,7 +1828,14 @@ class Muse:
 
     def draw(self, job: MuseJob) -> Filled:
         e, p, size, spec, rows = job.e, job.p, job.size, job.spec, job.rows
-        n = self.options.sheet_frames
+        n = max((len(poses) for _, poses in rows), default=self.options.sheet_frames)
+        drawn = self.drawn(e)
+        counts = [len(poses) for _, poses in rows]
+        used = [r * n + c for r, k in enumerate(counts) for c in range(k)]  # cells with a pose
+        # a break or die row's last cell may come back empty: that is what it should show
+        gone = {r * n + counts[r] - 1 for r, d in enumerate(drawn) if d.plays in GONE}
+        main = (next((i for i, d in enumerate(drawn) if d.plays == "move"), 0) if drawn
+                else main_row(rows))  # fmt: skip
         request = job.request
         best, problems, history, made, failed = None, [], [], 0, False
         for attempt in range(1 + self.options.retries):
@@ -1610,7 +1858,7 @@ class Muse:
                 made += 0 if cached else 1
                 conf, adapt = self.options.grid_confidence, self.options.adapt_size
                 if rows:
-                    frames, infos = muse_sheet(spec, raw, n, len(rows), conf, adapt, main_row(rows))
+                    frames, infos = muse_sheet(spec, raw, n, len(rows), conf, adapt, main)
                 else:
                     frame, info = muse_frame(spec, raw, conf, adapt)
                     frames, infos = [frame], [info]
@@ -1623,14 +1871,18 @@ class Muse:
                 continue
             failed = False
             problems = check_frame(spec, frames[0], infos[0], aspect=not adapt)
-            empty = [i + 1 for i, info in enumerate(infos) if info.get("subject") is None]
-            if empty and len(empty) < len(frames):
+            cells = used if rows else range(len(infos))
+            empty = [i + 1 for i in cells if infos[i].get("subject") is None and i not in gone]
+            if empty and len(empty) < len(cells):
                 problems.append(
                     f"frames {', '.join(map(str, empty))} of the {n}x{len(rows)} sheet are "
                     "empty; draw every frame inside its own cell"
                 )
+            for r, row in enumerate(drawn):  # motion: a moving row whose frames do not move ...
+                part = frames[r * n : r * n + counts[r]]
+                problems += [x for x in row_problems(part, row, e.role) if "end empty" not in x]
             history.append(problems)
-            if frames[0].getchannel("A").getbbox():
+            if frames[0].getchannel("A").getbbox() and (best is None or len(problems) <= len(best[4])):
                 best = (raw, frames, infos, request, problems, cached)
             if not problems:
                 break
@@ -1689,7 +1941,20 @@ class Muse:
         if (fw, fh) != tuple(size):
             reasons.append(f"frame {fw}x{fh} follows the art (design box {size[0]}x{size[1]})")
         if not rows:
-            return single_frame(e, limit_palette(frames[0]), source, reasons, record)
+            return single_frame(e, limit_palette(frames[0]), source, reasons, record,
+                                rows=self.brief or None)  # fmt: skip
+        if drawn:  # the motion design's rows, checked and repaired by code
+            parts = [frames[r * n : r * n + counts[r]] for r in range(len(rows))]
+            rest = [r for r in self.brief if r.name not in {d.name for d in drawn}]
+            parts += from_frames(e, rest, [parts[0][0]])
+            strip, anims, meta, checks = rows_art(e, drawn + rest, parts)
+            made, left = check_notes(checks)
+            reasons += made
+            self.warnings += [f"{e.id}: {x}" for x in left]
+            record.update(anims=anims, rows_meta=meta, frames_read=[i["mode"] for i in infos],
+                          motion=[c.model_dump() for c in checks])  # fmt: skip
+            return Filled(png(strip), source, reasons, sprite_meta(e, (fw, fh), anims, rows=meta),
+                          "sprite", record, checks=checks)  # fmt: skip
         # One palette for the whole strip, so frames keep identical colours.
         strip = Image.new("RGBA", (fw * len(frames), fh))
         for i, f in enumerate(frames):
@@ -1704,7 +1969,7 @@ class Muse:
 
     def greybox(self, e: Entity, size, why: str) -> Filled:
         self.warnings.append(f"{e.id}: {why}; greybox placeholder used")
-        return single_frame(e, placeholder(e, size), "placeholder", [why])
+        return single_frame(e, placeholder(e, size), "placeholder", [why], rows=self.brief or None)
 
 
 def art_sheet(filled: dict[str, Filled], scale: int = 3) -> bytes | None:

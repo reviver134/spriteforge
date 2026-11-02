@@ -63,6 +63,14 @@ speeds and distances you tune in pixels by it. Use only the ids listed in the as
   `s.setFlipX(true)` when moving left. `s.setDepth(s.y)` sorts top-down scenes.
 * Images and tiles: `this.add.image(x, y, 'floor')`,
   `this.add.tileSprite(0, 0, w, h, 'floor').setOrigin(0)` for repeating ground.
+* Rows: a sprite's `rows` (in the assets summary) say when each animation plays (`plays`:
+  idle, move, jump, dash, hurt, attack, break, die, form, pickup), its fps and loop or once.
+  Play the row that fits (`sf.play(s, 'hop')` for the move row); break and die rows play once
+  and end empty, then destroy the sprite.
+* Effects: `sf.fx(name, x, y, sprite)` plays one of the effects listed under "Effects" (by its
+  name, or by its `on`: kill, break, pickup, hurt, transform ...): particles, flash, screen
+  shake and squash, as the motion design says. Call it the moment the thing happens (e.g.
+  `sf.fx('kill', enemy.x, enemy.y, enemy)`); do not write your own particles or shakes.
 * `sf.has('gem')` tells whether an id exists. You may draw extra simple shapes with
   `this.add.rectangle/circle` (projectile trails, flashes), but characters, enemies, pickups and
   tiles must use their asset ids.

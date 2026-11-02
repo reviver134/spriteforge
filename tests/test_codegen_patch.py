@@ -113,6 +113,7 @@ def test_patch_applies_and_falls_back(tmp_path, budget):
     cfg = load_config()
     cfg.game.review = False  # the script answers the Programmer only
     cfg.game.qa = False
+    cfg.game.motion = False  # (motion design: test_motion)
     result = make_game("arena", tmp_path / "g", cfg, mock=True, provider=scripted,
                        record=False, log=lambda m: None)  # fmt: skip
     assert [title for title, _ in seen] == ["GameDesign", "ArtPlan", "GameCode", "CodePatch",
@@ -243,7 +244,7 @@ def test_a_repair_that_makes_the_game_worse_is_not_kept(tmp_path, budget):
         ],
     )
     cfg = load_config()
-    cfg.game.review = cfg.game.qa = False
+    cfg.game.review = cfg.game.qa = cfg.game.motion = False
     cfg.game.max_repairs = 1
     result = make_game("arena", tmp_path / "g", cfg, mock=True, provider=scripted,
                        record=False, log=lambda m: None)  # fmt: skip

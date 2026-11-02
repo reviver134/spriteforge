@@ -252,8 +252,11 @@ def test_make_game_offline_end_to_end(tmp_path):
     # Sprites are drawn as sheets: the gem (no animations) is one 4-frame row at 4:1.
     assert art["gem"]["request"]["size"] == [2048, 512]
     assets = json.loads((out / "build" / "assets.json").read_text())
-    assert assets["sprites"]["slime"]["anims"] == {"idle": [0, 4], "walk": [4, 4]}
+    # The motion design's rows (L2.4): the enemy also dies (once, ending empty).
+    assert assets["sprites"]["slime"]["anims"] == {"idle": [0, 4], "walk": [4, 4], "die": [8, 4]}
+    assert assets["sprites"]["slime"]["rows"]["die"]["loop"] is False
     assert assets["sprites"]["gem"]["anims"] == {"idle": [0, 4]}
+    assert (out / "motion.json").is_file() and (out / "motion.gif").is_file()
     assert art["gem"]["spec"]["grid"] == [8, 8] and "8×8 grid" in art["gem"]["muse_prompt"]
     assert art["floor"]["spec"]["anchor"].startswith("fills the whole grid")
     assert art["slime"]["frame"]["mode"] in {"native", "native-resized", "fit"}
@@ -263,7 +266,8 @@ def test_make_game_offline_end_to_end(tmp_path):
         "consistency", "readability", "perspective", "scale", "palette"}  # fmt: skip
     assert {"sheet.png", "sheet-4x.png", "shot-1.png", "shot-2.png", "shot-3.png"} <= {
         p.name for p in (out / "review").iterdir()}  # fmt: skip
-    assert result.report["model_calls"]["chat"] == 5  # design, QA, art plan, code, review (no story)
+    # design, QA, motion, art plan, code, review (no story)
+    assert result.report["model_calls"]["chat"] == 6
     assert result.report["qa"]["failed"] == 0 and result.report["qa"]["passed"] >= 5
 
 
@@ -295,6 +299,7 @@ def test_repair_loop_feeds_failures_back(tmp_path, budget):
     cfg = load_config()
     cfg.game.review = False  # scripted answers cover the Programmer only (review: test_art_review)
     cfg.game.qa = False  # (QA tests: test_qa_tests)
+    cfg.game.motion = False  # (motion design: test_motion)
     result = make_game(
         "arena",
         tmp_path / "g",
@@ -329,7 +334,7 @@ def test_playtest_reports_missing_events(tmp_path, budget):
         ],
     )
     cfg = load_config()
-    cfg.game.max_repairs, cfg.game.review, cfg.game.qa = 1, False, False
+    cfg.game.max_repairs, cfg.game.review, cfg.game.qa, cfg.game.motion = 1, False, False, False
     result = make_game(
         "arena", tmp_path / "g", cfg, mock=True, provider=scripted, record=False, log=lambda m: None
     )

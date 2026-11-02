@@ -182,11 +182,22 @@ def assets_summary(manifest: dict) -> str:
         f"Screen {screen[0]}x{screen[1]}, sf.assets.scale = {manifest['scale']} (sizes below are scaled)."
     ]
     for ident, a in manifest["sprites"].items():
-        anims = ", ".join(f"{n} ({c} frames)" for n, (_, c) in a["anims"].items())
+        rows = a.get("rows") or {}
+        anims = ", ".join(
+            f"{n} ({c} frames"
+            + (f", {rows[n]['plays']}{' ' + rows[n]['form'] if rows[n].get('form') else ''}, "
+               f"{'loop' if rows[n]['loop'] else 'once'}" if n in rows else "") + ")"
+            for n, (_, c) in a["anims"].items())  # fmt: skip
         lines.append(f"* sprite `{ident}` ({a['role']}) {a['frame'][0]}x{a['frame'][1]}: {anims}")
     for ident, a in manifest["images"].items():
         extra = f", parallax {a['parallax']:g}" if "parallax" in a else ""
         lines.append(f"* image `{ident}` ({a['role']}) {a['size'][0]}x{a['size'][1]}{extra}")
+    if fx := manifest.get("fx"):
+        lines.append("Effects (sf.fx(name, x, y, sprite); the level engine plays the ones with an "
+                     "`on` itself): " + ", ".join(f"{n} (on {e['on']})" for n, e in fx.items()))
+    if forms := manifest.get("forms"):
+        lines.append("Forms (the player's look while it holds the ability; the SDK shows it): "
+                     + ", ".join(f"{n} ({f['row'] or 'tint ' + f['tint']})" for n, f in forms.items()))
     return "\n".join(lines)
 
 

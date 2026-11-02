@@ -23,7 +23,12 @@ After the G1 questions:
                              artifacts; approvals promote it to human-reviewed
   gate "design"              text -> plan and design v(K+1); empty -> build v1 from the
                              approved design
+  game/design/vK-motion.json/.md  Art Director (L2.4): the motion design for design vK: rows
+                             per entity (what each frame shows, when it plays, fps, loop),
+                             forms, effects (sf.fx), fitted by code; a design change keeps the
+                             rows of every entity that still exists (its art stays locked)
   game/vN/art-plan.json      Art Director: library first, Muse Image for whatever is missing
+  game/vN/motion.gif/.png    every animated row playing / as filmstrips, as code checked them
   game/vN/art/<id>.*         each entity's art (+ Muse raw and request, so art stays locked)
   game/vN/art.png            contact sheet
   game/vN/code.json          the Programmer's files after static checks, playtest and repairs
@@ -65,6 +70,7 @@ from spriteforge.game.design import GameDesign, design_markdown, revision_prompt
 from spriteforge.game.gamedb import context_pack, open_db, promote_all, sync_record
 from spriteforge.game.level_preview import first_frame, preview
 from spriteforge.game.levels import LevelRecord, evaluate, level_markdown, player_body
+from spriteforge.game.motion import MotionRecord, motion_markdown
 from spriteforge.game.pipeline import (
     LevelPack,
     Models,
@@ -73,6 +79,8 @@ from spriteforge.game.pipeline import (
     build_and_test,
     call_summary,
     level_pack,
+    motion_previews,
+    motion_report,
     plan_art,
     plan_new_art,
     produce_art,
@@ -85,6 +93,7 @@ from spriteforge.game.pipeline import (
     write_code,
     write_design,
     write_level,
+    write_motion,
     write_plan,
     write_qa_tests,
     write_research,
@@ -441,6 +450,30 @@ def level_report(pack: LevelPack, played: dict, previews: dict, play: str | None
     return out
 
 
+def motion_name(version: int) -> str:
+    return f"game/design/v{version}-motion.json"
+
+
+def ensure_motion(ctx: GameContext, design_version: int, design: GameDesign,
+                  plan: PlanRecord | None, levels: int | None) -> MotionRecord | None:  # fmt: skip
+    """The motion design for design vK, written once (L2.4). After a design change the newest
+    earlier one is kept for every entity that still exists. None when `game.motion` is off."""
+    if not ctx.cfg.game.motion:
+        return None
+    name = motion_name(design_version)
+    if name not in ctx.artifacts:
+        earlier = next((motion_name(k) for k in range(design_version - 1, 0, -1)
+                        if motion_name(k) in ctx.artifacts), None)  # fmt: skip
+        previous = MotionRecord.model_validate(ctx.read(earlier)) if earlier else None
+        ctx.log("Art Director")("designing how each thing moves and reacts (motion design)")
+        record = write_motion(ctx.models, design, plan, load_levels(ctx, levels) if levels else None,
+                              previous)  # fmt: skip
+        ctx.save(name, record.model_dump(), "Art Director")
+        ctx.save(name.removesuffix(".json") + ".md", motion_markdown(record).encode(),
+                 "Art Director", "text/markdown")  # fmt: skip
+    return MotionRecord.model_validate(ctx.read(name))
+
+
 def previous_art(ctx: GameContext, version: int):
     """Muse records of the previous build, so unchanged requests reuse their art."""
 
@@ -514,14 +547,16 @@ def build_version(
     suite: QASuite | None = None,
     levels: int | None = None,
     game_plan: PlanRecord | None = None,
+    motion: MotionRecord | None = None,
 ) -> list[str]:
     """Art, code, playtest, repair and recording for one build; returns gate artifact names.
-    `levels`: the level set the build plays (levels as data), checked with `game_plan`."""
+    `levels`: the level set the build plays (levels as data), checked with `game_plan`;
+    `motion`: the motion design the art's rows follow."""
     prefix = f"game/v{version}"
     if f"{prefix}/report.json" not in ctx.artifacts:
         log = ctx.log("Director")
         log(f"build v{version}: art (library first, Muse Image for the rest)")
-        art = produce_art(ctx.models, design, plan, ctx.cfg, previous_art(ctx, version))
+        art = produce_art(ctx.models, design, plan, ctx.cfg, previous_art(ctx, version), motion)
         pack = None
         if levels and game_plan:
             pack = level_pack(load_levels(ctx, levels), design, game_plan, art.manifest(),
@@ -574,6 +609,9 @@ def build_version(
                          "Art Reviewer")  # fmt: skip
         if sheet := art_sheet(art.filled):
             ctx.save(f"{prefix}/art.png", sheet, "Art Director", "image/png")
+        for name, data in motion_previews(art).items():
+            ctx.save(f"{prefix}/{name}", data, "Art Director",
+                     "image/gif" if name.endswith(".gif") else "image/png")  # fmt: skip
         ctx.save(f"{prefix}/art.json", art_summary(art), "Art Director")
         ctx.save(f"{prefix}/code.json", outcome.code.model_dump(), "Programmer")
         ctx.save(f"{prefix}/playtest.json", outcome.report, "QA Playtester")
@@ -603,6 +641,7 @@ def build_version(
             "attempts": outcome.attempts,
             "revision": revision.model_dump() if revision else None,
             "art_review": review_report(review.report, prefix) if review else None,
+            "motion": motion_report(art) if motion else None,
             "qa": qa,
             "model_calls": call_summary(ctx.store, ctx.run_id),
         }
@@ -698,7 +737,8 @@ def gate_names(ctx: GameContext, version: int) -> list[str]:
     names = [n for n in (f"{prefix}/demo.mp4", f"{prefix}/poster.png") if n in ctx.artifacts][:1]
     names += sorted((n for n in ctx.artifacts if re.fullmatch(rf"{prefix}/levels/level-\d+\.png", n)),
                     key=lambda n: int(re.findall(r"\d+", n)[-1]))  # fmt: skip
-    names += [n for n in (f"{prefix}/art.png", f"{prefix}/test_game_qa.py") if n in ctx.artifacts]
+    names += [n for n in (f"{prefix}/motion.gif", f"{prefix}/art.png", f"{prefix}/test_game_qa.py")
+              if n in ctx.artifacts]  # fmt: skip
     return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
 
 
@@ -826,12 +866,15 @@ def game_step(store, run_id) -> bool:
         if uses_levels(design, game_plan):
             levels = latest_version(ctx.artifacts, LEVELS) or first_levels(ctx, design, version, game_plan)
             sync_db(ctx, f"levels v{levels}")
+        motion = ensure_motion(ctx, version, design, game_plan, levels)
         plan = ctx.once(
-            "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design), "Art Director"
+            "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design, motion),
+            "Art Director",
         )
         suite = qa_suite(ctx, 1, design, version)
         open_playtest_gate(ctx, 1, build_version(ctx, 1, design, version, plan, None, "",
-                                                 suite=suite, levels=levels, game_plan=game_plan))  # fmt: skip
+                                                 suite=suite, levels=levels, game_plan=game_plan,
+                                                 motion=motion))  # fmt: skip
         return False
 
     if last.stage == "playtest" and last.status == "changes_requested":
@@ -903,13 +946,15 @@ def game_step(store, run_id) -> bool:
             ensure_story(ctx, f"design-v{design_version}", design, ask)
         elif revision.story_changes.strip():
             ensure_story(ctx, f"gate-{n}", design, revision.story_changes)
-        # A design change keeps every existing entity's art (locked); only new entities are
-        # planned, and entities the feedback names are redrawn (apply_art_changes).
+        # A design change keeps every existing entity's art (locked) and motion rows; only new
+        # entities are planned, and entities the feedback names are redrawn (apply_art_changes).
+        motion = ensure_motion(ctx, design_version, design, load_plan_at(ctx, design_version),
+                               previous.get("levels_version"))  # fmt: skip
         base_plan = (
             ctx.once(
                 f"game/v{version}/art-plan-new.json",
                 ArtPlan,
-                lambda: plan_new_art(ctx.models, design, last_plan(ctx, version - 1)),
+                lambda: plan_new_art(ctx.models, design, last_plan(ctx, version - 1), motion),
                 "Art Director",
             )
             if changed
@@ -946,7 +991,7 @@ def game_step(store, run_id) -> bool:
             levels = None
         names = build_version(
             ctx, version, design, design_version, plan, base, instruction, revision, suite,
-            levels, game_plan,
+            levels, game_plan, motion,
         )
         open_playtest_gate(ctx, version, names)
         return False

@@ -23,6 +23,7 @@ from .codegen import GameCode
 from .codeinfo import Module, read_code
 from .design import GameDesign
 from .levels import LevelRecord
+from .motion import MotionRecord, motion_markdown
 from .plan import PlanRecord
 from .qa import SDK_EVENTS, STATE_KEYS, QASuite, Step
 from .qa_runtime import describe_step
@@ -106,6 +107,9 @@ class GameRecord:
     level_files: dict[int, bytes] = field(default_factory=dict)  # what the SDK loads, per level
     level_previews: dict[int, bytes] = field(default_factory=dict)  # map previews (PNG)
     level_play: dict[int, dict] = field(default_factory=dict)  # the latest build's playtest
+    motion: MotionRecord | None = None  # L2.4: the motion design of the current design
+    motion_source: str = ""
+    motion_gif: bytes | None = None  # the latest build's rows playing
 
     @property
     def latest(self) -> Build | None:
@@ -384,9 +388,15 @@ a style example's. Locked art is redrawn only when the human or a change asks fo
 # Credits
 {bullets(rec.credits)}
 """
+    if rec.motion:
+        style += "\n# Motion\nHow each thing moves and reacts: [motion design](/art/motion.md).\n"
     entries = [make_entry("art/style", "Art Style", f"{d.title}: art style", d.look,
                           ["art", "style", d.camera], style, [rec.design_source, source])]  # fmt: skip
     files = {}
+    if rec.motion:
+        entry, extra = motion_concept(rec, source)
+        entries.append(entry)
+        files |= extra
     for eid, a in rec.art.items():
         files[f"references/art/{eid}.png"] = a.portrait
         files[f"references/art/{eid}-sheet.png"] = a.sheet
@@ -411,6 +421,42 @@ The first frame at 4x. The game loads [the sheet](/references/art/{eid}-sheet.pn
                                   ["art", "asset", roles.get(eid, ""), eid], body, [source],
                                   resource=f"/references/art/{eid}.png"))  # fmt: skip
     return entries, files
+
+
+MOTION_SCHEMA = """# Schema
+`/references/art/motion.json` (the Art Director's motion design, fitted by code):
+* `rows[]`: `entity` (design id), `name` (the animation's name in the sheet), `plays` (when the
+  game shows it: idle, move, jump, fall, land, dash, hurt, attack, break, die, form, pickup,
+  other), `form` (the ability a form row shows, else ''), `frames[]` (`shows`: what the frame
+  shows, `airborne`: off the ground), `fps`, `loop`.
+* `forms[]`: `ability`, `looks`, `tint` (#RRGGBB when its row fails), `particles`.
+* `effects[]`: `name`, `on` (the SDK moment that plays it, or 'game'), `particles`, `colors`,
+  `speed` (px/s at 320x180), `flash`, `shake` (0-1), `squash` (+ flat, - tall), `seconds`.
+"""
+
+
+def motion_concept(rec: GameRecord, source: str) -> tuple[Entry, dict[str, bytes]]:
+    """art/motion: the motion design (L2.4), what code found in the latest build's rows and
+    the rows playing."""
+    m = rec.motion
+    checks = (rec.latest.report.get("motion") or {}).get("rows", []) if rec.latest else []
+    found = "\n".join(f"* {c['entity']}.{c['row']} ({c['plays']}, {c['frames']} frames): "
+                      + ("; ".join([*c["problems"], *(f"repaired: {r}" for r in c["repaired"])]) or "ok")
+                      for c in checks) or "- (no build yet)"  # fmt: skip
+    files = {"references/art/motion.json": (m.brief.model_dump_json(indent=1) + "\n").encode()}
+    gif = ""
+    if rec.motion_gif:
+        files["references/art/motion.gif"] = rec.motion_gif
+        gif = "![every animated row playing](/references/art/motion.gif)\n\n"
+    body = (gif + motion_markdown(m).replace("# Motion design", "# Rows, forms and effects", 1)
+            + f"\n# Checked by code (latest build)\n{found}\n\n{MOTION_SCHEMA}")
+    entities = sorted({r.entity for r in m.brief.rows})
+    links = " ".join(f"[{e}](/art/assets/{e}.md)" for e in entities if e in rec.art)
+    body += f"\n# Assets\n{links or '-'}\n"
+    return make_entry("art/motion", "Motion Design", f"{rec.design.title}: motion design",
+                      f"{len(m.brief.rows)} animation rows, {len(m.brief.forms)} forms, "
+                      f"{len(m.brief.effects)} effects", ["art", "motion", "animation"], body,
+                      [rec.motion_source, source], resource="/references/art/motion.json"), files  # fmt: skip
 
 
 def checks_for(rec: GameRecord, events: list[str]) -> list[str]:

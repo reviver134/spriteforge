@@ -18,6 +18,7 @@ from spriteforge.game.codegen import GameCode
 from spriteforge.game.dbsource import build_manifest, credits, read_art
 from spriteforge.game.design import GameDesign
 from spriteforge.game.levels import LevelRecord
+from spriteforge.game.motion import MotionRecord
 from spriteforge.game.plan import PlanRecord
 from spriteforge.game.qa import QASuite
 from spriteforge.game.research import ResearchRecord
@@ -29,6 +30,7 @@ STORY = re.compile(r"game/story/v(\d+)-([a-z0-9-]+)\.json")
 REPORT = re.compile(r"game/v(\d+)/report\.json")
 DESIGN = re.compile(r"game/design/v(\d+)\.json")
 PLAN = re.compile(r"game/plan/v(\d+)\.json")
+MOTION = re.compile(r"game/design/v(\d+)-motion\.json")
 LEVELS = re.compile(r"game/levels/v(\d+)/levels\.json")
 RESEARCH = "game/research.json"
 
@@ -136,6 +138,10 @@ def run_record(ctx, pending: tuple[int, dict] | None = None) -> GameRecord:
     if plans:
         name = f"game/plan/v{plans[-1]}.json"
         rec.plan, rec.plan_source = PlanRecord.model_validate(ctx.read(name)), name
+    motions = sorted(int(m[1]) for n in names if (m := MOTION.fullmatch(n)) and int(m[1]) <= k)
+    if motions:
+        name = f"game/design/v{motions[-1]}-motion.json"
+        rec.motion, rec.motion_source = MotionRecord.model_validate(ctx.read(name)), name
     reports = {int(m[1]): ctx.read(n) for n in names if (m := REPORT.fullmatch(n))}
     if pending:
         reports[pending[0]] = pending[1]
@@ -166,6 +172,8 @@ def run_record(ctx, pending: tuple[int, dict] | None = None) -> GameRecord:
     rec.screen = tuple(manifest.get("screen") or art.get("screen") or (320, 180))
     rec.scale = int(manifest.get("scale") or art.get("scale") or 1)
     rec.credits = credits(build)
+    if f"{prefix}/motion.gif" in names:
+        rec.motion_gif = ctx.data(f"{prefix}/motion.gif")
     if f"{prefix}/code.json" in names:
         rec.code = GameCode.model_validate(ctx.read(f"{prefix}/code.json"))
     if f"{prefix}/qa-tests.json" in names:

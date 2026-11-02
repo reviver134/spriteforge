@@ -40,6 +40,10 @@ game:
   # key presses after the bot playtest; failures join the repairs; exported per build as
   # build/tests/test_game_qa.py (pytest + Playwright).
   qa: true
+  # Motion design (L2.4): the Art Director writes every entity's animation rows (what each
+  # frame shows, fps, loop), how the player looks in each form and the effects the SDK plays
+  # (sf.fx); Muse draws the rows, code checks and repairs them. false = the design's names.
+  motion: true
   # (No story switch: the G1 brief decides. A story bible is written only when the human asks
   # for one; every game keeps its full record as an OKF bundle in runs/<id>/game/db.)
   max_code_kb: 200
@@ -87,6 +91,7 @@ llm:
     research: medium # Game Designer studying similar games with web search (L2.2)
     plan: high # Game Designer writing the game plan from the requirements and research
     level: high # Level/Tile Designer writing each level as data (L2.3)
+    motion: medium # Art Director's motion design: rows, forms, effects (L2.4)
 research:
   # tools/probe_web_search.py 2026-11-02: Chat Completions rejects {"type": "web_search"}
   # (HTTP 400 "tools[0] did not match any supported type"); the Responses API accepts it.

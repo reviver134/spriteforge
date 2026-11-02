@@ -46,6 +46,7 @@ from .art import (
     png,
     resolve_plan,
     run_jobs,
+    tile_break,
     tile_ids,
     whole_objects,
 )
@@ -161,10 +162,33 @@ def screenshot(data: bytes) -> bytes:
     return png(image)
 
 
+def motion_lines(art: ArtResult) -> str:
+    """What code measured and repaired in each entity's animation rows (L2.4)."""
+    lines = []
+    for eid, f in art.filled.items():
+        for c in f.checks:
+            if c.problems or c.repaired:
+                lines.append(f"* {eid}.{c.row} ({c.plays}): " + "; ".join(
+                    [*c.problems, *(f"repaired: {r}" for r in c.repaired)]))  # fmt: skip
+    return "\n".join(lines) or "* every row moves, keeps its size and ground line, and ends as it should"
+
+
+MOTION_TASK = """
+4. Motion (the filmstrips): things must move like what they are. A moving row whose frames
+   barely change makes the sprite slide; a hop squashes and stretches; a break or die row ends
+   with the thing gone; a form row shows the transformed look. A motion problem is major
+   (blocking only when the thing cannot be recognised in it); its fix_prompt names the row."""
+
+
 def review_prompt(
-    design: GameDesign, art: ArtResult, slots: list[str], findings: list[Finding], shots: int
+    design: GameDesign, art: ArtResult, slots: list[str], findings: list[Finding], shots: int,
+    rows: bool = False,
 ) -> str:
+    """`rows`: the last image shows every animated row as filmstrips (the motion design)."""
     number = {eid: i + 1 for i, eid in enumerate(slots)}
+    strips = f"; {3 + shots}) every animated row as a filmstrip (frames left to right, " \
+             "labelled entity.row)" if rows else ""  # fmt: skip
+    motion = f"\n\nMotion measured by code (rows by entity id):\n{motion_lines(art)}" if rows else ""
     entities = "\n".join(
         f"* `{e.id}` ({e.role}, {e.width}x{e.height} on a 320x180 screen): {e.look}"
         for e in sorted(design.entities, key=lambda e: e.id)
@@ -177,7 +201,7 @@ def review_prompt(
     return f"""Review the art of this game as one set, as it will be played.
 
 Images: 1) the art sheet at native game size; 2) the same sheet at {ZOOM}x, each sprite
-numbered; {f"3-{2 + shots}) screenshots of the running game (early, middle, late) at game scale" if shots else "(no screenshots: the game did not run)"}.
+numbered; {f"3-{2 + shots}) screenshots of the running game (early, middle, late) at game scale" if shots else "(no screenshots: the game did not run)"}{strips}.
 Sizes on the sheet are true to the game (backgrounds are shrunk).
 
 1. Naming test first: for every number on the sheet, say in a few words what it looks like
@@ -191,7 +215,7 @@ Sizes on the sheet are true to the game (backgrounds are shrunk).
    clearly weaker than the rest of the set or confusable with another entity; minor = polish.
    `fix_prompt` is an instruction for an image edit of that sprite: what to change (colours,
    outline, size, pose, details), keeping its framing, size and style. No issue for things
-   that are fine; do not invent problems.
+   that are fine; do not invent problems.{MOTION_TASK if rows else ""}
 
 Camera: {VIEWS[design.camera]}.
 Game: {design.title}. {design.pitch}
@@ -201,7 +225,7 @@ The game's entities (alphabetical; the sheet numbers are not given on purpose):
 {entities}
 
 Measured by code (the sheet numbers are given here):
-{measured}"""
+{measured}{motion}"""
 
 
 # --- offline review: the pre-checks alone --------------------------------------------------
@@ -435,8 +459,10 @@ def run_fixes(
     """Draw every fix once, in parallel (one call slot each, `options.retries` should be 0). A
     fix that fails keeps the current art. Sets `fix.after`; returns warnings."""
     # A later version resolves the reviewed plan the same way, so the fixed art locks.
-    resolved, _ = resolve_plan(reviewed_plan(plan, fixes, every=True), design)
+    motion = art.motion
+    resolved, _ = resolve_plan(reviewed_plan(plan, fixes, every=True), design, motion)
     entities = {e.id: e for e in design.entities}
+    forms = {f.ability: f.looks for f in motion.brief.forms} if motion else {}
     hero_px = next(e.height for e in design.entities if e.role == "player") * art.scale
     slots, jobs = CallSlots(len(fixes)), []
     for fx in fixes:
@@ -444,7 +470,8 @@ def run_fixes(
         e = entities[fx.entity]
         size = art.screen if e.role == "background" else (e.width * art.scale, e.height * art.scale)
         old = {"raw": fx.source_png, "version": version} if fx.source_png else None
-        muse = Muse(generate, lambda eid, o=old: o, slots, options, hero_px, cache)
+        muse = Muse(generate, lambda eid, o=old: o, slots, options, hero_px, cache,
+                    brief=motion.rows(e.id) if motion else [], forms=forms)  # fmt: skip
         slots.take()
         jobs.append((muse, replace(muse.job(e, design, fx.pick, size), slot=True)))
     drawn = run_jobs(jobs, options.workers)
@@ -461,6 +488,8 @@ def run_fixes(
             f"fixed by the art review ({fx.mode}): {fx.pick.reason[len(REVIEW_REASON) :].strip()}",
         ]
         out.record["review_fix"] = {"issues": fx.issues, "mode": fx.mode}
+        if motion and entities[fx.entity].role == "tile":
+            tile_break(entities[fx.entity], out, motion.rows(fx.entity))
         fx.after = out
     return warnings
 

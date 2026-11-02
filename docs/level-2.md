@@ -541,3 +541,180 @@ report's links (`index.html?level=n`), or pick a level under Level to change it 
 Full pytest: 351 passed, 4 failed: the same four as in L2.2 (`test_asset_production` (2) and
 `test_asset_ui` on the uncommitted asset-pipeline changes, and
 `test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events`).
+
+## L2.4: art and animation design
+
+Things move and react like what they are: the slime hops and squashes instead of sliding,
+crates and walls break, beaten enemies are gone, and a transform changes the slime for as long
+as it lasts. The Art Director writes the motion, Muse draws it, code checks and repairs it,
+and the SDK plays it, so the Programmer improvises none of it.
+
+### The motion design (`game/motion.py`)
+
+Once per design version, after the levels and before the art plan, the Art Director
+(`llm.reasoning.motion: medium`) answers an `AnimationBrief` (`game/design/vK-motion.json/.md`)
+from the design, the plan's animation list and feel, and what the levels open:
+
+* `rows`: per entity, 1-4 frames each with what the frame shows and whether the subject is off
+  the ground (a hop: squashed low and wide; stretched tall; round in the air; squashed wide,
+  landing), `plays` (when the game shows it: idle, move, jump, fall, land, dash, hurt, attack,
+  break, die, form, pickup, other), fps and loop or once; at most 6 rows per entity.
+* `forms`: per form ability, how the player looks in it, a tint and a particle colour.
+* `effects`: per feel event, when the SDK plays it (`on`: jump, land, dash, break, kill,
+  pickup, transform, hurt, checkpoint, exit, or game), particles, colours, speed, flash, shake
+  and the player's squash.
+
+`fit_brief` repairs what code can: entity ids and ability names matched loosely ("the player",
+"crates", "acid"), frames trimmed to 4, fps 2-20, jump/land/hurt/break/die rows play once,
+break and die rows end with "gone", tiles keep only break rows, a form tint that is no
+#RRGGBB comes from its look's colours or material (acid green, metal grey), effect numbers
+clamped. It adds what the game needs from a vocabulary: an idle row, a move row for the
+player and every enemy (a blob hops), a jump and dash row for a side-view player that has
+them, a break or die row for whatever the levels open (crates, breakables, enemies that can be
+beaten), a form look and row per form ability, and the default effects for jump, land, dash,
+break, kill, pickup, hurt and transform. The offline Art Director (`fallback_brief`) is the
+plan's rows, else the design's names, with poses from the vocabulary. A design change keeps
+the rows of every entity that still exists (its locked art is not redrawn) and asks only about
+new entities (no call when there are none).
+
+### Muse draws the rows; code checks and repairs them
+
+* A Muse sprite is one sheet: a row per motion row, labelled in the prompt ("Row 2 (hop): 5.
+  hop: squashed low and wide ...", "Row 4 (acid form, in Acid Form: bright green, glossy,
+  dripping acid)"), short rows padded with holds. Form rows may change only colours and
+  surface. The request key holds the rows, so unchanged rows stay locked and changed ones are
+  edits of the locked image.
+* `row_problems` measures each drawn row: a moving row (move, form, dash) whose frames barely
+  differ would slide; frames whose area leaves 0.5-2x the row's median changed size; grounded
+  frames whose bottom line moves more than a pixel left the ground; a loop whose last-to-first
+  change is over 1.5x its median step jumps; a break or die row whose last frame keeps more
+  than 10% of the first did not end empty. These go into the one retry (high reasoning
+  strength) with the other frame problems; the attempt with fewer problems is kept.
+* `finish_rows` repairs what is left: a still moving row becomes squash, rest, stretch, rest
+  made from its first frame; a break or die row's last frame is emptied; a form row that came
+  back empty or the wrong size is shown by the SDK as a tint with particles. Each sprite keeps
+  its checks (`report.json` "motion", the art records) and its reasons list the repairs.
+* A library actor is kept only when it can show the rows (a move and a jump animation; never
+  a form): run 3's recoloured "flying eye" for a hopping, transforming slime now goes to Muse.
+  Actor and object art is cut into the rows (a missing die row is the art crumbled by code).
+* A breakable tile stays an image (it tiles) and gains `<id>_break`: the tile crumbled by code
+  from its own pixels (cracks, chunks that fall and thin out, then empty).
+* `assets.json` gives each sprite's `rows` (plays, fps, loop, form, and the lift of the
+  airborne frames of a ground row), `fx` and `forms` (the row that shows each form, or none).
+
+### The SDK plays them (`sf.js`, `sflevel.js`)
+
+* Animations take their fps and loop from the rows.
+* `sf.fx(name, x, y, sprite)` plays an effect by name or by its `on`: particles (their own
+  random numbers, so effects never change the game's seeded randomness; at most 48 alive),
+  flash, camera shake, squash. `sf.fxCount` counts them for tests.
+* The level engine draws the player as a skin: `L.player` keeps its body, its animations and
+  what the game sets on it; the skin copies its frame, tint, alpha and visibility every frame
+  and adds what must not touch the physics body: squash on landing, stretch on a jump, the
+  lift of a hop's airborne frames, flashes, a form's tint. It plays the row that fits (move,
+  jump, fall, land, dash, idle; the form's row while a form lasts) and the effects at jumps,
+  landings, dashes, breaks, kills, pickups, transforms, respawns, checkpoints and the exit.
+* `sf.level.take(t)` turns the player into the form a pickup gives; `sf.level.form(ability)`
+  (or `''`) does it for the game's own timers; `sf.state.form` and a `form` event follow it.
+  `sf.level.open(t)` plays the break or die row (or the tile's `<id>_break`) once and removes
+  the sprite. Enemies patrol with their move row.
+* `API.md` and `LEVELS.md` tell the Programmer to call `sf.fx` instead of writing particles or
+  shakes, and that the SDK plays the rows and the effects.
+
+### Seen by the reviewer and the human
+
+The Art Reviewer gets every animated row as filmstrips (a last image) and code's motion
+findings, and judges motion as a fourth task. G4 shows `game/vN/motion.gif` (every row playing
+at its fps, once rows ending empty) before the art sheet. The bundle gains `art/motion` (type
+Motion Design): the rows, forms and effects, code's checks of the latest build, the GIF and a
+`# Schema` of `/references/art/motion.json`; `art/style` links to it. `game make` writes
+`motion.json/.md` and `motion.png/.gif` too. `game.motion: false` returns to the design's
+animation names.
+
+### Tests
+
+`tests/test_motion.py`: the offline brief gives the slime a hop with an airborne frame, a jump,
+a dash and both forms (tints from the materials), the walker a move and a die row, the crate a
+break row, the wall only a break row, and every effect; fit repairs (an unknown entity, a
+second row, a looping break, a row that does not end gone, a tile's idle row, an ability that
+is not the plan's, missing move/jump/dash/form rows, out-of-range effects); a design change
+keeps the rows and asks only about the new entity (no call without one); the row checks find a
+sliding row, a size change, a frame off the ground line, a loop that jumps and a break that
+does not end empty, and code repairs the first and the last; the Muse prompt lists the rows and
+the form's look, and the manifest says how to play them (lift, once, forms, effects; the
+walker's die row ends empty; the wall's crumble sprite); a row drawn still is drawn again with
+the problem, then made to move by code, and the reviewer sees the repair; locked rows are
+reused without a call; a library slime that cannot show the forms goes to Muse while a walker
+keeps its library frames cut into rows; in the browser the bot clears the gated level while the
+SDK plays the hop and both form rows, squashes and lifts the skin, never draws the body, plays
+jump, land, dash, break, kill and transform effects and removes everything that opened (the
+wall through its crumble); a form without its row is a tint; when two effects share a moment,
+each transform plays its own form's and the crates' dissolve stays off the wall; only
+abilities that change the look are forms; a gated mock run writes the motion once, shows
+`motion.gif` at G4, puts `art/motion` in the bundle, and level feedback keeps it and the art.
+
+### Live (2026-11-02)
+
+The slime game (`tools/game_live.py`, `workspace/l24-slime`, the L2.3 goal word for word;
+research on, G2 approved by the test operator, G4 left to the human): "Slimeling: Acid and
+Metal Run", 3 levels (dissolve crates, an acid crate before an enemy patrol, a metal crate
+before a cracked wall), 9 tiles/s, a 3.5-tile jump, a 4-tile dash.
+
+**The motion design** (one call, $0.041, 8.9k output tokens at medium reasoning): the slime's
+idle, a move row "squashed low and wide crouched for hop; stretched tall and narrow springing
+up; round compact blob tucked in mid-air; squashed flat and wide landing", a jump row, an acid
+form row ("bright dripping green acid blob ... droplets falling") and a metal form row
+("silver-grey metal blob ... shiny glint ... small clang lines"); the enemy's idle, walk and die
+(squashed flat with X eyes, a purple puddle with acid bubbles, crumbs, gone); the crate's break
+(cracking with green bubbles, panels bursting, planks slumped, gone); the cracked wall's break;
+coin spin; the exit's idle and open; 11 effects from the plan's feel (dissolve, coin_pickup,
+acid_transform, metal_transform, kill, break, hurt, exit, jump, dash; code added land).
+
+**Build v1** ($1.38 for the whole run: Spark $1.28 in 19 calls, Muse Image $0.10 in 10
+calls): the slime is drawn by Muse, no longer a recoloured library flying eye; its 6-row sheet
+was redrawn once (a frame of one row changed size), and then every row passed code's checks.
+Of 17 rows, 16 passed on Muse's drawing; the enemy's die row kept a few crumbs and code emptied
+its last frame. The cracked wall got its crumble sprite. **3/3 levels cleared by the bot, all
+12 design checks pass** (dissolve 14, coin_collect 24, acid_form 3, acid_kill 4, metal_form 1,
+metal_break 1, dash 7 ...). G4 shows `motion.gif` with every row playing. Watched in a
+browser (the bot playing each level, frames captured): the slime hops with squash and stretch, takes acid and shows the
+acid row for every move (Spark's HUD says "Form: acid"), takes metal and shows the metal row,
+the wall crumbles where it stood, crates burst, beaten enemies splat and are gone, and
+effects play at jumps, landings, dashes, breaks, kills and pickups. Spark's code calls
+`sf.level.form` (and `sf.level.form('')` when its form timer runs out) and writes no particles,
+shakes or tweens of its own. The Art Reviewer (with the filmstrips): readability 2,
+consistency 3; it fixed the spike (too small to see) and suggested a richer background and an
+acid pickup that reads less like a potion bottle.
+
+**Found live and fixed:**
+
+* **An ability with "a form" in its text became a form.** "Dissolve: touch dissolves wooden
+  crates to spawn coins or a form" matched code's form test, so code added a Dissolve form row
+  (drawn as a sixth row and never shown, since Dissolve is held from the start), and the
+  slime's dash row, which the Art Director had written, no longer fitted on its sheet. A form
+  is now an ability whose name says form, transform or morph, or whose description says it
+  transforms, turns into or becomes something
+  (`test_only_abilities_that_change_the_look_are_forms`).
+* **Every effect of a moment played.** The Art Director gave acid_transform and
+  metal_transform both `on: transform`, and dissolve (crates) and break (walls) both
+  `on: break`, so each transform flashed both colours and the wall also played the crates'
+  dissolve. The SDK now plays one effect per moment: the one whose name shares a word with what
+  happened (the form, the thing's entity and what opens it), else the one named after the
+  moment, else the first. Replayed with the same Spark-written game and the fixed SDK: level 3
+  plays acid_transform, metal_transform once, dissolve for each crate and break for the wall
+  (`test_one_effect_per_moment_the_one_that_fits_what_happened`).
+
+QA 4 of 7: the three failures are tests that wait 15-20 s for an event that fixed key presses
+cannot reach (taking acid, taking metal, winning the game); the Programmer's three repair rounds
+could not fix them, and the fourth attempt was kept. Not from L2.4, seen live: a checkpoint
+shows the exit door's art (the design has no checkpoint entity and code's loose match took the
+flag-topped door), level 1 has a stretch without a challenge and level 3 measures a little
+easier than level 2 (both reported at G4). Build v1 was made before the two fixes: its slime
+sheet carries the Dissolve row and its SDK plays every effect of a moment; a G4 round rebuilds
+with the fixed SDK.
+
+Full pytest: 365 passed, 4 failed, the same four as in L2.2 and L2.3 (`test_asset_production`
+(2) and `test_asset_ui` on the uncommitted asset-pipeline changes, and
+`test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events`); after the two live
+fixes `test_motion` (14), `test_levels`, `test_game_sdk`, `test_qa_tests` and `test_game_make`
+pass again (50).

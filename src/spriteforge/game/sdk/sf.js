@@ -103,6 +103,76 @@
     return sprite;
   };
 
+  /* ---------- effects (L2.4): the motion design's particles, flash, shake and squash ----------
+     sf.assets.fx = {name: {on, particles, colors, speed, flash, shake, squash, seconds}}.
+     sf.fx(name, x, y, target) plays the effect called `name`, or every effect whose `on` is
+     `name` (the level engine plays jump, land, dash, break, kill, pickup, transform, hurt,
+     checkpoint and exit itself). `target` (a sprite) flashes and squashes. Particles use their
+     own random numbers, so effects never change the game's seeded randomness. */
+  sf.fxCount = {};
+  let fxSeed = 12345, fxLive = 0;
+  const fxRand = () => ((fxSeed = (Math.imul(fxSeed, 1103515245) + 12345) >>> 0) / 4294967296);
+  const MAX_PARTICLES = 48;
+  function activeScene(target) {
+    if (target && target.scene) return target.scene;
+    const scenes = sf.game ? sf.game.scene.getScenes(true) : [];
+    return scenes.find(s => s.sys.settings.key !== 'sf-boot') || null;
+  }
+  sf.particles = function (scene, x, y, n, colors, speed, seconds) {
+    const s = sf.assets.scale || 1;
+    n = Math.max(0, Math.min(n | 0, MAX_PARTICLES - fxLive));
+    for (let i = 0; i < n; i++) {
+      const c = parseInt(String(colors[i % colors.length] || '#ffffff').slice(1), 16) || 0xffffff;
+      const size = s * (1 + (i % 2));
+      const dot = scene.add.rectangle(x, y, size, size, c).setDepth(900);
+      const a = fxRand() * Math.PI * 2, v = (speed || 40) * s * (0.4 + 0.6 * fxRand());
+      fxLive++;
+      scene.tweens.add({
+        targets: dot, alpha: 0, duration: seconds * 1000,
+        x: x + Math.cos(a) * v * seconds, y: y + Math.sin(a) * v * seconds + 10 * s * seconds,
+        onComplete: () => { fxLive--; dot.destroy(); },
+      });
+    }
+    return n;
+  };
+  // Several effects may share a moment (acid_transform and metal_transform both on transform;
+  // a crate's dissolve and a wall's break both on break): `hint` (what happened: the form, the
+  // thing's entity and what opens it) picks the one whose name shares a word with it, else
+  // the one named after the moment, else the first. One effect per moment, never all of them.
+  const words = s => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2);
+  sf.fx = function (name, x, y, target, hint) {
+    const all = sf.assets.fx || {};
+    let list = Object.entries(all).filter(([, e]) => e.on === name);
+    if (!list.length && all[name]) list = [[name, all[name]]];  // the game names one: sf.fx('dissolve')
+    if (list.length > 1) {
+      const want = new Set(words(hint));
+      const matched = list.filter(([key]) => words(key).some(w => want.has(w)));
+      list = matched.length ? matched.slice(0, 1) : list.filter(([key]) => key === name).concat(list).slice(0, 1);
+    }
+    const scene = activeScene(target);
+    if (!list.length || !scene || !scene.add) return 0;
+    for (const [key, e] of list) {
+      sf.fxCount[key] = (sf.fxCount[key] || 0) + 1;
+      const seconds = Math.max(0.1, e.seconds || 0.3);
+      sf.particles(scene, x, y, e.particles, e.colors || ['#ffffff'], e.speed, seconds);
+      if (e.shake > 0 && scene.cameras && scene.cameras.main) {
+        scene.cameras.main.shake(seconds * 500, 0.012 * e.shake);
+      }
+      if (target && target.sfFx) target.sfFx(e);  // the player's skin squashes and flashes itself
+      else if (target && target.active) {
+        if (e.flash) {
+          target.setTintFill(parseInt(e.flash.slice(1), 16));
+          scene.time.delayedCall(90, () => { if (target.active) target.clearTint(); });
+        }
+        if (e.squash) {
+          scene.tweens.add({targets: target, scaleX: target.scaleX * (1 + e.squash),
+                            scaleY: target.scaleY * (1 - e.squash), duration: seconds * 400, yoyo: true});  // fmt: skip
+        }
+      }
+    }
+    return list.length;
+  };
+
   /* ---------- HUD and menus ----------------------------------------------------------------- */
   sf.text = function (scene, x, y, str, opts) {
     opts = opts || {};
@@ -185,8 +255,12 @@
       g.destroy();
       for (const [id, a] of Object.entries(sf.assets.sprites)) {
         for (const [name, [start, count]] of Object.entries(a.anims || {})) {
+          // The motion design's rows say their own fps and loop (L2.4); older art: by name.
+          const row = (a.rows || {})[name];
+          const loop = row ? row.loop : !ONCE.has(name);
           this.anims.create({
-            key: id + ':' + name, frameRate: a.fps || 8, repeat: ONCE.has(name) || count < 2 ? 0 : -1,
+            key: id + ':' + name, frameRate: (row && row.fps) || a.fps || 8,
+            repeat: loop && count > 1 ? -1 : 0,
             frames: this.anims.generateFrameNumbers(id, {start, end: start + count - 1}),
           });
         }

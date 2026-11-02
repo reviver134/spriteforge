@@ -29,6 +29,7 @@ class MockImageProvider:
             )
             draw.rectangle((11, 13, 12, 15), fill="white")
             draw.rectangle((19, 13, 20, 15), fill="white")
+            synthetic = image.copy()
             if "concept" in request.prompt.casefold():
                 # Synthetic full scene exercises the same preview/revision path offline.
                 scene = Image.new("RGB", (320, 180), tuple(digest[3:6]))
@@ -44,15 +45,22 @@ class MockImageProvider:
                 painter.rectangle((12, 12, 70, 16), fill="#E75B65")
                 image = scene
             if layout := re.search(r"(\d+) columns by (\d+) rows", request.prompt):
-                # A sprite sheet: the same synthetic sprite in every cell.
+                # A sprite sheet: the synthetic sprite in every cell of the requested grid, in
+                # four poses across a row (squash, rest, stretch, rest: feet on one line), so
+                # offline sheets animate like drawn ones.
                 cols, rows = int(layout[1]), int(layout[2])
-                sheet = Image.new("RGBA", (32 * cols, 32 * rows), (0, 0, 0, 0))
+                cw, ch = request.size[0] // cols, request.size[1] // rows
+                k = max(1, min(cw, ch) // 32)
+                image = Image.new("RGBA", request.size, (0, 0, 0, 0))
+                body = synthetic.crop((7, 8, 25, 26))
                 for i in range(cols * rows):
-                    sheet.paste(image, ((i % cols) * 32, (i // cols) * 32))
-                k = min(request.size[0] // sheet.width, request.size[1] // sheet.height) or 1
-                sheet = sheet.resize((sheet.width * k, sheet.height * k), Image.Resampling.NEAREST)
-                image = Image.new("RGBA", request.size, (0, 0, 0, 0))  # keeps cells square
-                image.paste(sheet, ((image.width - sheet.width) // 2, 0))
+                    sx, sy = [(1.2, 0.8), (1.0, 1.0), (0.85, 1.2), (1.0, 1.0)][(i % cols) % 4]
+                    pose = body.resize((round(18 * sx), round(18 * sy)), Image.Resampling.NEAREST)
+                    cell = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+                    cell.paste(pose, ((32 - pose.width) // 2, 26 - pose.height), pose)
+                    cell = cell.resize((32 * k, 32 * k), Image.Resampling.NEAREST)
+                    x, y = (i % cols) * cw + (cw - cell.width) // 2, (i // cols) * ch + (ch - cell.height) // 2
+                    image.paste(cell, (x, y), cell)
             else:
                 image = image.resize(request.size, Image.Resampling.NEAREST)
             buffer = io.BytesIO()
