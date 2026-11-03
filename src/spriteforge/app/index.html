@@ -273,7 +273,7 @@ function choose(){if(source)source.close();selected=$('runs').value;renderedGate
  $('timeline').append(li);refresh();};source.addEventListener('done',()=>{source.close();refresh();});
  source.addEventListener('worker-error',e=>{$('error').textContent=JSON.parse(e.data);source.close();});}
 fetch('/api/runs').then(r=>r.json()).then(d=>{for(const r of d.runs){const o=document.createElement('option');
- o.value=r.id;o.textContent=r.id+' · '+r.status;$('runs').append(o);}if(d.active)$('runs').value=d.active;
+ o.value=r.id;o.textContent=r.id+' · '+r.status;$('runs').append(o);}const wanted=new URLSearchParams(location.search).get('run');if(wanted&&d.runs.some(r=>r.id===wanted))$('runs').value=wanted;else if(d.active)$('runs').value=d.active;
  if(d.error)$('error').textContent=d.error;if(d.runs.length)choose();else $('status').textContent='No runs yet';})
  .catch(e=>{$('error').textContent=e.message;});$('runs').onchange=choose;
 </script></body></html>

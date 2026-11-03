@@ -70,7 +70,7 @@ def test_contact_sheet_targeted_revision_and_cli_restart(tmp_path):
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.set_default_timeout(180000)
-            page.goto(url)
+            page.goto(url + "/classic")
             expect(
                 page.get_by_role("heading", name="G3 Asset contact sheet", exact=True)
             ).to_be_visible(timeout=90000)

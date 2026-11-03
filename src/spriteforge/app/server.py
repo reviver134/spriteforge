@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from spriteforge.agents.workflow import WORKFLOW, advance_until_gate, workflow_step
 from spriteforge.core.demo import demo_step
@@ -16,6 +17,11 @@ from spriteforge.core.usage import usage_report
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 from spriteforge.stages.workflow import advance_until_gate as advance_intake
 from spriteforge.stages.workflow import workflow_step as intake_step
+
+from .local_only import LocalOnly
+
+STATIC = Path(__file__).with_name("static")  # the React studio build (ui/, `npm run build`)
+CLASSIC = Path(__file__).with_name("index.html")
 
 
 def latest_play(store, run_id) -> dict | None:
@@ -67,6 +73,7 @@ def create_app(
                 await task
 
     app = FastAPI(lifespan=lifespan)
+    app.add_middleware(LocalOnly)
     from .extensions import router
 
     app.include_router(router(store, mcp_service))
@@ -78,9 +85,15 @@ def create_app(
         except KeyError:
             raise HTTPException(404, "Run not found") from None
 
+    @app.get("/classic", response_class=HTMLResponse)
+    def classic():
+        return CLASSIC.read_text(encoding="utf-8")
+
     @app.get("/", response_class=HTMLResponse)
     def index():
-        return Path(__file__).with_name("index.html").read_text(encoding="utf-8")
+        # The studio build is committed; the classic page covers a checkout without it.
+        page = STATIC / "index.html"
+        return (page if page.is_file() else CLASSIC).read_text(encoding="utf-8")
 
     @app.get("/api/runs")
     def runs():
@@ -331,4 +344,7 @@ def create_app(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
+    # Last, so every API route above wins over a same-named static file.
+    if STATIC.is_dir():
+        app.mount("/", StaticFiles(directory=STATIC), name="studio")
     return app

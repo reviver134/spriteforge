@@ -16,7 +16,7 @@ from spriteforge.mcp.cli import app as mcp_app
 from spriteforge.memory.cli import app as memory_app
 from spriteforge.skills.cli import app as skills_app
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer()
 app.add_typer(memory_app, name="memory")
 app.add_typer(skills_app, name="skills")
 app.add_typer(mcp_app, name="mcp")
@@ -33,12 +33,31 @@ def setup(config: Path | None, workspace: Path | None):
 
 def serve(store, run_id, port, open_browser):
     url = f"http://127.0.0.1:{port}"
-    typer.echo(f"Run {run_id or 'viewer'} · {url}")
+    typer.echo(f"SpriteForge Studio · {url}" + (f" · run {run_id}" if run_id else ""))
     if open_browser:
         timer = threading.Timer(1.5, webbrowser.open, args=(url,))
         timer.daemon = True
         timer.start()
     uvicorn.run(create_app(store, run_id), host="127.0.0.1", port=port, access_log=False)
+
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """SpriteForge. With no command, opens the studio in the browser."""
+    if ctx.invoked_subcommand is None:
+        studio()
+
+
+@app.command()
+def studio(
+    config: Path | None = None,
+    workspace: Path | None = None,
+    port: int = 8765,
+    open_browser: bool = True,
+):
+    """Open the studio: every project in the workspace, chat-first (the default command)."""
+    _, store = setup(config, workspace)
+    serve(store, None, port, open_browser)
 
 
 @app.command()

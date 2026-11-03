@@ -61,7 +61,7 @@ def test_intake_browser(tmp_path):
                 page.set_default_timeout(180000)
                 errors = []
                 page.on("pageerror", lambda error: errors.append(str(error)))
-                page.goto(url)
+                page.goto(url + "/classic")
 
                 def approve(title):
                     expect(page.get_by_role("heading", name=title, exact=True)).to_be_visible()

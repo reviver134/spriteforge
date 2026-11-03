@@ -60,7 +60,7 @@ def test_browser_role_enable_and_durable_confirmation(tmp_path):
                 page.set_default_timeout(30000)
                 errors = []
                 page.on("pageerror", lambda e: errors.append(str(e)))
-                page.goto(url)
+                page.goto(url + "/classic")
                 page.locator("#extensions summary").first.click()
                 page.locator("#extension-role").select_option("Pixel Artist")
                 expect(page.locator("#skill-list")).to_contain_text("pixel-art-prompting")

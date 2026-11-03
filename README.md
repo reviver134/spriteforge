@@ -66,7 +66,9 @@ echo META_API_KEY=your-key > .env
 python -m spriteforge start --agents --workspace workspace --goal "a slime that squishes through a cave"
 ```
 
-The UI opens at <http://127.0.0.1:8765>. Stop the process at any gate and pick up later:
+The studio opens at <http://127.0.0.1:8765> (the previous UI stays at `/classic`), and
+`python -m spriteforge` on its own opens it for every project in the workspace. It serves
+localhost only and refuses cross-site requests. Stop the process at any gate and pick up later:
 
 ```bash
 python -m spriteforge runs --workspace workspace
@@ -136,4 +138,16 @@ Tests use mock providers and make no network calls.
 
 Third-party art packs in `assets/library/` are tracked by license. Only packs verified as
 redistributable (CC0 here) are committed; the rest stay on your machine and are listed in
-`assets/library/.gitignore`. Phaser 3.90.0 (MIT) is bundled in `src/spriteforge/templates/phaser/vendor/`.
+`assets/library/.gitignore`. Phaser 3.90.0 (MIT) is bundled in `src/spriteforge/templates/phaser/vendor/`; the Press Start 2P
+font (SIL OFL 1.1, license next to it) is bundled in the studio build.
+
+## Developing the studio UI
+
+The React studio lives in `ui/` (Vite, React 18, TypeScript). Its build is committed to
+`src/spriteforge/app/static/`, so running SpriteForge never needs Node.
+
+```bash
+cd ui && npm ci
+npm run dev     # http://localhost:5173, proxies /api to a running `python -m spriteforge`
+npm run build   # type-checks, then rewrites src/spriteforge/app/static/
+```

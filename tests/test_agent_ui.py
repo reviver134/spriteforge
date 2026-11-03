@@ -60,7 +60,7 @@ def test_browser_gate_restart_and_hero_feedback(tmp_path):
                 page.set_default_timeout(40000)
                 errors = []
                 page.on("pageerror", lambda error: errors.append(str(error)))
-                page.goto(url, wait_until="domcontentloaded")
+                page.goto(url + "/classic", wait_until="domcontentloaded")
                 expect(page.get_by_role("heading", name="G1 Brief", exact=True)).to_be_visible()
                 page.get_by_label("Game brief").fill("Small top-down dungeon crawler")
                 page.get_by_role("button", name="Approve", exact=True).click()
