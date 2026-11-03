@@ -129,6 +129,7 @@
     const cam = scene.cameras.main;
     cam.setBounds(0, 0, W, H);
     cam.startFollow(p, true, 0.2, 0.2);
+    backdrop(scene, L);
 
     // The controller: the plan's numbers (tiles) at the tile size; the jump peaks at mv.jump
     // under Arcade's stepping (as game/reach.py assumes).
@@ -169,6 +170,41 @@
              stepStart: sf.clock.now, last: -1};  // fmt: skip
     sf.event('level_start', {n: L.n});
     return L;
+  }
+
+  /* The level's background (L2.7 live run): the design's background images were drawn but no
+     game drew them (live 2026-11-03: three Muse backdrops, an empty sky in every level). The
+     engine draws one behind each level: the background whose id shares a word with the level's
+     name ('background_jungle' for 'Jungle River Base'), else the backgrounds in turn; it fills
+     the screen and scrolls slower than the camera (its `parallax`, default 0.3), but never so
+     far that it repeats: a Muse picture is not seamless (a screen-wide one stands still). A game that
+     draws a background itself keeps its own: the engine's is removed. */
+  const BACK_WORDS = s => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2 && w !== 'background');
+  function backdrop(scene, L) {
+    const backs = Object.entries(sf.assets.images || {}).filter(([, a]) => a.role === 'background');
+    if (!backs.length) return null;
+    const want = new Set(BACK_WORDS(L.name));
+    const [id, a] = backs.find(([k]) => BACK_WORDS(k).some(w => want.has(w))) || backs[(L.n - 1) % backs.length];
+    const tex = scene.textures.get(id);
+    const src = tex && tex.getSourceImage && tex.getSourceImage();
+    if (!src || !src.height) return null;
+    const [w, h] = sf.screen(), k = h / src.height;
+    const room = Math.max(0, src.width * k - w), travel = Math.max(1, L.width - w);
+    const factor = Math.min(a.parallax == null ? 0.3 : +a.parallax, room / travel);
+    const bg = scene.add.tileSprite(0, 0, w, h, id).setOrigin(0).setScrollFactor(0).setDepth(-100);
+    bg.setTileScale(k, k);
+    L.backdrop = bg;
+    L.backdropId = id;
+    const cam = scene.cameras.main;
+    const follow = () => { if (bg.active) bg.tilePositionX = cam.scrollX * factor / k; };
+    scene.events.on('update', follow);
+    scene.events.once('shutdown', () => scene.events.off('update', follow));
+    scene.events.once('update', () => {  // after the game's create(): its own background wins
+      const ids = new Set(backs.map(([k2]) => k2));
+      const own = scene.children.list.some(o => o !== bg && o.texture && ids.has(o.texture.key));
+      if (own) { bg.destroy(); L.backdrop = null; }
+    });
+    return bg;
   }
 
   /* The player's skin (L2.4): what is drawn. L.player keeps its physics body, its animations
