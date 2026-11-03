@@ -67,8 +67,9 @@ python -m spriteforge start --agents --workspace workspace --goal "a slime that 
 ```
 
 The studio opens at <http://127.0.0.1:8765> (the previous UI stays at `/classic`), and
-`python -m spriteforge` on its own opens it for every project in the workspace. It serves
-localhost only and refuses cross-site requests. Stop the process at any gate and pick up later:
+`python -m spriteforge` on its own opens it for every project in the workspace: describe a
+new game there (without a key it offers the offline mock), and several projects can run at once.
+It serves localhost only and refuses cross-site requests. Stop the process at any gate and pick up later:
 
 ```bash
 python -m spriteforge runs --workspace workspace

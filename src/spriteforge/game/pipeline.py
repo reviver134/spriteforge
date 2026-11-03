@@ -49,6 +49,7 @@ from pydantic import ValidationError
 
 from spriteforge.agents.roles import load_roles
 from spriteforge.config import Config
+from spriteforge.core.acting import acting
 from spriteforge.core.cost import Budget, ledger
 from spriteforge.core.state import Store
 from spriteforge.providers.base import ChatRequest, Message, SearchRequest, SearchResult, chat_json
@@ -257,7 +258,8 @@ class Models:
                 reasoning_effort=self.cfg.llm.reasoning.get(task) if task else None,
                 cache_key=f"spriteforge-{task}" if task else None,
             )
-            return chat_json(provider, request, schema)
+            with acting(role):
+                return chat_json(provider, request, schema)
         finally:
             if provider is not self.provider and hasattr(provider, "close"):
                 provider.close()
@@ -270,24 +272,25 @@ class Models:
     def web_research(self, role: str, prompt: str, schema, task: str = "research") -> SearchResult:
         """One Muse Spark call with web search (Responses API) answering in `schema`."""
         provider = self.search or MuseSearchProvider(self.cfg.llm, self.cfg.research, self.budget)
+        request = SearchRequest(
+            instructions=role_prompt(role),
+            prompt=prompt,
+            json_schema=schema.model_json_schema(),
+            max_searches=self.cfg.research.max_searches,
+            reasoning_effort=self.cfg.llm.reasoning.get(task),
+            cache_key=f"spriteforge-{task}",
+        )
         try:
-            return provider.research(
-                SearchRequest(
-                    instructions=role_prompt(role),
-                    prompt=prompt,
-                    json_schema=schema.model_json_schema(),
-                    max_searches=self.cfg.research.max_searches,
-                    reasoning_effort=self.cfg.llm.reasoning.get(task),
-                    cache_key=f"spriteforge-{task}",
-                )
-            )
+            with acting(role):
+                return provider.research(request)
         finally:
             if provider is not self.search and hasattr(provider, "close"):
                 provider.close()
 
-    def image_generator(self) -> tuple[Callable, Callable]:
+    def image_generator(self, agent: str = "Pixel Artist") -> tuple[Callable, Callable]:
         """`generate(request, edit) -> png bytes`, safe across threads: each worker thread
-        gets its own provider (its own httpx client); `close()` closes them all."""
+        gets its own provider (its own httpx client); `close()` closes them all. The calls
+        are booked to `agent` in the cost ledger."""
         local, made, lock = threading.local(), [], threading.Lock()
 
         def provider():
@@ -305,7 +308,8 @@ class Models:
 
         def generate(request, edit: bool) -> bytes:
             p = provider()
-            return (p.edit(request) if edit else p.generate(request)).data
+            with acting(agent):
+                return (p.edit(request) if edit else p.generate(request)).data
 
         def close():
             for p in made:
@@ -678,7 +682,7 @@ def menu_pack(models: Models, record: MenuRecord, design: GameDesign, art: ArtRe
     spec = record.spec.model_copy(update={"theme": theme})
     generate, close, cache = None, lambda: None, None
     if cfg.game.title_art and (not models.mock or models.images is not None):
-        generate, close = models.image_generator()
+        generate, close = models.image_generator("Menu Designer")
         cache = models.image_cache()
     try:
         title = make_title_art(spec, design, art, generate, cache, previous)
@@ -1186,7 +1190,7 @@ def review_art(
     fixes = fix_requests(plan_fixes(issues, design, art, cap, why), issues, design, art)
     if fixes:
         log(f"  fixing {len(fixes)} blocking issue(s): {', '.join(f.entity for f in fixes)}")
-        generate, close = models.image_generator()
+        generate, close = models.image_generator("Art Reviewer")
         try:
             options = muse_options(cfg, retries=0, reasoning=cfg.game.review_image_reasoning)
             notes += run_fixes(fixes, design, plan, art, generate=generate, options=options,

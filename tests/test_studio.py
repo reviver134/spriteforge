@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import httpx
 import pytest
@@ -65,11 +66,11 @@ def test_studio_routes_and_cross_site_writes(tmp_path):
 
 def test_bare_command_opens_the_studio(tmp_path, monkeypatch):
     calls = []
-    monkeypatch.setattr(cli, "setup", lambda config, workspace: (None, "store"))
-    monkeypatch.setattr(cli, "serve", lambda *args: calls.append(args))
+    monkeypatch.setattr(cli, "setup", lambda config, workspace: ("cfg", "store"))
+    monkeypatch.setattr(cli, "serve", lambda *args, **kwargs: calls.append((args, kwargs)))
     result = CliRunner().invoke(cli.app, [])
     assert result.exit_code == 0, result.output
-    assert calls == [("store", None, 8765, True)]
+    assert calls == [(("store", None, 8765, True, "cfg"), {})]
 
 
 def test_studio_smoke_in_browser(tmp_path):
@@ -83,7 +84,10 @@ def test_studio_smoke_in_browser(tmp_path):
     process = subprocess.Popen(
         [sys.executable, "-m", "spriteforge", "studio", "--workspace", str(tmp_path),
          "--port", str(port), "--no-open-browser"],
-        env={**os.environ, "PYTHONPATH": "src"},
+        # Outside the repo and without a key: no .env is read, so the studio offers mock only.
+        env={**{k: v for k, v in os.environ.items() if k != "META_API_KEY"},
+             "PYTHONPATH": str(Path(__file__).parents[1] / "src")},
+        cwd=tmp_path,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )  # fmt: skip
@@ -111,8 +115,17 @@ def test_studio_smoke_in_browser(tmp_path):
                 "x => x.family.includes('Press Start 2P') && x.status === 'loaded'))"
             )
             assert loaded, "the bundled pixel font did not load"
-            project = page.get_by_role("list", name="Projects").get_by_role("link")
-            expect(project).to_contain_text("A slime that squishes through a cave")
+            expect(page.get_by_role("status")).to_contain_text("No META_API_KEY")
+            expect(page.get_by_role("button", name="Start with Muse")).to_have_count(0)
+            page.get_by_label("Describe your game").fill("A bat that rings a belfry")
+            page.get_by_role("button", name="Try offline (mock)").click()
+            projects = page.get_by_role("list", name="Projects").get_by_role("link")
+            expect(projects).to_have_count(2)
+            new = projects.first
+            expect(new).to_contain_text("A bat that rings a belfry")
+            expect(new).to_contain_text("Needs you: G1 Choose a genre", timeout=40000)
+            expect(new).to_contain_text("offline")
+            project = projects.filter(has_text="A slime that squishes through a cave")
             project.click()
             page.wait_for_url(f"{url}/classic?run={run.id}")
             expect(page.locator("#runs")).to_have_value(run.id)

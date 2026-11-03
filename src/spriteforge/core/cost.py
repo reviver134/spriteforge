@@ -8,6 +8,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from spriteforge.config import BudgetConfig
+from spriteforge.core.acting import acting_agent
 from spriteforge.core.state import Store
 
 
@@ -27,6 +28,7 @@ class Usage(BaseModel):
     cached_input_tokens: int | None = Field(default=None, ge=0)
     reasoning_tokens: int | None = Field(default=None, ge=0)
     web_searches: int | None = Field(default=None, ge=0)  # Responses API web search calls
+    agent: str | None = None  # the agent that made the call (core/acting.py); None: unknown
 
 
 def ledger(db, run_id):
@@ -96,6 +98,7 @@ class Budget:
             model=model,
             image=image,
             estimated_cost=self.config.image_cost if image else 0,
+            agent=acting_agent.get(),
         )
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")

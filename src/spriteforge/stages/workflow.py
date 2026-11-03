@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from spriteforge.agents.models import ChangeRequest, Changes
 from spriteforge.config import BudgetConfig, Config
+from spriteforge.core.acting import acting
 from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Gates, new_gate
 from spriteforge.core.security import redact
@@ -157,7 +158,8 @@ def _step(store, run_id):
                 else MuseSparkProvider(cfg.llm, budget, reasoning=cfg.llm.reasoning.get("intake"))
             )
             try:
-                result = propose(llm, role, prompt, schema)
+                with acting(role):
+                    result = propose(llm, role, prompt, schema)
                 save(name, result.model_dump(), role)
             finally:
                 if hasattr(llm, "close"):

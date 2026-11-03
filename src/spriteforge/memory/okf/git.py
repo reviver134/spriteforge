@@ -39,8 +39,12 @@ def git(root: Path, *args: str, index: Path | None = None) -> str:
 
 def init(root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
-    if not (root / ".git").exists():
-        git(root, "init", ".")
+    if (root / ".git").exists():
+        return
+    # Two runs opening a new corpus at once must not both `git init` it (the second fails).
+    with write_lock(root.parent / f".{root.name}.init.lock"):
+        if not (root / ".git").exists():
+            git(root, "init", ".")
 
 
 @contextmanager

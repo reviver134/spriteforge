@@ -1,24 +1,25 @@
 import asyncio
 import json
 import re
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from spriteforge.agents.workflow import WORKFLOW, advance_until_gate, workflow_step
-from spriteforge.core.demo import demo_step
+from spriteforge.agents.workflow import WORKFLOW, advance_until_gate
+from spriteforge.config import Config, load_config
 from spriteforge.core.gates import Feedback, Gates
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
 from spriteforge.core.usage import usage_report
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 from spriteforge.stages.workflow import advance_until_gate as advance_intake
-from spriteforge.stages.workflow import workflow_step as intake_step
 
 from .local_only import LocalOnly
+from .studio import studio_router
+from .workers import Workers
 
 STATIC = Path(__file__).with_name("static")  # the React studio build (ui/, `npm run build`)
 CLASSIC = Path(__file__).with_name("index.html")
@@ -39,45 +40,30 @@ def latest_play(store, run_id) -> dict | None:
 
 
 def create_app(
-    store: Store, run_id: str | None = None, interval: float = 1.0, mcp_service=None
+    store: Store,
+    run_id: str | None = None,
+    interval: float = 1.0,
+    mcp_service=None,
+    cfg: Config | None = None,
 ) -> FastAPI:
-    async def worker():
-        while True:
-            try:
-                step = (
-                    intake_step
-                    if store.get_run(run_id).config.get("workflow") == INTAKE
-                    else (
-                        workflow_step
-                        if store.get_run(run_id).config.get("workflow") == WORKFLOW
-                        else demo_step
-                    )
-                )
-                more = await asyncio.to_thread(step, store, run_id)
-                if not more:
-                    break
-            except Exception as exc:  # noqa: BLE001 -- persist any worker failure at task boundary
-                # No traceback/HTTP headers: errors are scrubbed at this boundary.
-                app.state.worker_error = redact(str(exc))
-                await asyncio.to_thread(store.fail, run_id, str(exc))
-                break
-            await asyncio.sleep(interval)
+    """`run_id`: the run the CLI started or resumed (stepped at once, selected by /classic).
+    `cfg`: the settings new projects start with (default: the packaged config)."""
+    workers = Workers(store, interval)
 
     @asynccontextmanager
     async def lifespan(app):
-        task = asyncio.create_task(worker()) if run_id else None
+        if run_id:
+            workers.start(run_id)
         yield
-        if task:
-            task.cancel()
-            with suppress(asyncio.CancelledError):
-                await task
+        await workers.close()
 
     app = FastAPI(lifespan=lifespan)
     app.add_middleware(LocalOnly)
     from .extensions import router
 
     app.include_router(router(store, mcp_service))
-    app.state.worker_error = None
+    app.include_router(studio_router(store, workers, cfg or load_config(None)))
+    app.state.workers = workers
 
     def require_run(id):
         try:
@@ -100,7 +86,7 @@ def create_app(
         return {
             "runs": [r.model_dump() for r in store.runs()],
             "active": run_id,
-            "error": app.state.worker_error,
+            "error": workers.errors.get(run_id) if run_id else None,
         }
 
     @app.get("/api/runs/{id}")
@@ -170,7 +156,9 @@ def create_app(
         }
 
     @app.post("/api/runs/{id}/gates/{gate_id}")
-    async def respond(id: str, gate_id: str, feedback: Feedback):
+    async def respond(id: str, gate_id: str, feedback: Feedback, wait: bool = True):
+        """`wait=false` (the studio) answers at once and the run's worker carries on in the
+        background; the default advances to the next gate before answering (classic)."""
         run = require_run(id)
         if run.config.get("workflow") not in {WORKFLOW, INTAKE}:
             raise HTTPException(409, "Run does not use agent gates")
@@ -246,6 +234,9 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from None
         # Advance only after the persisted human answer; the next gate pauses again.
+        if not wait:
+            workers.start(id)
+            return {"gate": gate.model_dump(mode="json"), "run": store.get_run(id).model_dump()}
         try:
             await asyncio.to_thread(
                 advance_intake if run.config.get("workflow") == INTAKE else advance_until_gate,
@@ -330,10 +321,8 @@ def create_app(
                 if completed:
                     yield "event: done\ndata: {}\n\n"
                     break
-                if app.state.worker_error:
-                    yield (
-                        "event: worker-error\ndata: " + json.dumps(app.state.worker_error) + "\n\n"
-                    )
+                if error := workers.errors.get(id):
+                    yield "event: worker-error\ndata: " + json.dumps(error) + "\n\n"
                     break
                 yield ": heartbeat\n\n"
                 await asyncio.sleep(0.25)

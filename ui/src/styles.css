@@ -100,3 +100,99 @@ h2 {
 .status-aborted {
   color: var(--bad);
 }
+
+button {
+  font: inherit;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #151822;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.notice {
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  padding: 4px 16px;
+  margin-bottom: 16px;
+}
+
+.new-project {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.new-project textarea {
+  font: inherit;
+  width: 100%;
+  padding: 12px;
+  resize: vertical;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.new-project textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.projects .thumb {
+  flex: none;
+  width: 64px;
+  height: 48px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.projects .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.project-text {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.project-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projects a {
+  align-items: center;
+}
+
+.status-gate {
+  color: var(--warn);
+}
+
+.cost {
+  color: var(--muted);
+  white-space: nowrap;
+}

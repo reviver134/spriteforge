@@ -31,14 +31,15 @@ def setup(config: Path | None, workspace: Path | None):
     return cfg, Store(root / "state.sqlite3")
 
 
-def serve(store, run_id, port, open_browser):
+def serve(store, run_id, port, open_browser, cfg=None):
     url = f"http://127.0.0.1:{port}"
     typer.echo(f"SpriteForge Studio · {url}" + (f" · run {run_id}" if run_id else ""))
     if open_browser:
         timer = threading.Timer(1.5, webbrowser.open, args=(url,))
         timer.daemon = True
         timer.start()
-    uvicorn.run(create_app(store, run_id), host="127.0.0.1", port=port, access_log=False)
+    app = create_app(store, run_id, cfg=cfg)
+    uvicorn.run(app, host="127.0.0.1", port=port, access_log=False)
 
 
 @app.callback(invoke_without_command=True)
@@ -56,8 +57,8 @@ def studio(
     open_browser: bool = True,
 ):
     """Open the studio: every project in the workspace, chat-first (the default command)."""
-    _, store = setup(config, workspace)
-    serve(store, None, port, open_browser)
+    cfg, store = setup(config, workspace)
+    serve(store, None, port, open_browser, cfg)
 
 
 @app.command()
@@ -89,7 +90,7 @@ def start(
             legacy=legacy,
             goal=goal,
         )
-        serve(store, run.id, port, open_browser)
+        serve(store, run.id, port, open_browser, cfg)
         return
     if agents and not mock:
         raise typer.BadParameter("The agent acceptance workflow requires --mock")
@@ -103,14 +104,14 @@ def start(
             router=cfg.router,
         )
         store.append_event(run.id, "Director", "preview.deprecated", {"legacy": True})
-        serve(store, run.id, port, open_browser)
+        serve(store, run.id, port, open_browser, cfg)
         return
     run = (
         store.create_run({"workflow": "mock-demo-v1", "budget": cfg.budget.model_dump()})
         if mock
         else None
     )
-    serve(store, run.id if run else None, port, open_browser)
+    serve(store, run.id if run else None, port, open_browser, cfg)
 
 
 @app.command()
@@ -213,7 +214,7 @@ def resume(
     legacy: bool = False,
 ):
     """Resume from the database checkpoint and show its timeline."""
-    _, store = setup(config, workspace)
+    cfg, store = setup(config, workspace)
     try:
         run = store.get_run(id)
     except KeyError:
@@ -237,4 +238,4 @@ def resume(
         enable_production(store, id)
     if run.status == "failed" and run.config.get("workflow") == "intake-concept-v1":
         store.retry_failed(id)
-    serve(store, id, port, open_browser)
+    serve(store, id, port, open_browser, cfg)
