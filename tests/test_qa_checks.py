@@ -174,3 +174,26 @@ def test_the_export_runs_checks_in_the_page_and_keeps_them_data_in_python():
     compile(text, "test_game_qa.py", "exec")
     assert "def run_check" in text and "run = run_check if \"code\" in qa else run_test" in text
     assert "sf.level.open" not in text.split("DATA_JSON = ")[0]  # the check is only in the data
+
+
+def test_a_failed_repair_call_keeps_the_best_attempt(tmp_path, monkeypatch):
+    """Live 2026-11-03: a repair call timed out and the whole build was lost, with a good first
+    attempt. Now the repairs end and the best attempt so far is kept."""
+    from spriteforge.game import pipeline
+    from spriteforge.providers.http import ProviderError
+
+    def timeout(*args, **kwargs):
+        raise ProviderError("The read operation timed out")
+
+    monkeypatch.setattr(pipeline, "edit_code", timeout)
+    design = fallback_design("survive the arena")
+    art = make_art(design, keyword_plan(design), generate=None)
+    failing = code_check("never loses hp", "qa.step(1);\nqa.expect(qa.state().hp > 999, 'hp is ' + qa.state().hp);")
+    models = Scripted([CodeChecks(checks=[failing])])
+    cfg = load_config()
+    cfg.game.max_repairs = 2
+    outcome = build_and_test(models, design, art, mock_code(), cfg, tmp_path, lambda m: None, None,
+                             checks=CheckWriter(models, design))  # fmt: skip
+    assert len(outcome.attempts) == 1 and outcome.attempts[0]["kept"]
+    assert outcome.attempts[0]["repair"] == "failed: The read operation timed out"
+    assert outcome.build is not None and (outcome.build / "index.html").is_file()

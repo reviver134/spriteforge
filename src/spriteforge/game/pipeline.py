@@ -1035,12 +1035,21 @@ def build_and_test(
             break
         log("  Programmer is repairing the game")
         summary = levels.summary if levels else ""
-        fixed, how = edit_code(
-            models,
-            code,
-            lambda error, c=code, f=failures, s=summary: repair_prompt(design, c, f, manifest, error, s),
-            log,
-        )
+        try:
+            fixed, how = edit_code(
+                models,
+                code,
+                lambda error, c=code, f=failures, s=summary: repair_prompt(design, c, f, manifest, error, s),
+                log,
+            )
+        except ProviderError as exc:
+            # A repair call that fails (live 2026-11-03: three read timeouts on long repair
+            # prompts) ends the repairs; the best attempt so far is kept instead of the whole
+            # build being lost.
+            why = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else type(exc).__name__
+            log(f"  the repair call failed ({why}): keeping the best attempt so far")
+            attempts[-1]["repair"] = f"failed: {why}"
+            break
         if fixed == code:  # the mock (or a stuck model) returned the same files: stop early
             break
         attempts[-1]["repair"] = how
