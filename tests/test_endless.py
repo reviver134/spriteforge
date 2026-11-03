@@ -27,8 +27,14 @@ def test_a_planned_side_view_game_uses_levels_unless_endless():
         ("An auto-runner through a rainbow meadow", True),
         ("The unicorn auto-runs; tap to jump", True),
         ("A never-ending sprint", True),
+        ("An endless runner", True),
+        ("An infinite runner with rising speed", True),
         ("Reach the exit door of the last level", False),
         ("Run to the flag", False),
+        # Level games may say "endless" about something other than the run itself.
+        ("Reach the door before falling into the endless pit", False),
+        ("Beat the endless waves of bats guarding the exit", False),
+        ("Survive the auto-scrolling lava level and reach the door", False),
     ],
 )
 def test_what_the_design_says_makes_it_endless(text, endless):

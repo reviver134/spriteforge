@@ -130,9 +130,14 @@ def design_prompt(request: str, plan: str = "") -> str:
     )
 
 
+# "endless" alone is not enough: a platformer can have an endless pit or endless waves. It
+# counts next to the run itself (an endless rush, an endless side-scrolling track), and any
+# auto-run counts (the level bot walks a route; it cannot play a player who runs by itself).
+# Auto-scrolling levels stay levels.
 ENDLESS = re.compile(
-    r"\bendless\b|\binfinite (?:run|runner|scroll)|\bauto-?runn?er\b|\bauto-?run(?:s|ning)?\b"
-    r"|\bnever[- ]ending\b",
+    r"\b(?:endless|infinite|never[- ]ending)\s+(?:side-?scroll\w*\s+)?"
+    r"(?:run\w*|rush|track|road|path|course|mode|survival|sprint|chase|journey|scroll\w*)\b"
+    r"|\bauto-?run\w*",
     re.IGNORECASE,
 )
 
