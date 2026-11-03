@@ -49,3 +49,87 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
     }),
   );
 }
+
+export type AgentStatus = "waiting" | "working" | "needs_you" | "done";
+
+export interface Agent {
+  name: string;
+  status: AgentStatus;
+  needs_you: number;
+  artifacts: number;
+  calls: number;
+  images: number;
+  cost: number;
+  last: string | null;
+}
+
+export interface FieldRule {
+  type?: string;
+  title?: string;
+  description?: string;
+  default?: unknown;
+  enum?: string[];
+  suggestions?: string[];
+  format?: string;
+}
+
+export interface Gate {
+  id: string;
+  title: string;
+  stage: string;
+  kind: "review" | "confirm_changes";
+  status: "pending" | "approved" | "changes_requested" | "aborted" | "superseded";
+  form_schema: { title?: string; properties?: Record<string, FieldRule>; required?: string[] };
+  empty_feedback_approves: boolean;
+  response: { action: string; text: string; form: Record<string, unknown> } | null;
+}
+
+export interface ArtifactMeta {
+  id: string;
+  name: string;
+  mime: string;
+}
+
+export interface Play {
+  version: number;
+  url: string;
+  sounds: boolean;
+}
+
+export interface RunAgents {
+  agents: Agent[];
+  last_event: number;
+  play: Play | null;
+  status: RunStatus;
+  busy: boolean;
+  gate: Gate | null;
+  error: string | null;
+}
+
+interface ItemBase {
+  id: number;
+  at: string;
+  agent: string;
+}
+
+export type ThreadItem = ItemBase &
+  (
+    | {
+        kind: "chat";
+        role: "user" | "agent";
+        text: string;
+        intent?: string;
+        status?: string;
+        error?: boolean;
+      }
+    | { kind: "progress"; text: string }
+    | { kind: "artifact"; artifact: ArtifactMeta }
+    | { kind: "gate"; gate: Gate; artifacts: ArtifactMeta[] }
+    | { kind: "gate_response"; gate_id: string; title: string; status: string; text: string }
+    | { kind: "run"; type: string; message: string | null }
+  );
+
+export const artifactUrl = (id: string) => `/api/artifacts/${id}`;
+
+export const agentPath = (runId: string, agent: string) =>
+  `/api/runs/${runId}/agents/${encodeURIComponent(agent)}`;

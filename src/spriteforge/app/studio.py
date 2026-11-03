@@ -153,10 +153,17 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
     @api.get("/runs/{id}/agents")
     def agents(id: str):
         run = require_run(id)
-        busy = workers.busy(id)
+        # A finished run's worker may still be returning from its last step: not busy.
+        busy = workers.busy(id) and run.status not in FINAL
         gate = Gates(store).pending(id)
+        from .server import latest_play
+
+        with store.connect() as db:
+            last = db.execute("SELECT MAX(id) FROM events WHERE run_id=?", (id,)).fetchone()[0]
         return {
             "agents": [a.model_dump() for a in summarize(store, id, busy)],
+            "last_event": last or 0,  # the event stream continues from here
+            "play": latest_play(store, id),
             "status": run.status,
             "busy": busy,
             "gate": gate.model_dump(mode="json") if gate else None,

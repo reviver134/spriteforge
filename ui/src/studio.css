@@ -1,0 +1,549 @@
+/* The project view: agents | chat | cost (and references, phase 4). */
+
+.studio {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr) 240px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "top top top"
+    "agents center side";
+  height: 100vh;
+}
+
+.topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.topbar h1 {
+  font-size: 13px;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-link {
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tag {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+a.button {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #151822;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.agents {
+  grid-area: agents;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  padding: 8px;
+}
+
+.agents h2,
+.side h2 {
+  font-size: 10px;
+  margin: 8px;
+}
+
+.agents ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.agent:hover {
+  background: var(--panel);
+}
+
+.agent.selected {
+  background: var(--line);
+}
+
+.agent .icon {
+  width: 14px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.agent .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-done .icon,
+.state.agent-done {
+  color: var(--ok);
+}
+
+.agent-working .icon,
+.state.agent-working {
+  color: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.agent-needs_you .icon,
+.state.agent-needs_you {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.agent-waiting .name {
+  color: var(--muted);
+}
+
+.badge {
+  background: var(--warn);
+  color: #151822;
+  border-radius: 9px;
+  min-width: 18px;
+  padding: 0 5px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.agent-cost {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.center {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.chat-head h2 {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  text-transform: none;
+}
+
+.state {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: #2a3550;
+  border-color: #34426a;
+}
+
+.bubble.failed {
+  border-color: var(--bad);
+}
+
+.intent {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.progress,
+.milestone {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.progress::before {
+  content: "- ";
+}
+
+.milestone {
+  text-align: center;
+  font-family: var(--pixel);
+  font-size: 9px;
+  padding: 6px 0;
+}
+
+.typing {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.composer textarea,
+.gate-card textarea,
+.field input[type="text"],
+.field input[type="number"],
+.field select {
+  flex: 1;
+  width: 100%;
+  font: inherit;
+  padding: 8px 10px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.composer textarea:focus,
+.gate-card textarea:focus,
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.composer button {
+  align-self: flex-end;
+}
+
+/* Cards in the chat */
+
+.gate-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+
+.gate-card.open {
+  border-color: var(--warn);
+}
+
+.gate-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.gate-card h3 {
+  margin: 0;
+  font-size: 11px;
+}
+
+.gate-status {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.gate-pending {
+  color: var(--warn);
+}
+
+.gate-approved {
+  color: var(--ok);
+}
+
+.gate-text {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.gate-card form {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.field label {
+  display: grid;
+  gap: 4px;
+}
+
+.field label > span {
+  font-weight: 600;
+}
+
+.hint {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+button.chip {
+  padding: 3px 10px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line);
+  border-radius: 14px;
+  text-align: left;
+}
+
+button.chip.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.artifacts {
+  display: grid;
+  gap: 8px;
+}
+
+.image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.image-grid a {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  max-width: 260px;
+  color: var(--muted);
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.image-grid img {
+  /* Pixel art is tiny: scale it up crisply to one row height. */
+  height: 96px;
+  width: auto;
+  max-width: 256px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: #0d0f16;
+  border-radius: 4px;
+}
+
+.image-grid span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 256px;
+}
+
+.doc {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: var(--panel);
+}
+
+.doc summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.build-report {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--panel);
+}
+
+.build-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.play-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.levels {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
+.markdown {
+  overflow-x: auto;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-size: 11px;
+  color: var(--text);
+  text-transform: none;
+}
+
+.markdown table {
+  border-collapse: collapse;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+}
+
+.markdown code {
+  background: var(--bg);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+/* Right panel */
+
+.side {
+  grid-area: side;
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+  padding: 8px 12px;
+}
+
+.panel h3 {
+  font-size: 9px;
+  color: var(--muted);
+  margin: 16px 0 6px;
+}
+
+.panel dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.panel dt {
+  color: var(--muted);
+}
+
+.panel dd {
+  margin: 0;
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .studio {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "top" "agents" "center" "side";
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .agents ul {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .agents,
+  .side {
+    border: none;
+  }
+
+  .thread {
+    max-height: 70vh;
+  }
+}

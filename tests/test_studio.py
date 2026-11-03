@@ -2,6 +2,7 @@
 /classic, a bare `spriteforge` opens it, and the localhost guard refuses cross-site writes."""
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -106,7 +107,7 @@ def test_studio_smoke_in_browser(tmp_path):
                 raise AssertionError("studio did not start")
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page()
+            page = browser.new_page(viewport={"width": 1400, "height": 900})
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(url)
@@ -118,18 +119,67 @@ def test_studio_smoke_in_browser(tmp_path):
             assert loaded, "the bundled pixel font did not load"
             expect(page.get_by_role("status")).to_contain_text("No META_API_KEY")
             expect(page.get_by_role("button", name="Start with Muse")).to_have_count(0)
-            page.get_by_label("Describe your game").fill("A bat that rings a belfry")
-            page.get_by_role("button", name="Try offline (mock)").click()
             projects = page.get_by_role("list", name="Projects").get_by_role("link")
-            expect(projects).to_have_count(2)
-            new = projects.first
-            expect(new).to_contain_text("A bat that rings a belfry")
-            expect(new).to_contain_text("Needs you: G1 Choose a genre", timeout=40000)
-            expect(new).to_contain_text("offline")
-            project = projects.filter(has_text="A slime that squishes through a cave")
-            project.click()
-            page.wait_for_url(f"{url}/classic?run={run.id}")
-            expect(page.locator("#runs")).to_have_value(run.id)
+            # Made before the studio started, so no worker has stepped it yet.
+            expect(projects).to_contain_text("A slime that squishes through a cave")
+            expect(projects).to_contain_text("pending")
+
+            # Enter in the idea box starts the project and opens its Director chat.
+            idea = page.get_by_label("Describe your game")
+            idea.fill("A bat that rings a belfry")
+            idea.press("Enter")
+            page.wait_for_url(re.compile(r"/\?project=[0-9a-f]{32}$"))
+            chat = page.get_by_role("region", name="Chat with Director")
+            expect(chat).to_contain_text("A bat that rings a belfry")
+            agents = page.get_by_role("navigation", name="Agents")
+            expect(agents.get_by_role("link")).to_have_count(11)
+            director = agents.get_by_role("link", name=re.compile(r"^Director"))
+            expect(director.locator(".badge")).to_have_text("1", timeout=40000)
+
+            # Every gate is answered from its card in the chat until the project is finished.
+            seen = []
+            for _ in range(10):
+                card = chat.locator(".gate-card.open")
+                expect(card).to_have_count(1, timeout=120000)
+                title = card.locator("h3").inner_text()
+                seen.append(title)
+                card.get_by_role("button", name="Approve", exact=True).click()
+                expect(chat.locator(".gate-card.open h3", has_text=title)).to_have_count(0)
+                if title.startswith("G5"):
+                    break
+            assert [t.split()[0] for t in seen] == ["G1", "G1", "G1", "G2", "G3", "G4", "G5"]
+            assert not any("(" in t and ")" not in t for t in seen), seen
+            expect(page.locator(".topbar").get_by_role("link", name="Play v1")).to_be_visible()
+            expect(chat).to_contain_text("Finished", timeout=60000)
+            # Nothing is left working or waiting on the human (an agent the game did not need,
+            # such as the Level/Tile Designer for a one-screen game, stays "waiting").
+            expect(agents.locator(".agent-working, .agent-needs_you")).to_have_count(0)
+            expect(director).to_have_class(re.compile("agent-done"))
+
+            agents.get_by_role("link", name="Pixel Artist").click()
+            expect(page).to_have_url(re.compile(r"agent=Pixel\+Artist"))
+            art = page.get_by_role("region", name="Chat with Pixel Artist")
+            expect(art.locator(".image-grid img").first).to_be_visible()
+
+            agents.get_by_role("link", name="Game Designer").click()
+            box = page.get_by_label("Message Game Designer")
+            box.fill("Why did you pick this genre?")
+            box.press("Enter")
+            designer = page.get_by_role("region", name="Chat with Game Designer")
+            expect(designer.locator(".bubble.agent")).to_contain_text("Offline mock")
+            expect(designer.locator(".doc summary").first).to_be_visible()
+
+            page.go_back()  # the URL is the place: back returns to the Pixel Artist
+            expect(page.get_by_role("region", name="Chat with Pixel Artist")).to_be_visible()
+            page.get_by_role("link", name="Projects").click()
+            slime = page.get_by_role("list", name="Projects").get_by_role(
+                "link", name=re.compile("A slime that squishes")
+            )
+            slime.click()
+            page.wait_for_url(f"{url}/?project={run.id}")
+            expect(page.get_by_role("region", name="Chat with Director")).to_contain_text(
+                "G1 Choose a genre"
+            )
             assert not errors
             browser.close()
     finally:

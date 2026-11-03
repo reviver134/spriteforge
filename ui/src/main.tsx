@@ -1,5 +1,6 @@
 import "@fontsource/press-start-2p/latin-400.css";
 import "./styles.css";
+import "./studio.css";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";

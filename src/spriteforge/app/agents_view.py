@@ -134,6 +134,13 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
     gate and the run's milestones."""
     director = agent == "Director"
     gates = {g.id: g for g in Gates(store).all(run_id)}
+    metas = artifact_metas(store, run_id)
+    by_name = {m["name"]: m for m in metas.values()}
+
+    def readable(meta):  # a JSON record is shown as the Markdown its agent wrote with it
+        twin = by_name.get(meta["name"].removesuffix(".json") + ".md")
+        return twin if meta["mime"] == "application/json" and twin else meta
+
     items = []
     for event in store.events(run_id, after):
         kind, payload = event.type, event.payload
@@ -146,7 +153,10 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
             if gate is None or agent not in owners(gate):
                 continue
             if kind == "gate.opened":
-                items.append(item(event, "gate", gate=gate.model_dump(mode="json")))
+                shown = [readable(metas[i]) for i in gate.artifacts_to_show if i in metas]
+                items.append(
+                    item(event, "gate", gate=gate.model_dump(mode="json"), artifacts=shown)
+                )
             else:
                 response = Gate.model_validate(payload).response
                 items.append(
@@ -167,6 +177,13 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
         elif director and kind in RUN_EVENTS:
             items.append(item(event, "run", type=kind, message=payload.get("message")))
     return items
+
+
+def artifact_metas(store: Store, run_id: str) -> dict[str, dict]:
+    """id -> {id, name, mime} of every artifact of the run, without loading the data."""
+    with store.connect() as db:
+        rows = db.execute("SELECT id,name,mime FROM artifacts WHERE run_id=?", (run_id,))
+        return {r["id"]: dict(r) for r in rows}
 
 
 def chat_fields(payload: dict) -> dict:

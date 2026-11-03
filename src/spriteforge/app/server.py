@@ -29,11 +29,16 @@ def latest_play(store, run_id) -> dict | None:
     """The newest game build that can be played (its report has a play link): shown even while
     the next build runs and no gate is open."""
     reports = {}
-    for a in store.artifacts(run_id):
-        if m := re.fullmatch(r"game/v(\d+)/report\.json", a.name):
-            reports[int(m[1])] = a
+    with store.connect() as db:  # only the reports: this runs on every studio update
+        rows = db.execute(
+            "SELECT name,data FROM artifacts WHERE run_id=? AND name GLOB 'game/v*/report.json'",
+            (run_id,),
+        ).fetchall()
+    for row in rows:
+        if m := re.fullmatch(r"game/v(\d+)/report\.json", row["name"]):
+            reports[int(m[1])] = row["data"]
     for version in sorted(reports, reverse=True):
-        report = json.loads(reports[version].data)
+        report = json.loads(reports[version])
         if report.get("play"):
             return {"version": version, "url": report["play"], "sounds": bool(report.get("sounds"))}
     return None
