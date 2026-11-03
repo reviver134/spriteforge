@@ -268,3 +268,9 @@ def test_a_repair_that_makes_the_game_worse_is_not_kept(tmp_path, budget):
     assert attempt_rank(played, [{"passed": False}], 0) > attempt_rank(booted, [{"passed": True}], 3)
     assert attempt_rank(played, [{"passed": True}], 0) > attempt_rank(played, [{"passed": False}], 3)
     assert attempt_rank(booted, [], 2) > attempt_rank(booted, [], 1)  # a tie: the later one
+    # L2.8: an attempt that breaks a code check (a rule of this game) ranks below one that keeps
+    # it, even when bending the rule got the bot's playtest through (live 2026-11-03).
+    kept, broke = {"kind": "check", "passed": True}, {"kind": "check", "passed": False}
+    assert attempt_rank(booted, [kept], 0) > attempt_rank(played, [broke], 3)
+    assert attempt_rank(played, [kept, {"kind": "check", "passed": False, "broken": True}], 0) \
+        > attempt_rank(played, [broke], 3)  # a broken check is the QA Playtester's, not the game's

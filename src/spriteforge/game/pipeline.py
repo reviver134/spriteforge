@@ -918,15 +918,21 @@ class BuildOutcome:
 
 
 def attempt_rank(report: dict, qa_results: list[dict], n: int) -> tuple:
-    """How good an attempt is: everything passes, then it booted, then the playtest passed,
-    then more design checks, more QA tests, fewer runtime errors; a tie goes to the later
-    attempt. A repair can make a game worse (live 2026-11-02: the last repair broke the weapon
-    pods that the attempt before it had working), so the best attempt is kept, not the last."""
+    """How good an attempt is: everything passes, then it booted, then fewer failed code checks,
+    then the playtest passed, then more design checks, more QA tests, fewer runtime errors; a
+    tie goes to the later attempt. A repair can make a game worse (live 2026-11-02: the last
+    repair broke the weapon pods that the attempt before it had working), so the best attempt
+    is kept, not the last. Code checks (L2.8) are this game's own rules and outrank the bot: a
+    bot that cannot play a kind of game pushed repairs to bend the rules for it (live
+    2026-11-03: enemies beaten from afar on every shot), which only the checks catch."""
     booted = report["stage"] != "static" and report.get("ended") != "no-boot"
     qa_passed = sum(r["passed"] for r in qa_results)
+    broke_rules = sum(r.get("kind") == "check" and not r["passed"] and not r.get("broken")
+                      for r in qa_results)  # fmt: skip
     return (
         report["passed"] and all(r["passed"] or r.get("broken") for r in qa_results),
         booted,
+        -broke_rules,
         report["passed"],
         sum(c["ok"] for c in report.get("checks", [])),
         qa_passed,
@@ -1002,6 +1008,11 @@ def build_and_test(
                 if failed:
                     failures = "\n".join(p for p in (failures, qa_failures(qa_results),
                                                      check_failures(qa_results, written or [])) if p)  # fmt: skip
+            if written and failures:
+                failures += ("\nNever make the bot's playtest pass by bending this game's rules "
+                             "(beating, opening or removing things without the cause the design "
+                             "gives them): the QA code checks above test those rules, and an "
+                             "attempt that breaks them is kept below one that keeps them.")  # fmt: skip
         qa_ok = all(r["passed"] or r.get("broken") for r in qa_results)
         ok = report["passed"] and qa_ok
         save_json(folder / "report.json", report)
