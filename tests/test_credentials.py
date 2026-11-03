@@ -27,3 +27,18 @@ def test_absent_dotenv_is_allowed(tmp_path, monkeypatch):
     monkeypatch.delenv("META_API_KEY", raising=False)
     load_credentials(tmp_path / ".env")
     assert "META_API_KEY" not in os.environ
+
+
+def test_repo_dotenv_loads_from_any_folder(tmp_path, monkeypatch):
+    """The studio started outside the repo (ui/, home) still finds the repo's .env."""
+    from spriteforge.core import credentials
+
+    monkeypatch.delenv("META_API_KEY", raising=False)
+    repo_env = tmp_path / "repo" / ".env"
+    repo_env.parent.mkdir()
+    repo_env.write_text("META_API_KEY=from-repo", encoding="utf-8")
+    monkeypatch.setattr(credentials, "REPO_ENV", repo_env)
+    monkeypatch.chdir(tmp_path)
+    load_credentials()
+    assert os.environ["META_API_KEY"] == "from-repo"
+    monkeypatch.delenv("META_API_KEY")

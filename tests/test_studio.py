@@ -84,8 +84,9 @@ def test_studio_smoke_in_browser(tmp_path):
     process = subprocess.Popen(
         [sys.executable, "-m", "spriteforge", "studio", "--workspace", str(tmp_path),
          "--port", str(port), "--no-open-browser"],
-        # Outside the repo and without a key: no .env is read, so the studio offers mock only.
+        # Without a key (and no .env read), so the studio offers mock only.
         env={**{k: v for k, v in os.environ.items() if k != "META_API_KEY"},
+             "SPRITEFORGE_ENV_FILE": str(tmp_path / "no.env"),
              "PYTHONPATH": str(Path(__file__).parents[1] / "src")},
         cwd=tmp_path,
         stdout=subprocess.DEVNULL,

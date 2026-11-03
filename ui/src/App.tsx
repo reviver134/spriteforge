@@ -38,8 +38,9 @@ function NewProject({ setup }: { setup: Setup | undefined }) {
       client.invalidateQueries({ queryKey: ["projects"] });
     },
   });
+  // Until the key check answers, neither mode is offered (a live key must not start mock).
   const live = setup?.meta_api_key ?? false;
-  const ready = idea.trim().length > 0 && !start.isPending;
+  const ready = setup !== undefined && idea.trim().length > 0 && !start.isPending;
   return (
     <form
       className="new-project"
@@ -64,6 +65,7 @@ function NewProject({ setup }: { setup: Setup | undefined }) {
             Start with Muse
           </button>
         )}
+        {setup !== undefined && (
         <button
           type={live ? "button" : "submit"}
           className={live ? "secondary" : undefined}
@@ -72,7 +74,9 @@ function NewProject({ setup }: { setup: Setup | undefined }) {
         >
           Try offline (mock)
         </button>
+        )}
       </div>
+      {setup === undefined && <p className="muted">Checking for your Muse key…</p>}
       {start.error && <p className="error">{start.error.message}</p>}
     </form>
   );
