@@ -1018,7 +1018,11 @@ def level_concepts(rec: GameRecord) -> tuple[list[Entry], dict[str, bytes]]:
             resource = f"/references/levels/{n}.json"
         if n in rec.level_previews:
             files[f"references/levels/{n}.png"] = rec.level_previews[n]
-        legend = "\n".join(f"| `{e.char}` | {e.kind} | [{e.entity}](/entities/{e.entity}.md) | {e.needs or '-'} | "
+        # A thing with no entity of its own (a checkpoint the design has no art for) is drawn
+        # by the SDK: no link (live 2026-11-03: /entities/.md failed the bundle's validation).
+        ids = {x.id for x in rec.design.entities}
+        shows = lambda eid: f"[{eid}](/entities/{eid}.md)" if eid in ids else (f"`{eid}`" if eid else "drawn by the SDK")
+        legend = "\n".join(f"| `{e.char}` | {e.kind} | {shows(e.entity)} | {e.needs or '-'} | "
                            f"{e.opened_by} | {e.holds or '-'} | {e.gives or '-'} |" for e in s.legend)  # fmt: skip
         route = ", ".join(st["do"] + (f" {st['thing']}" if st.get("thing") else "")
                           for st in r.route if st["do"] != "walk")  # fmt: skip
