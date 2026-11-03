@@ -486,9 +486,10 @@ def fallback_qa(design: GameDesign, menus: dict | None = None) -> QATests:
 # --- running them ------------------------------------------------------------------------------
 
 
-def run_qa(build_dir: Path, tests: list[QATest], fps: int = 30) -> list[dict]:
+def run_qa(build_dir: Path, tests: list, fps: int = 30) -> list[dict]:
     """Play every test against the build, each in a fresh page. Results as `run_test` returns
-    them, plus "purpose" and "god"; screenshots are PNG bytes (pop them before saving JSON)."""
+    them, plus "purpose" and "god"; screenshots are PNG bytes (pop them before saving JSON).
+    `tests` may hold code checks (qa_checks.CodeCheck, L2.8) too: run with `run_check`."""
     results = []
     with serve(Path(build_dir)) as url, sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
@@ -496,7 +497,9 @@ def run_qa(build_dir: Path, tests: list[QATest], fps: int = 30) -> list[dict]:
             for test in tests:
                 context = browser.new_context(viewport={"width": 320, "height": 180})
                 try:
-                    result = qa_runtime.run_test(context.new_page(), url, test.model_dump(), fps)
+                    data = test.model_dump()
+                    run = qa_runtime.run_check if "code" in data else qa_runtime.run_test
+                    result = run(context.new_page(), url, data, fps)
                 except PlaywrightError as exc:
                     result = {"name": test.name, "passed": False, "failed_step": None,
                               "failure": f"the browser failed: {str(exc).splitlines()[0][:200]}",
@@ -512,7 +515,7 @@ def run_qa(build_dir: Path, tests: list[QATest], fps: int = 30) -> list[dict]:
 
 def qa_failures(results: list[dict]) -> str:
     """The failed QA tests, for the Programmer's repair prompt."""
-    failed = [r for r in results if not r["passed"]]
+    failed = [r for r in results if not r["passed"] and r.get("kind") != "check"]
     if not failed:
         return ""
     lines = [
@@ -599,7 +602,8 @@ EXPORT_HEADER = """# QA tests for this game build: written by the SpriteForge QA
 #   pytest tests            (from the build folder, or pass the path of this folder)
 #
 # Everything below up to "The tests" is the SpriteForge QA runtime, copied unchanged. The tests
-# themselves are data (JSON in one string): they are interpreted, never run as code.
+# themselves are data (JSON in one string): steps are interpreted; a code check's JavaScript
+# runs only inside the game's browser page, never in Python.
 """
 
 EXPORT_GLUE = """
@@ -633,14 +637,15 @@ def browser():
 def test_qa(qa, site, browser):
     context = browser.new_context(viewport={"width": 320, "height": 180})
     try:
-        result = run_test(context.new_page(), site, qa, DATA["fps"])
+        run = run_check if "code" in qa else run_test  # a code check runs in the page (L2.8)
+        result = run(context.new_page(), site, qa, DATA["fps"])
     finally:
         context.close()
     assert result["passed"], "step %s: %s" % (result["failed_step"], result["failure"])
 """
 
 
-def export_tests(tests: list[QATest], fps: int = 30) -> str:
+def export_tests(tests: list, fps: int = 30) -> str:
     """`tests/test_game_qa.py` for a build: the runtime, then the tests as JSON inside a single
     string literal made by `repr` (model text never becomes code)."""
     runtime = Path(qa_runtime.__file__).read_text(encoding="utf-8")
@@ -648,7 +653,7 @@ def export_tests(tests: list[QATest], fps: int = 30) -> str:
     return EXPORT_HEADER + runtime + "\n\nDATA_JSON = " + repr(data) + "\n" + EXPORT_GLUE
 
 
-def write_export(build_dir: Path, tests: list[QATest], fps: int = 30) -> Path:
+def write_export(build_dir: Path, tests: list, fps: int = 30) -> Path:
     path = Path(build_dir) / "tests" / "test_game_qa.py"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(export_tests(tests, fps), encoding="utf-8")

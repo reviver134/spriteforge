@@ -100,6 +100,9 @@ class GameConfig(Schema):
     # QA tests (M10.4): the QA Playtester writes tests from each design version; every build runs
     # them (and earlier versions' tests) with real key presses after the bot playtest.
     qa: bool = True
+    # Code checks (L2.8): after the Programmer's first answer the QA Playtester reads the design
+    # and the code and writes checks of this game's own rules as JavaScript run in the game.
+    qa_checks: bool = True
     motion: bool = True  # the Art Director's motion design: rows, forms, effects (L2.4)
     # Menus and flow (L2.5): the Menu Designer's screens rendered by the SDK (title, pause,
     # results, game over, victory, saved progress) and G3; title_art: Muse draws the title

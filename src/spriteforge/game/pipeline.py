@@ -14,6 +14,8 @@
                         number; review/ holds its inputs (sheets, screenshots) and before/after
                         pictures of fixed art; art-plan-reviewed.json the plan with the fixes
     build/              the playable game (open build/index.html)
+    qa-checks.json      QA Playtester: code checks of this game's own rules, written from the
+                        design and the Programmer's first answer, run in the game (L2.8)
     qa-tests.json       QA Playtester (Muse Spark): tests written from the design, played with
                         real key presses after the bot playtest; qa.json their results, qa/
                         their screenshots, build/tests/test_game_qa.py the Playwright export
@@ -173,6 +175,8 @@ from .research import (
 )
 from .structure import GameStructure, make_structure, structure_markdown
 from .title_art import TitleArt, make_title_art, manifest_images
+from .qa_checks import CodeCheck, CodeChecks, check_failures, check_prompt, fallback_checks, usable
+from .qa_checks import repair_prompt as check_repair_prompt
 from .sounds import (
     SoundBrief,
     SoundRecord,
@@ -512,6 +516,40 @@ def write_qa_tests(models: Models, design: GameDesign,
             "the offline tests ran instead"
         )
         return fallback, note
+
+
+class CheckWriter:
+    """The QA Playtester's code checks for one build (L2.8): written once from the design and
+    the Programmer's first answer that passed static checks; checks that fail by themselves
+    (their own code threw) go back once to be fixed. Forbidden or unparsable checks never run."""
+
+    def __init__(self, models: "Models", design: GameDesign, levels: str = ""):
+        self.models, self.design, self.levels = models, design, levels
+        self.notes: list[str] = []
+        self.prompt, self.repaired = "", False
+
+    def ask(self, prompt: str, fallback: CodeChecks) -> CodeChecks:
+        try:
+            return self.models.ask("QA Playtester", prompt, CodeChecks, fallback, "qa")
+        except Exception as exc:  # noqa: BLE001 -- checks are a check: the build goes on
+            self.notes.append(f"the QA Playtester's code checks could not be used "
+                              f"({type(exc).__name__}); the offline checks ran instead")  # fmt: skip
+            return fallback
+
+    def write(self, code: GameCode) -> list[CodeCheck]:
+        self.prompt = check_prompt(self.design, code, self.levels)
+        checks, notes = usable(self.ask(self.prompt, fallback_checks(self.design)))
+        self.notes += notes
+        return checks
+
+    def repair(self, checks: list[CodeCheck], broken: list[dict]) -> list[CodeCheck]:
+        self.repaired = True
+        if not checks:
+            return checks
+        fixed, notes = usable(self.ask(check_repair_prompt(self.prompt, broken, checks),
+                                       CodeChecks(checks=checks)))  # fmt: skip
+        self.notes += notes
+        return fixed or checks
 
 
 # --- menus and flow (L2.5) ----------------------------------------------------------------------
@@ -875,6 +913,8 @@ class BuildOutcome:
     screenshots: list[dict] = field(default_factory=list)
     # The kept attempt's QA results (run_qa: screenshots as PNG bytes); [] without QA tests
     qa: list[dict] = field(default_factory=list)
+    checks: list = field(default_factory=list)  # the QA Playtester's code checks (L2.8)
+    check_notes: list[str] = field(default_factory=list)
 
 
 def attempt_rank(report: dict, qa_results: list[dict], n: int) -> tuple:
@@ -885,7 +925,7 @@ def attempt_rank(report: dict, qa_results: list[dict], n: int) -> tuple:
     booted = report["stage"] != "static" and report.get("ended") != "no-boot"
     qa_passed = sum(r["passed"] for r in qa_results)
     return (
-        report["passed"] and qa_passed == len(qa_results),
+        report["passed"] and all(r["passed"] or r.get("broken") for r in qa_results),
         booted,
         report["passed"],
         sum(c["ok"] for c in report.get("checks", [])),
@@ -907,15 +947,18 @@ def build_and_test(
     levels: LevelPack | None = None,
     menus: MenuPack | None = None,
     sounds: dict | None = None,
+    checks: CheckWriter | None = None,
 ) -> BuildOutcome:
     """Static checks, build, playtest with the bot (each level on its own for a game with
     levels as data), then the QA tests (real key presses); failures of either go back to the
     Programmer (bounded). `menus`: the SDK's menus and flow go into every build; `sounds`
-    (`window.SF_SOUNDS`) the sounds and their editor."""
+    (`window.SF_SOUNDS`) the sounds and their editor; `checks` writes the QA Playtester's code
+    checks from the first code that passes static checks (L2.8), run with the QA tests."""
     manifest, images = game_assets(art, menus, sounds)
     asset_ids = set(manifest["sprites"]) | set(manifest["images"])
     attempts, report, build_dir, shots, qa_results = [], {}, None, [], []
     best = None  # (rank, attempt index, code, report, shots, qa results)
+    written: list[CodeCheck] | None = None
     capture = review_times(design.session_seconds) if cfg.game.review else []
 
     def build(files: GameCode) -> Path:
@@ -941,14 +984,25 @@ def build_and_test(
             shots = result.pop("screenshots", [])
             report = {"stage": "playtest", **result}
             failures = failure_summary(report) if not report["passed"] else ""
-            if qa and report["ended"] != "no-boot":
-                qa_results = run_qa(build_dir, qa, cfg.game.playtest_fps)
-                failed = sum(not r["passed"] for r in qa_results)
-                report["qa"] = {"passed": len(qa_results) - failed, "failed": failed,
+            if (qa or checks) and report["ended"] != "no-boot":
+                if checks and written is None:
+                    log("  QA Playtester is writing code checks of this game's rules")
+                    written = checks.write(code)
+                suite = [*(qa or []), *(written or [])]
+                qa_results = run_qa(build_dir, suite, cfg.game.playtest_fps)
+                broken = [r for r in qa_results if r.get("broken")]
+                if broken and checks and not checks.repaired:
+                    log(f"  QA Playtester is fixing {len(broken)} check(s) that failed by themselves")
+                    written = checks.repair(written or [], broken)
+                    qa_results = run_qa(build_dir, [*(qa or []), *written], cfg.game.playtest_fps)
+                failed = sum(not r["passed"] and not r.get("broken") for r in qa_results)
+                report["qa"] = {"passed": sum(r["passed"] for r in qa_results), "failed": failed,
+                                "broken": sum(bool(r.get("broken")) for r in qa_results),
                                 "results": without_pictures(qa_results)}  # fmt: skip
                 if failed:
-                    failures = "\n".join(p for p in (failures, qa_failures(qa_results)) if p)
-        qa_ok = all(r["passed"] for r in qa_results)
+                    failures = "\n".join(p for p in (failures, qa_failures(qa_results),
+                                                     check_failures(qa_results, written or [])) if p)  # fmt: skip
+        qa_ok = all(r["passed"] or r.get("broken") for r in qa_results)
         ok = report["passed"] and qa_ok
         save_json(folder / "report.json", report)
         attempts.append(
@@ -988,7 +1042,8 @@ def build_and_test(
             build_dir = build(code)  # the build folder holds the last attempt: rebuild the kept one
     if report["stage"] == "static":
         build_dir, shots = None, []  # no answer passed static checks: no build
-    return BuildOutcome(code, report, build_dir, attempts, shots, qa_results)
+    return BuildOutcome(code, report, build_dir, attempts, shots, qa_results, written or [],
+                        checks.notes if checks else [])  # fmt: skip
 
 
 def play(build_dir: Path, design: GameDesign, cfg: Config, levels: "LevelPack | None",
@@ -1109,18 +1164,19 @@ def review_art(
         log("  playing the game again with the fixed art")
         build_dir, report = replay(design, fixed_art, outcome.code, cfg, out, levels, menus, sounds)
         replayed = {"passed": report["passed"], "reverted": False}
+        suite = [*(qa or []), *outcome.checks]  # the code checks too (L2.8)
         new_qa = (
-            run_qa(build_dir, qa, cfg.game.playtest_fps)
-            if qa and outcome.qa and report["ended"] != "no-boot"
+            run_qa(build_dir, suite, cfg.game.playtest_fps)
+            if suite and outcome.qa and report["ended"] != "no-boot"
             else []
         )
         # QA tests that passed with the old art and fail with the new (live 2026-11-01: fixed
         # player and enemy sprites changed the hitboxes, and the lose path no longer happened).
         broke = [new["name"] for new, old in zip(new_qa, outcome.qa, strict=False)
-                 if old["passed"] and not new["passed"]]  # fmt: skip
+                 if old["passed"] and not new["passed"] and not new.get("broken")]  # fmt: skip
         if new_qa:
-            failed = sum(not r["passed"] for r in new_qa)
-            replayed["qa"] = {"passed": len(new_qa) - failed, "failed": failed}
+            failed = sum(not r["passed"] and not r.get("broken") for r in new_qa)
+            replayed["qa"] = {"passed": sum(r["passed"] for r in new_qa), "failed": failed}
         if (outcome.report["passed"] and not report["passed"]) or broke:
             replay(design, art, outcome.code, cfg, out, levels, menus, sounds)  # back to the art that passed
             replayed["reverted"] = True
@@ -1182,12 +1238,16 @@ def review_art(
     return Reviewed(fixed_art, outcome, reviewed_plan(plan, kept), answer, report, images)
 
 
-def qa_report(results: list[dict], tests: list[QATest], note: str = "") -> dict:
-    """report.json "qa": every test with its purpose, steps, result and screenshot files
-    (`screenshot_files` names them first)."""
+def qa_report(results: list[dict], tests: list, note: str = "", checks: list = ()) -> dict:
+    """report.json "qa": every test and code check (L2.8) with its purpose, steps, result and
+    screenshot files (`screenshot_files` names them first). A broken check (its own code threw)
+    counts as neither passed nor failed."""
+    code = {c.name: c.code for c in checks}
     return {
         "passed": sum(r["passed"] for r in results),
-        "failed": sum(not r["passed"] for r in results),
+        "failed": sum(not r["passed"] and not r.get("broken") for r in results),
+        "broken": sum(bool(r.get("broken")) for r in results),
+        "checks": len(checks),
         "note": note,
         "tests": [
             {
@@ -1201,10 +1261,12 @@ def qa_report(results: list[dict], tests: list[QATest], note: str = "") -> dict:
                 "state": r["state"],
                 "game_seconds": r["game_seconds"],
                 "screenshots": [s["file"] for s in r["screenshots"] if "file" in s],
+                **({"kind": "check", "broken": bool(r.get("broken")), "logs": r.get("logs", []),
+                    "code": code.get(r["name"], "")} if r.get("kind") == "check" else {}),
             }
             for r in results
         ],
-        "count": len(tests),
+        "count": len(tests) + len(checks),
     }
 
 
@@ -1214,10 +1276,13 @@ def save_qa(out: Path, outcome: BuildOutcome, tests: list[QATest], fps: int, not
     for name, data in pictures.items():
         (out / "qa").mkdir(exist_ok=True)
         (out / "qa" / name).write_bytes(data)
-    report = qa_report(outcome.qa, tests, note)
+    notes = "; ".join(p for p in (note, *outcome.check_notes) if p)
+    report = qa_report(outcome.qa, tests, notes, outcome.checks)
     save_json(out / "qa.json", report)
+    if outcome.checks:
+        save_json(out / "qa-checks.json", CodeChecks(checks=outcome.checks).model_dump())
     if outcome.build:
-        report["export"] = str(write_export(outcome.build, tests, fps))
+        report["export"] = str(write_export(outcome.build, [*tests, *outcome.checks], fps))
     return report
 
 
@@ -1375,8 +1440,10 @@ def make_game(
         log(f"  title art: {menus.title_art.source}")
     log("code: Programmer is writing the game")
     code = write_code(models, design, game_assets(art, menus, sounds)[0])
+    writer = CheckWriter(models, design) if cfg.game.qa and cfg.game.qa_checks else None
     outcome = build_and_test(models, design, art, code, cfg, out, log,
-                             qa_tests.tests if qa_tests else None, menus=menus, sounds=sounds)  # fmt: skip
+                             qa_tests.tests if qa_tests else None, menus=menus, sounds=sounds,
+                             checks=writer)  # fmt: skip
     review = None
     if cfg.game.review and outcome.build:
         log("review: Art Reviewer is looking at the art in the running game")
@@ -1395,8 +1462,8 @@ def make_game(
             f"{sum(f['fixed'] for f in review.report['fixes'])} fixed")  # fmt: skip
     save_json(out / "playtest.json", outcome.report)
     qa = None
-    if qa_tests:
-        qa = save_qa(out, outcome, qa_tests.tests, cfg.game.playtest_fps, qa_note)
+    if qa_tests or outcome.checks:
+        qa = save_qa(out, outcome, qa_tests.tests if qa_tests else [], cfg.game.playtest_fps, qa_note)
         log(f"  QA: {qa['passed']} of {qa['passed'] + qa['failed']} tests pass")
 
     save_json(out / "code.json", outcome.code.model_dump())

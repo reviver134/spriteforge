@@ -44,6 +44,10 @@ After the G1 questions:
                              art-plan-reviewed.json the plan with the fixes (the next version
                              starts from it, so fixed art stays locked)
   game/design/vK-qa-tests.json  QA Playtester: tests written from design vK (once per version)
+  game/vN/qa-checks.json     QA Playtester (L2.8): code checks of this game's own rules, written
+                             from the design and the Programmer's first answer of build vN, run
+                             in the game with the QA tests (a check that throws by itself is
+                             fixed once, then shown as broken: never blamed on the game)
   game/vN/qa-tests.json      the suite build vN runs: its design's tests plus earlier versions'
                              (a regression suite), minus tests feedback dropped
   game/vN/qa.json            QA results (real key presses after the bot playtest); qa/ their
@@ -102,6 +106,7 @@ from spriteforge.game.sounds import (
     sounds_script,
 )
 from spriteforge.game.pipeline import (
+    CheckWriter,
     LevelPack,
     MenuPack,
     Models,
@@ -782,13 +787,18 @@ def save_qa(ctx: GameContext, prefix: str, outcome, suite: QASuite) -> dict:
     pictures = screenshot_files(outcome.qa)
     for name, data in pictures.items():
         ctx.save(f"{prefix}/qa/{name}", data, "QA Playtester", "image/png")
-    report = qa_report(outcome.qa, suite.tests, "; ".join(suite.notes))
+    notes = "; ".join([*suite.notes, *outcome.check_notes])
+    report = qa_report(outcome.qa, suite.tests, notes, outcome.checks)
+    if outcome.checks:
+        ctx.save(f"{prefix}/qa-checks.json", {"checks": [c.model_dump() for c in outcome.checks],
+                                              "notes": outcome.check_notes}, "QA Playtester")  # fmt: skip
     for test in report["tests"]:
         test["screenshots"] = [f"{prefix}/qa/{n}" for n in test["screenshots"]]
-        test["since"] = suite.since(test["name"])
+        test["since"] = (int(prefix.rsplit("v", 1)[-1]) if test.get("kind") == "check"  # this build's
+                         else suite.since(test["name"]))  # fmt: skip
     report["dropped"] = suite.dropped
     if outcome.build:
-        path = write_export(outcome.build, suite.tests, ctx.cfg.game.playtest_fps)
+        path = write_export(outcome.build, [*suite.tests, *outcome.checks], ctx.cfg.game.playtest_fps)
         ctx.save(f"{prefix}/test_game_qa.py", path.read_bytes(), "QA Playtester", "text/x-python")
         report["export"] = f"{prefix}/test_game_qa.py"
         report["export_url"] = f"/api/runs/{ctx.run_id}/play/{prefix.split('/')[-1]}/tests/" \
@@ -842,8 +852,10 @@ def build_version(
                               instruction, log, pack)  # fmt: skip
         else:
             code = base  # feedback touched only the art, the levels or the menus: same code
+        writer = (CheckWriter(ctx.models, design, pack.summary if pack else "")
+                  if suite and ctx.cfg.game.qa_checks else None)  # fmt: skip
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log,
-                                 suite.tests if suite else None, pack, flow, script)  # fmt: skip
+                                 suite.tests if suite else None, pack, flow, script, writer)  # fmt: skip
         review = None
         if ctx.cfg.game.review and outcome.build:
             log(f"build v{version}: the Art Reviewer is looking at the art in the running game")

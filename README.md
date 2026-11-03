@@ -921,3 +921,15 @@ Editing the sounds:
 The bot playtest counts which sounds would have played (silently) and the build report lists
 them, with any sound the bot never heard. `game.sounds: false` turns it off. Details:
 `docs/sound-director.md`.
+
+# Level 2 / L2.8: QA code checks
+
+Users can ask for any kind of game, so no fixed bot or list of test steps knows what each game
+must do. After the Programmer's first answer, the QA Playtester reads the design and the code
+and writes 3-8 checks of that game's own rules as small JavaScript scenarios ("an enemy dies
+only when a hero bullet touches it", "bullets are removed off screen", "standing on a platform
+never hurts"). Code vets each check (no network, storage, timers or faked outcomes; it must
+parse), runs it inside the game's page with a `qa` helper (game time, key presses, sprites,
+state, `qa.expect`) and a time limit, sends failures to the Programmer, gives a check that
+breaks by itself back to the QA Playtester once, and shows them all at G4 and in the exported
+tests. Details: `docs/qa-code-checks.md`.

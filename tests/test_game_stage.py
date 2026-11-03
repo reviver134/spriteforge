@@ -165,8 +165,10 @@ def test_qa_regression_across_versions(tmp_path):
     assert revision["drop_qa_tests"] == ["restarts after losing"]
     assert revision["code_instructions"] == "" and revision["art_changes"] == []
     qa2 = read(store, ident, "game/v2/report.json")["qa"]
-    assert [t["name"] for t in qa2["tests"]] == [n for n in names if n != "restarts after losing"]
-    assert {t["since"] for t in qa2["tests"]} == {1} and qa2["dropped"] == ["restarts after losing"]
+    tests2 = [t for t in qa2["tests"] if t.get("kind") != "check"]  # code checks are per build
+    names1 = [t["name"] for t in qa["tests"] if t.get("kind") != "check"]
+    assert [t["name"] for t in tests2] == [n for n in names1 if n != "restarts after losing"]
+    assert {t["since"] for t in tests2} == {1} and qa2["dropped"] == ["restarts after losing"]
     assert qa2["failed"] == 0
     assert "game/design/v2-qa-tests.json" not in {a.name for a in store.artifacts(ident)}
     assert read(store, ident, "game/v2/code.json") == read(store, ident, "game/v1/code.json")

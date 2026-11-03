@@ -370,6 +370,182 @@ def run_test(page, url: str, test: dict, fps: int = 30) -> dict:
     return result
 
 
+# --- code checks (L2.8): the QA Playtester's own checks of this game, as code ------------------
+#
+# A check is a JavaScript function body the QA Playtester wrote for this game's scenarios. It
+# runs inside the game's page (the browser is the sandbox: the build's CSP allows no network,
+# and the harness checked the code for forbidden calls before it ran) with one helper, `qa`:
+# game time (step, hold, press with key events the game reads like real keys), what the game
+# shows (scene, sprites, camera, sf.state, events, errors) and `qa.expect(ok, message)`. A
+# failed expect is a game failure; any other exception is a broken check (the QA
+# Playtester's mistake, never the game's). The whole check has a wall-clock limit.
+
+CHECK_SECONDS = 90  # game seconds a check may step
+CHECK_WALL_MS = 60000  # wall-clock limit of one check (the browser stops the script)
+
+CHECK_PRELUDE = r"""
+(() => {
+  const sf = window.sf, FPS = __FPS__, LIMIT = __LIMIT__;
+  class QAFail extends Error {}
+  const KEYS = {left: ['ArrowLeft', 37], right: ['ArrowRight', 39], up: ['ArrowUp', 38],
+    down: ['ArrowDown', 40], w: ['KeyW', 87, 'w'], a: ['KeyA', 65, 'a'], s: ['KeyS', 83, 's'],
+    d: ['KeyD', 68, 'd'], space: ['Space', 32, ' '], z: ['KeyZ', 90, 'z'], x: ['KeyX', 88, 'x'],
+    c: ['KeyC', 67, 'c'], j: ['KeyJ', 74, 'j'], k: ['KeyK', 75, 'k'], shift: ['ShiftLeft', 16, 'Shift'],
+    enter: ['Enter', 13], escape: ['Escape', 27]};
+  let used = 0;
+  const logs = [], held = new Set();
+  const key = (type, name) => {
+    const k = KEYS[String(name).toLowerCase()];
+    if (!k) throw new QAFail('qa: unknown key ' + name + ' (keys: ' + Object.keys(KEYS).join(', ') + ')');
+    const e = new KeyboardEvent(type, {key: k[2] || k[0], code: k[0], bubbles: true, cancelable: true});
+    Object.defineProperty(e, 'keyCode', {get: () => k[1]});
+    Object.defineProperty(e, 'which', {get: () => k[1]});
+    window.dispatchEvent(e);
+  };
+  const gameScenes = () => (sf.game ? sf.game.scene.getScenes(true) : [])
+    .filter(s => !String(s.sys.settings.key).startsWith('sf-'));
+  const view = o => ({key: o.texture ? o.texture.key : '', x: o.x, y: o.y, visible: o.visible,
+    alpha: o.alpha, active: o.active, w: o.displayWidth, h: o.displayHeight,
+    vx: o.body ? o.body.velocity.x : 0, vy: o.body ? o.body.velocity.y : 0, flipX: !!o.flipX,
+    rotation: o.rotation || 0, obj: o});
+  const qa = {
+    fps: FPS,
+    step(seconds) {
+      seconds = Math.max(0, +seconds || 0);
+      if (used + seconds > LIMIT + 1e-6) throw new QAFail('the check ran past ' + LIMIT + ' game seconds');
+      used += seconds;
+      window.sfRun(seconds, FPS, true);
+    },
+    frames(n) { qa.step((+n || 1) / FPS); },
+    down(name) { if (!held.has(name)) { held.add(name); key('keydown', name); } },
+    up(name) { if (held.has(name)) { held.delete(name); key('keyup', name); } },
+    hold(names, seconds) {
+      names = [].concat(names);
+      names.forEach(qa.down);
+      try { qa.step(seconds); } finally { names.forEach(qa.up); }
+    },
+    press(name) { qa.hold([name], 3 / FPS); qa.step(1 / FPS); },
+    scene: () => gameScenes()[0] || null,
+    scenes: gameScenes,
+    state: () => sf.state || {},
+    count: name => (sf.counts[name] || {count: 0}).count,
+    events: () => sf.events.slice(),
+    errors: () => sf.errors.slice(),
+    time: () => sf.clock.now,
+    level: () => (sf.level && sf.level.current) || null,
+    camera() {
+      const s = qa.scene(), c = s && s.cameras.main.worldView;
+      return c ? {x: c.x, y: c.y, width: c.width, height: c.height} : null;
+    },
+    onScreen(o, margin) {
+      const c = qa.camera(), m = margin || 0;
+      return !!c && o.x >= c.x - m && o.x <= c.x + c.width + m && o.y >= c.y - m && o.y <= c.y + c.height + m;
+    },
+    // Every live sprite or image of the game's scenes, optionally of one texture (a string or
+    // a RegExp): {key, x, y, visible, alpha, active, w, h, vx, vy, flipX, rotation, obj}.
+    sprites(texture) {
+      const out = [];
+      for (const s of gameScenes()) {
+        for (const o of s.children.list) {
+          if (!o.active || !o.texture || o.type === 'Text') continue;
+          const k = o.texture.key;
+          if (texture == null || (texture instanceof RegExp ? texture.test(k) : k === texture)) out.push(view(o));
+        }
+      }
+      return out;
+    },
+    near(a, b, distance) { return Math.hypot(a.x - b.x, a.y - b.y) <= distance; },
+    expect(ok, message) { if (!ok) throw new QAFail(String(message || 'an expectation failed')); },
+    log(...parts) { if (logs.length < 40) logs.push(parts.map(p => typeof p === 'object' ? JSON.stringify(p) : String(p)).join(' ').slice(0, 300)); },
+  };
+  const before = sf.errors.length;
+  try {
+    (function (qa, sf) {
+__CODE__
+    })(qa, sf);
+    return {ok: true, logs, used, gameErrors: sf.errors.slice(before, before + 3)};
+  } catch (e) {
+    return {ok: false, assertion: e instanceof QAFail, message: String((e && e.message) || e).slice(0, 400),
+            where: String((e && e.stack) || '').split('\n').slice(1, 3).join(' | ').slice(0, 300),
+            logs, used, gameErrors: sf.errors.slice(before, before + 3)};
+  } finally {
+    held.forEach(name => key('keyup', name));
+  }
+})()
+"""
+
+
+def check_expression(code: str, fps: int, limit: float = CHECK_SECONDS) -> str:
+    return (CHECK_PRELUDE.replace("__FPS__", str(int(fps)))
+            .replace("__LIMIT__", repr(float(limit))).replace("__CODE__", code))  # fmt: skip
+
+
+def evaluate_check(page, code: str, fps: int) -> dict:
+    """The check's outcome; the browser itself stops a check that runs past CHECK_WALL_MS (the
+    DevTools protocol's evaluate timeout), and that is a broken check."""
+    cdp = page.context.new_cdp_session(page)
+    try:
+        answer = cdp.send("Runtime.evaluate", {"expression": check_expression(code, fps),
+                                               "returnByValue": True, "timeout": CHECK_WALL_MS})  # fmt: skip
+    finally:
+        try:
+            cdp.detach()
+        except Exception:  # noqa: BLE001, S110 -- the page may be gone
+            pass
+    if "exceptionDetails" in answer:
+        detail = answer["exceptionDetails"]
+        text = (detail.get("exception") or {}).get("description") or detail.get("text") or "?"
+        return {"ok": False, "assertion": False, "message": str(text).splitlines()[0][:300],
+                "where": "", "logs": [], "used": 0, "gameErrors": []}  # fmt: skip
+    return (answer.get("result") or {}).get("value") or {
+        "ok": False, "assertion": False, "message": "the check returned nothing", "where": "",
+        "logs": [], "used": 0, "gameErrors": []}  # fmt: skip
+
+
+def run_check(page, url: str, check: dict, fps: int = 30) -> dict:
+    """Run one code check against the build at `url`. The result has run_test's shape, plus
+    "kind": "check" and "broken" (the check itself failed: not the game's fault)."""
+    result = {"name": check["name"], "passed": False, "failed_step": None, "failure": "",
+              "steps": [], "state": {}, "events": {}, "errors": [], "game_seconds": 0.0,
+              "screenshots": [], "kind": "check", "broken": False, "logs": []}  # fmt: skip
+    try:
+        game = Game(page, url, bool(check.get("god")), fps, check.get("start") or "play",
+                    check.get("level") or 1)
+    except Exception as exc:  # noqa: BLE001 -- a build that does not boot fails the check
+        result["failure"] = f"the game did not boot: {str(exc).splitlines()[0][:200]}"
+        return result
+    try:
+        out = evaluate_check(page, check["code"], fps)
+    except Exception as exc:  # noqa: BLE001 -- the browser call itself failed
+        out = {"ok": False, "assertion": False, "message": str(exc).splitlines()[0][:300],
+               "where": "", "logs": [], "used": 0, "gameErrors": []}  # fmt: skip
+    game_errors = [e for e in out.get("gameErrors") or [] if e]
+    if out.get("ok") and not game_errors:
+        result["passed"] = True
+    elif out.get("ok") or out.get("assertion"):
+        result["failure"] = (out.get("message") if not out.get("ok") else
+                             f"runtime error in the game: {game_errors[0]}")  # fmt: skip
+    else:
+        result["broken"] = True
+        result["failure"] = f"the check itself failed: {out.get('message')}" + (
+            f" (at {out['where']})" if out.get("where") else "")
+    result["steps"] = [{"step": "code check", "ok": result["passed"], "detail": result["failure"]}]
+    result["logs"] = list(out.get("logs") or [])
+    try:
+        result["screenshots"].append({"label": "end" if result["passed"] else "failed",
+                                      "png": game.shot()})  # fmt: skip
+    except Exception:  # noqa: BLE001, S110 -- a picture is a bonus
+        pass
+    try:
+        result["state"] = game.state()
+        result["events"] = {k: v["count"] for k, v in page.evaluate("window.sf.counts").items()}
+        result["errors"] = game.all_errors()[:10]
+        result["game_seconds"] = round(game.total(), 1)
+    except Exception:  # noqa: BLE001, S110 -- the page may be gone after a crash
+        pass
+    return result
+
+
 class _Quiet(SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass

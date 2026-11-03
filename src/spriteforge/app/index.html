@@ -157,14 +157,16 @@ function artReview(rv,canApply){const box=document.createElement('section');box.
 // screenshots, and the exported Playwright file.
 function qaSection(qa){const box=document.createElement('section');box.className='qa-tests';
  const total=qa.passed+qa.failed,h=document.createElement('h4');
- h.textContent='QA tests (real key presses) · '+qa.passed+'/'+total+' pass';box.append(h);
+ h.textContent='QA tests and code checks · '+qa.passed+'/'+total+' pass'+(qa.broken?' · '+qa.broken+' check(s) broken (an error in the check itself, not in the game)':'');box.append(h);
  if(qa.failed)box.append(Object.assign(document.createElement('p'),{textContent:'A failing test is a game bug or a wrong test (they are written from the design, not the code). If the test is wrong, drop it with feedback such as “ignore the restart test”.'}));
  if(qa.note)box.append(Object.assign(document.createElement('p'),{textContent:'⚠ '+qa.note}));
  if(qa.export_url){const a=document.createElement('a');a.href=qa.export_url;a.download='test_game_qa.py';a.textContent='⬇ test_game_qa.py: run these tests yourself (pytest + Playwright)';box.append(a);}
  const ul=document.createElement('ul');
  for(const t of qa.tests){const li=document.createElement('li');
-  li.textContent=(t.passed?'✔ ':'✖ ')+t.name+(t.god?'':' (the player can die)')+' — '+t.purpose+(t.since?' · since v'+t.since:'')+(t.passed?'':' · failed at step '+t.failed_step+': '+t.failure);
-  const d=document.createElement('details'),sm=document.createElement('summary');sm.textContent='steps';d.append(sm);
+  const chk=t.kind==='check';
+  li.textContent=(t.passed?'✔ ':t.broken?'⚠ ':'✖ ')+(chk?'[code check] ':'')+t.name+(t.god?'':' (the player can die)')+' — '+t.purpose+(t.since?' · since v'+t.since:'')+(t.passed?'':chk?' · '+t.failure:' · failed at step '+t.failed_step+': '+t.failure);
+  const d=document.createElement('details'),sm=document.createElement('summary');sm.textContent=chk?'the check (JavaScript the QA Playtester wrote for this game)':'steps';d.append(sm);
+  if(chk){const pre=document.createElement('pre');pre.textContent=t.code+((t.logs||[]).length?'\n\n// notes: '+t.logs.join(' | '):'');d.append(pre);}
   const ol=document.createElement('ol');for(const st of t.steps){ol.append(Object.assign(document.createElement('li'),{textContent:(st.ok?'✔ ':'✖ ')+st.step+(st.detail?' — '+st.detail:'')}));}d.append(ol);
   for(const n of t.screenshots||[])if(artifactIds[n]){const img=document.createElement('img');img.src='/api/artifacts/'+artifactIds[n];img.alt=n;img.style.cssText='width:auto;height:120px;image-rendering:pixelated;margin:2px';d.append(img);}
   li.append(d);ul.append(li);}

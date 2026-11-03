@@ -266,8 +266,8 @@ def test_make_game_offline_end_to_end(tmp_path):
         "consistency", "readability", "perspective", "scale", "palette"}  # fmt: skip
     assert {"sheet.png", "sheet-4x.png", "shot-1.png", "shot-2.png", "shot-3.png"} <= {
         p.name for p in (out / "review").iterdir()}  # fmt: skip
-    # design, menus, sounds, QA, motion, art plan, code, review (no story)
-    assert result.report["model_calls"]["chat"] == 8
+    # design, menus, sounds, QA, motion, art plan, code, QA code checks, review (no story)
+    assert result.report["model_calls"]["chat"] == 9
     assert result.report["qa"]["failed"] == 0 and result.report["qa"]["passed"] >= 5
     # The menus (L2.5): every screen shot, the title art drawn by code offline (no image call).
     menus = result.report["menus"]
