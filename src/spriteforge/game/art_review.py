@@ -182,9 +182,12 @@ MOTION_TASK = """
 
 def review_prompt(
     design: GameDesign, art: ArtResult, slots: list[str], findings: list[Finding], shots: int,
-    rows: bool = False,
+    rows: bool = False, levels: list[int] = (),
 ) -> str:
-    """`rows`: the last image shows every animated row as filmstrips (the motion design)."""
+    """`rows`: the last image shows every animated row as filmstrips (the motion design);
+    `levels`: the screenshots are one per level, of these levels (L2.6)."""
+    when = (f"one per level (levels {', '.join(map(str, levels))}, in order)" if levels
+            else "early, middle, late")  # fmt: skip
     number = {eid: i + 1 for i, eid in enumerate(slots)}
     strips = f"; {3 + shots}) every animated row as a filmstrip (frames left to right, " \
              "labelled entity.row)" if rows else ""  # fmt: skip
@@ -201,7 +204,7 @@ def review_prompt(
     return f"""Review the art of this game as one set, as it will be played.
 
 Images: 1) the art sheet at native game size; 2) the same sheet at {ZOOM}x, each sprite
-numbered; {f"3-{2 + shots}) screenshots of the running game (early, middle, late) at game scale" if shots else "(no screenshots: the game did not run)"}{strips}.
+numbered; {f"3-{2 + shots}) screenshots of the running game ({when}) at game scale" if shots else "(no screenshots: the game did not run)"}{strips}.
 Sizes on the sheet are true to the game (backgrounds are shrunk).
 
 1. Naming test first: for every number on the sheet, say in a few words what it looks like

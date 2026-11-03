@@ -65,7 +65,7 @@ After the G1 questions:
                              Apply on an art-review suggestion (form apply_suggestion=n) -> that
                              entity is redrawn as the suggestion says (no Director call);
                              "ignore the restart test" -> that QA test is dropped (Revision);
-                             empty -> approval.json, run complete
+                             empty -> G5, the final review of the whole game (game_final.py)
 The playable build is runs/<id>/game/vN/build, served at /api/runs/<id>/play/vN/index.html.
 """
 
@@ -124,6 +124,7 @@ from spriteforge.game.qa import (
     QATests,
     bind_selects,
     merge_suite,
+    with_level_tests,
     screenshot_files,
     write_export,
 )
@@ -133,9 +134,12 @@ from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback
 from spriteforge.game.revision import revision_prompt as director_prompt
 from spriteforge.game.story import StoryBible, story_markdown
 from spriteforge.game.structure import GameStructure, make_structure, structure_markdown
+from spriteforge.game.lessons import past_lessons
 from spriteforge.game.title_art import TitleArt
+from spriteforge.memory.okf.store import KnowledgeStore
 
 from .asset_store import ProductionStore
+from .game_final import finish, open_final_gate
 from .game_record import (
     LEVELS,
     MENUS,
@@ -150,7 +154,7 @@ from .game_record import (
 )
 from .intake import GameBrief
 
-STAGES = {"design", "playtest"}
+STAGES = {"design", "playtest", "final"}
 ADD_STORY = "Add a story"
 WHOLE_GAME = "The whole game"
 # G2 and G4 offer a story while the game has none (named characters, a world, an arc).
@@ -640,7 +644,15 @@ def qa_suite(
             ctx.save(written, tests.model_dump(), "QA Playtester")
             notes += [note] if note else []
         new = QATests.model_validate(ctx.read(written))
-    suite = merge_suite(previous, new, version, list(drop), notes)
+    # Code adds a test of every level (L2.6) to the design's tests; earlier tests of a level
+    # the game no longer has (a design change cut it) are dropped.
+    levels = [lv.model_dump() for lv in ensure_structure(ctx, design_version, design).levels]
+    added = with_level_tests(new.tests, {"levels": levels}) if new else None
+    gone = [t.name for t in (previous.tests if previous else []) if t.level > len(levels)]
+    if gone:
+        notes.append(f"dropped the tests of levels this design no longer has: {', '.join(gone)}")
+        drop = [*drop, *gone]
+    suite = merge_suite(previous, added, version, list(drop), notes)
     ctx.save(name, suite.model_dump(), "QA Playtester")
     return suite
 
@@ -765,6 +777,10 @@ def build_version(
                 )
         play = f"/api/runs/{ctx.run_id}/play/v{version}/index.html" if outcome.build else None
         previews = level_previews(ctx, prefix, pack, design, art) if pack else {}
+        for shot in outcome.screenshots:  # one per level when the levels are data (for G5)
+            if "level" in shot:
+                ctx.save(f"{prefix}/levels/shot-{shot['level']}.png", shot["png"], "QA Playtester",
+                         "image/png")  # fmt: skip
         menu_part = {}
         if flow and outcome.build:
             log(f"build v{version}: a screenshot of every menu screen")
@@ -994,24 +1010,13 @@ def game_step(store, run_id) -> bool:
             sync_db(ctx, f"story added at G4 (build v{version})")
             open_playtest_gate(ctx, version, gate_names(ctx, version))
             return False
-        report = ctx.read(f"game/v{version}/report.json")
-        ctx.save(
-            "approval.json",
-            {
-                "gate": last.id,
-                "mode": "game",
-                "version": version,
-                "design": f"game/design/v{report['design_version']}.json",
-                "build": f"game/v{version}/build",
-                "code": f"game/v{version}/code.json",
-                "report": f"game/v{version}/report.json",
-                "passed": report["passed"],
-            },
-            "Director",
-        )
+        # The build is the game: the final review (G5) of all of it follows (L2.6).
         sync_db(ctx, f"G4 approved build v{version}")
-        promote_all(ctx.db, f"G4 approved: build v{version}")
-        store.advance(run_id, ctx.run.cursor, "G4 approved; game build locked", final=True)
+        open_final_gate(ctx, version)
+        return False
+
+    if last.stage == "final" and last.status == "approved":
+        finish(ctx, shown(ctx, last, REPORT), last.id)
         return False
 
     if last.stage == "menus" and last.status == "approved":
@@ -1105,7 +1110,8 @@ def game_step(store, run_id) -> bool:
                                                motion=motion, menus=menus))  # fmt: skip
         return False
 
-    if last.stage == "playtest" and last.status == "changes_requested":
+    if last.stage in ("playtest", "final") and last.status == "changes_requested":
+        # G5 feedback is handled as G4 feedback: a new build, then G4 again.
         shown_version = shown(ctx, last, REPORT)
         version = shown_version + 1
         previous = ctx.read(f"game/v{shown_version}/report.json")
@@ -1238,9 +1244,13 @@ def game_step(store, run_id) -> bool:
     if "game/design/v1.json" not in ctx.artifacts:  # runs from before L2.2 have no plan
         research = ensure_research(ctx)
         ctx.log("Game Designer")("writing the game plan")
+        # Lessons of earlier games a human promoted (L2.6) go into the plan.
+        root = ctx.store.path.parent / "memory"
+        lessons = (past_lessons(KnowledgeStore(root, ctx.store, ctx.run_id), ctx.brief.genre,
+                                request_text(ctx.brief)) if (root / "lessons").is_dir() else "")  # fmt: skip
         plan = ensure_plan(ctx, 1, lambda: write_plan(
             ctx.models, request_text(ctx.brief), ctx.brief.notes,
-            research_brief(research) if research else "", side_view(ctx)))  # fmt: skip
+            research_brief(research) if research else "", side_view(ctx), lessons))  # fmt: skip
     design = ctx.once(
         "game/design/v1.json",
         GameDesign,

@@ -216,14 +216,14 @@ def test_dropped_tests_and_suite_merge():
     ]
     assert dropped_tests("make the slime red", names) == []
     v1 = QATests(tests=[qa_test(n, s(do="expect_no_errors")) for n in names])
-    suite1 = merge_suite(None, v1, 1)
+    suite1 = merge_suite(None, v1.tests, 1)
     assert suite1.versions == [1, 1, 1]
     suite2 = merge_suite(suite1, None, 2, ["Restarts after losing"])
     assert [t.name for t in suite2.tests] == [names[0], names[2]]
     assert suite2.dropped == ["Restarts after losing"] and suite2.since(names[0]) == 1
     new = QATests(tests=[qa_test("loses when idle", s(do="wait", seconds=1)),
                          qa_test("menu works", s(do="expect_no_errors"))])  # fmt: skip
-    suite3 = merge_suite(suite2, new, 3)
+    suite3 = merge_suite(suite2, new.tests, 3)
     assert [(t.name, v) for t, v in zip(suite3.tests, suite3.versions, strict=True)] == [
         (names[0], 1), ("loses when idle", 3), ("menu works", 3)]  # fmt: skip
     assert QASuite.model_validate(suite3.model_dump()) == suite3

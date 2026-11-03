@@ -33,6 +33,7 @@ from .design import GameDesign
 from .qa_runtime import KEYS, MAX_TEST_SECONDS, MENU_WAIT, PRESS_FRAMES, describe_step, serve
 
 MAX_TESTS, MAX_STEPS, MAX_SUITE = 12, 40, 24
+MAX_LEVELS = 8  # a game's levels (structure.MAX_LEVELS); code adds one test per level (L2.6)
 StepKind = Literal[
     "hold", "press", "wait", "choose", "expect_event", "expect_state", "expect_no_errors",
     "screenshot", "expect_menu", "select", "reload",
@@ -155,23 +156,30 @@ class QATest(Contract):
         "path and restart after losing"
     )
     start: Literal["play", "title"] = Field(
-        description="play: the test starts in level 1 (the title is skipped); title: on the "
-        "title screen (tests of the menus)"
+        description="play: the test starts in play, in `level` (the title is skipped); title: "
+        "on the title screen (tests of the menus)"
+    )
+    level: int = Field(
+        description="start play: the level the test starts in (1 = the first); a game with "
+        "several levels can test each one directly. Ignored with start title"
     )
     steps: list[Step]
 
     @model_validator(mode="before")
     @classmethod
     def older(cls, data):
-        """Tests saved before menus existed (L2.5) start in play."""
-        if isinstance(data, dict) and "start" not in data:
-            data = {**data, "start": "play"}
+        """Tests saved before menus existed (L2.5) start in play; before L2.6, in level 1."""
+        if isinstance(data, dict):
+            data = {"start": "play", "level": 1, **data}
         return data
 
     @model_validator(mode="after")
     def check(self):
         self.name, self.purpose = self.name.strip(), self.purpose.strip()[:240]
         need(0 < len(self.name) <= 60, "a test needs a name of at most 60 characters")
+        need(1 <= self.level <= MAX_LEVELS, f"level must be 1-{MAX_LEVELS}, not {self.level}")
+        if self.start == "title":
+            self.level = 1
         need(1 <= len(self.steps) <= MAX_STEPS, f"a test has 1 to {MAX_STEPS} steps")
         total = sum(s.game_seconds() for s in self.steps)
         need(total <= MAX_TEST_SECONDS, f"test {self.name!r} needs {total:g} game seconds; "
@@ -222,9 +230,16 @@ def menus_part(menus: dict | None) -> str:
         return ""
     levels = len(menus.get("levels", [])) or 1
     between = " and between levels 'results'" if levels > 1 else ""
+    several = (
+        f"\nThe game has {levels} levels (" + ", ".join(f"{lv['n']}. {lv['name']}" for lv in
+        menus["levels"]) + "). A test with start \"play\" and `level` n starts in level n "
+        "(sf.state.level is n); code already adds one test per level that it starts, the player "
+        "moves and nothing fails, so write level tests only for what a level itself promises."
+        if levels > 1 else ""
+    )  # fmt: skip
     return f"""
 Menus (the SDK draws and runs them; they are data, the same in every build of this game):
-the game opens on its title screen. A test with start "play" skips it and starts in level 1;
+the game opens on its title screen. A test with start "play" skips it and starts in `level`;
 start "title" begins on the title screen. Every test starts with no saved progress.
 * expect_menu: the screen `menu` (a screen id below) is open, waiting up to {MENU_WAIT:g} s
 * select: moves the highlight to the item whose label (or action) is `menu` with the arrow
@@ -237,7 +252,7 @@ resumes). Screens and items:
 Flow events: {", ".join(FLOW_EVENTS)}. sf.state.difficulty is easy, normal or hard (the
 settings item cycles normal -> hard -> easy). After 'lose' the game_over screen opens
 (about a second later); after the last level 'victory'{between}.
-Selecting an item emits menu_select; opening a screen emits menu_open.
+Selecting an item emits menu_select; opening a screen emits menu_open.{several}
 """
 
 
@@ -387,6 +402,32 @@ def flow_tests(design: GameDesign, menus: dict) -> list[QATest]:
     return tests
 
 
+def level_tests(menus: dict | None) -> list[QATest]:
+    """One test per level of a game with several (L2.6): it starts in that level, which
+    begins, moves with real keys and runs without errors. Code adds them to every build's
+    suite (`merge_suite`), so every build checks every level with real input (the bot's run
+    is the other half)."""
+    levels = (menus or {}).get("levels", [])
+    if len(levels) < 2:
+        return []
+    s = blank_step
+    return [QATest(
+        name=f"level {lv['n']} starts and plays", god=True, start="play", level=lv["n"],
+        purpose=f"Level {lv['n']} ({lv['name']}) starts on its own and the player moves in it.",
+        steps=[s(do="expect_event", event="level_start", min_count=1, within_seconds=2),
+               s(do="expect_state", path="level", op="==", value=str(lv["n"])),
+               s(do="hold", buttons=["right"], seconds=1.5),
+               s(do="expect_state", path="x", op=">", value="@start"),
+               s(do="screenshot", label=f"level {lv['n']}"), s(do="expect_no_errors")],
+    ) for lv in levels[:MAX_LEVELS]]  # fmt: skip
+
+
+def with_level_tests(tests: list[QATest], menus: dict | None) -> list[QATest]:
+    """`tests` plus the per-level tests code writes (a test of the same name is kept)."""
+    names = {t.name.casefold() for t in tests}
+    return [*tests, *(t for t in level_tests(menus) if t.name.casefold() not in names)]
+
+
 def fallback_qa(design: GameDesign, menus: dict | None = None) -> QATests:
     """Offline QA Playtester: tests every design can take (movement, no errors, the HUD clock,
     the first timed check, losing and restarting), and with menus the flow (title to play,
@@ -521,7 +562,7 @@ def screenshot_files(results: list[dict]) -> dict[str, bytes]:
 
 def merge_suite(
     previous: QASuite | None,
-    new: QATests | None,
+    new: list[QATest] | None,
     version: int,
     drop: list[str] = (),
     notes: list[str] = (),
@@ -535,7 +576,7 @@ def merge_suite(
         if t.name.casefold() not in dropped:
             tests[t.name.casefold()] = t
             since[t.name] = previous.since(t.name) or version
-    for t in new.tests if new else []:
+    for t in new or []:
         if t.name.casefold() not in dropped:
             old = tests.pop(t.name.casefold(), None)
             if old is not None:

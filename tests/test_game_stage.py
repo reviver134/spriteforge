@@ -92,7 +92,9 @@ def test_design_gate_then_playtest_gate_with_targeted_revisions(tmp_path):
         "muse (locked, from v2)",
     }
 
-    # Empty feedback approves: approval.json, run complete.
+    # Empty feedback approves G4; G5 (the final review, L2.6) follows; approving it finishes.
+    submit(store, ident)
+    assert Gates(store).pending(ident).stage == "final"
     submit(store, ident)
     approval = read(store, ident, "approval.json")
     assert approval["mode"] == "game" and approval["version"] == 3 and approval["passed"]
@@ -233,7 +235,8 @@ def test_no_story_unless_asked_and_the_game_record(tmp_path, monkeypatch):
     assert {"story/overview", "story/canon", "characters/hero", "decisions/4"} <= ids
     assert "story changed" in next(e for e in db.scan()[0] if e.id == "decisions/4").body
 
-    submit(store, ident)  # approve G4: the whole record is human-reviewed
+    submit(store, ident)  # approve G4, then G5: the whole record is human-reviewed
+    submit(store, ident)
     assert store.get_run(ident).status == "completed"
     stable = [e for e in db.scan()[0] if e.metadata.status == "stable"]
     assert {e.metadata.trust_tier for e in stable} == {"human-reviewed"}

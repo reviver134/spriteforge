@@ -2,6 +2,7 @@
 
 import hashlib
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
@@ -142,7 +143,9 @@ class KnowledgeStore:
         *,
         min_score: float | None = None,
         relative_score: float | None = None,
+        only: Callable[[Entry], bool] | None = None,
     ) -> list[Snippet]:
+        """`only`: the entries that may be found (e.g. human-reviewed lessons)."""
         scopes = ["project"] if scopes is None else scopes
         if set(scopes) - {"project", "private"} or token_budget < 0:
             raise ValueError("Invalid scopes or token budget")
@@ -150,7 +153,8 @@ class KnowledgeStore:
         entries, _ = (
             self.scan()
         )  # Refresh on every request: drop-in genre files need no code changes.
-        candidates = [entry for entry in entries if self.permitted(entry, scopes)]
+        candidates = [entry for entry in entries
+                      if self.permitted(entry, scopes) and (only is None or only(entry))]  # fmt: skip
         snippets = []
         remaining = token_budget
         defaults = load_config().memory

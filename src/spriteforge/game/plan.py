@@ -343,11 +343,14 @@ Keep every number the human gave. The game is original: research teaches pattern
 a game's levels, characters or art. No story, names or lore unless the human asked for a story."""
 
 
-def plan_prompt(request: str, research: str = "") -> str:
+def plan_prompt(request: str, research: str = "", lessons: str = "") -> str:
+    """`lessons`: human-reviewed lessons from earlier games of the genre (L2.6)."""
     return (
         "Write the game plan for this request: the concrete numbers and ideas the design, the "
         "levels, the art and the code will be built from, not adjectives.\n" + GUIDE
         + (f"\n\nResearch on similar games:\n{research.strip()}" if research.strip() else "")
+        + ("\n\nLessons from earlier games of this genre (reviewed by a human; apply them where "
+           f"they fit this request):\n{lessons.strip()}" if lessons.strip() else "")
         + f"\n\nThe human's words:\n{request.strip()}"
     )  # fmt: skip
 

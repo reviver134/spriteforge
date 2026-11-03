@@ -173,6 +173,7 @@ def create_app(
                         "design",
                         "menus",
                         "playtest",
+                        "final",
                     }:
                         raise ValueError("Changes can be requested at the concept review")
                     if feedback.action == "request_changes" and pending.stage == "assets":

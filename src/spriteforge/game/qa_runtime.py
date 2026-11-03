@@ -13,7 +13,7 @@ per frame. The game keeps running after `win` or `lose`, so a test can press Ent
 the restart.
 
 A build with menus (L2.5) opens on its title screen; a test starts in play (`?play=1`) unless
-its `start` is "title". Every test starts with no saved progress (`?reset=1`); `reload` opens
+its `start` is "title"; a test of one level (L2.6, `level` n > 1) opens `?level=n`. Every test starts with no saved progress (`?reset=1`); `reload` opens
 the page again on the title with the progress kept. `expect_menu` waits for a screen of the
 SDK's menus (sf.menu.screen) and `select` moves the highlight to an item with real arrow keys
 and picks it with Enter.
@@ -134,10 +134,12 @@ def booted(page, timeout: float = 30) -> bool:
 class Game:
     """One open build in one page: steps game time, presses keys, reads the SDK."""
 
-    def __init__(self, page, url: str, god: bool, fps: int, start: str = "play"):
+    def __init__(self, page, url: str, god: bool, fps: int, start: str = "play", level: int = 1):
         self.page, self.fps, self.errors, self.url, self.god = page, fps, [], url, god
         page.on("pageerror", lambda e: self.errors.append(str(e)))
         play = "&play=1" if start != "title" else ""
+        if start != "title" and int(level) > 1:
+            play += f"&level={int(level)}"
         self.open(f"{url}/index.html?headless=1&reset=1{play}" + ("&god=1" if god else ""))
         self.start = self.now()
         self.offset = 0.0  # game time before the last reload
@@ -327,7 +329,8 @@ def run_test(page, url: str, test: dict, fps: int = 30) -> dict:
               "steps": [], "state": {}, "events": {}, "errors": [], "game_seconds": 0.0,
               "screenshots": []}  # fmt: skip
     try:
-        game = Game(page, url, bool(test.get("god")), fps, test.get("start") or "play")
+        game = Game(page, url, bool(test.get("god")), fps, test.get("start") or "play",
+                    test.get("level") or 1)
     except Exception as exc:  # noqa: BLE001 -- a build that does not boot fails the test
         result["failure"] = f"the game did not boot: {str(exc).splitlines()[0][:200]}"
         return result

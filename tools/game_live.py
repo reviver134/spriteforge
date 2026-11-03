@@ -6,7 +6,8 @@
 
 G1 (genre, brief, follow-ups) is answered with the given values; `--until design` stops at G2;
 `--until menus` approves G2 and stops at G3 (the menus, L2.5); `--until playtest` approves G2
-and G3 (empty feedback) and stops at G4, so the human plays the build and answers G4 in the UI.
+and G3 (empty feedback) and stops at G4, so the human plays the build and answers G4 in the UI;
+`--until final` also approves G4 and stops at G5 (the final review, L2.6).
 `--menus-feedback TEXT` answers the open G3 once with that text (the menus revised, the same
 code and art built again). `--feedback TEXT` answers the open G4 once with that text (a new
 build) and stops at the next G4; with `--level N` the text is about level N only (the G4 form). `--no-research` answers No to "Research similar games?".
@@ -35,7 +36,7 @@ def main():
     parser.add_argument("--perspective", default="side-scroll")
     parser.add_argument("--story", action="store_true", help="answer Yes to Story? at G1")
     parser.add_argument("--no-research", action="store_true", help="answer No to Research?")
-    parser.add_argument("--until", choices=["design", "menus", "playtest"], default="playtest")
+    parser.add_argument("--until", choices=["design", "menus", "playtest", "final"], default="playtest")
     parser.add_argument("--menus-feedback", default="", help="answer the open G3 with this text once")
     parser.add_argument("--feedback", default="", help="answer the open G4 with this text once")
     parser.add_argument("--level", type=int, default=0,
@@ -77,7 +78,7 @@ def main():
         if gate.stage in forms:
             Gates(store).respond(run.id, gate.id, Feedback(action="approve", form=forms[gate.stage]))
             continue
-        if gate.stage == "design" and args.until in {"menus", "playtest"}:
+        if gate.stage == "design" and args.until in {"menus", "playtest", "final"}:
             print(f"approving as the test operator: {gate.title[:100]}", flush=True)
             Gates(store).respond(run.id, gate.id, Feedback(action="submit", text=""))
             continue
@@ -86,7 +87,7 @@ def main():
             Gates(store).respond(run.id, gate.id, Feedback(action="submit", text=args.menus_feedback))
             args.menus_feedback = ""
             continue
-        if gate.stage == "menus" and args.until == "playtest":
+        if gate.stage == "menus" and args.until in {"playtest", "final"}:
             print(f"approving as the test operator: {gate.title[:100]}", flush=True)
             Gates(store).respond(run.id, gate.id, Feedback(action="submit", text=""))
             continue
@@ -97,6 +98,10 @@ def main():
             form = {"level": picked} if args.level and picked else {}
             Gates(store).respond(run.id, gate.id, Feedback(action="submit", text=args.feedback, form=form))
             args.feedback = ""
+            continue
+        if gate.stage == "playtest" and args.until == "final":
+            print(f"approving as the test operator: {gate.title[:100]}", flush=True)
+            Gates(store).respond(run.id, gate.id, Feedback(action="submit", text=""))
             continue
         break
     gate = Gates(store).pending(run.id)

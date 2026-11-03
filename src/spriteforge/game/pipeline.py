@@ -435,10 +435,11 @@ def write_research(models: Models, request: str, genre: str, genre_body: str,
 
 
 def write_plan(models: Models, request: str, notes: list[str], research: str,
-               side_view: bool) -> PlanRecord:  # fmt: skip
-    """The Game Designer's plan from the human's words and the research; code fits and checks
-    it, and the problems it cannot repair go back to the Game Designer once."""
-    prompt = plan_prompt(request, research)
+               side_view: bool, lessons: str = "") -> PlanRecord:  # fmt: skip
+    """The Game Designer's plan from the human's words, the research and the human-reviewed
+    lessons of earlier games; code fits and checks it, and the problems it cannot repair go
+    back to the Game Designer once."""
+    prompt = plan_prompt(request, research, lessons)
     plan = models.ask("Game Designer", prompt, GamePlan, fallback_plan(notes, side_view), "plan")
     return checked_plan(models, plan, prompt, request)
 
@@ -1007,7 +1008,8 @@ def review_art(
     try:
         answer = models.ask(
             "Art Reviewer",
-            review_prompt(design, art, slots, findings, len(shots), rows=bool(strips)),
+            review_prompt(design, art, slots, findings, len(shots), rows=bool(strips),
+                          levels=[s["level"] for s in outcome.screenshots if "level" in s]),
             ArtReview,
             offline,
             "review",

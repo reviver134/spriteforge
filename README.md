@@ -870,3 +870,25 @@ G4, where menu feedback still reaches the Menu Designer (`menu_changes`). The bu
 `design/structure`, `menus/overview` and `menus/<screen>` with their screenshots.
 `game.menus: false` builds without them; `game.title_art: false` lets code draw the title art.
 Details: `docs/level-2.md`.
+
+
+# Level 2 / L2.6: the whole game and the final review (G5)
+
+Every build already holds every level; now every build also tests every level with real keys:
+code adds one QA test per level ("level n starts and plays", `level` n opens `?level=n`) to the
+QA Playtester's tests, and the regression suite carries them from build to build beside the
+flow and menu tests. The bot still plays each level on its own within a time budget per level,
+and the Art Reviewer sees one screenshot per level (saved as `game/vN/levels/shot-n.png`).
+
+Approving a build at G4 no longer ends the run: **G5** shows the whole game
+(`game/final/vN-review.json`: every level's bot run, preview, screenshot and QA tests, QA by
+kind, the art, the cost of the whole run, the record by section and trust) and the
+**Librarian's lessons** (`game/final/vN-lessons.json`: 1-6 lessons written from facts code
+recorded during the run, with the evidence; one Spark call, written by code offline). Feedback
+at G5 works like G4 feedback (a new build, then G4 again). Empty feedback finishes the game:
+the whole record becomes human-reviewed, the lessons go to the shared memory
+(`<workspace>/memory/lessons/`) as generated knowledge, and `game/vN/export.zip` holds the
+build (with its QA tests) and its record; the UI links it next to Play. Lessons reach later
+games only after a human promotes them (`spriteforge memory promote lessons/<id> --by <you>`):
+promoted lessons of the same genre go into the next game plan's prompt.
+`tools/game_live.py --until final` approves G4 and stops at G5. Details: `docs/level-2.md`.

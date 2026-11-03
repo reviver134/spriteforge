@@ -77,8 +77,8 @@ def gate_revision(ctx, n: int, version: int | None = None) -> Revision | None:
 
 
 def decisions(ctx) -> list[Decision]:
-    """The human's decisions: the G1 brief, then every answered design, menus and playtest
-    gate."""
+    """The human's decisions: the G1 brief, then every answered design, menus, playtest and
+    final (G5) gate."""
     brief = ctx.brief
     out = [Decision(
         gate="G1 brief", outcome="approved", words="\n".join(n for n in brief.notes if n.strip()),
@@ -87,7 +87,7 @@ def decisions(ctx) -> list[Decision]:
                    else "no research"),
     )]  # fmt: skip
     for n, g in enumerate(Gates(ctx.store).all(ctx.run_id), 1):
-        if g.response is None or g.stage not in {"design", "menus", "playtest"}:
+        if g.response is None or g.stage not in {"design", "menus", "playtest", "final"}:
             continue
         words = (g.response.text or "").strip()
         if g.stage == "menus":
@@ -113,11 +113,15 @@ def decisions(ctx) -> list[Decision]:
                 out.append(Decision(gate, "changes requested", words, f"design v{k + 1}{story}"))
             continue
         v = shown(ctx, g, REPORT) or 1
-        gate = f"G4 playtest v{v}"
-        if g.status == "approved" and added:
+        gate = f"G5 final review (build v{v})" if g.stage == "final" else f"G4 playtest v{v}"
+        if g.status == "approved" and g.stage == "final":
+            out.append(Decision(gate, "approved", words, f"the game is finished with build v{v}: its "
+                                "record human-reviewed, the lessons in the shared memory", v))  # fmt: skip
+        elif g.status == "approved" and added:
             out.append(Decision(gate, "story added", words, "a story was written for the game", v))
         elif g.status == "approved":
-            out.append(Decision(gate, "approved", words, f"build v{v} approved: the game is locked", v))
+            out.append(Decision(gate, "approved", words, f"build v{v} approved: the final review "
+                                "(G5) follows", v))  # fmt: skip
         else:
             rev = gate_revision(ctx, n, v)
             if rev and rev.story_only:

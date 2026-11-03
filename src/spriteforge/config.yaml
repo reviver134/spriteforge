@@ -100,6 +100,7 @@ llm:
     level: high # Level/Tile Designer writing each level as data (L2.3)
     motion: medium # Art Director's motion design: rows, forms, effects (L2.4)
     menus: medium # Menu Designer: the menus as data and their revisions (L2.5)
+    lessons: low # Librarian: lessons from a finished game, shown at G5 (L2.6)
 research:
   # tools/probe_web_search.py 2026-11-02: Chat Completions rejects {"type": "web_search"}
   # (HTTP 400 "tools[0] did not match any supported type"); the Responses API accepts it.
