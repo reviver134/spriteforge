@@ -11,6 +11,7 @@ from spriteforge.pixel.postprocess import postprocess
 from spriteforge.pixel.schemas import AssetSpec as PixelSpec
 from spriteforge.pixel.schemas import ProcessingOptions, ProcessingReport
 from spriteforge.pixel.source import estimate_background, key_background, mode_resize
+from spriteforge.pixel.terrain import repair_seams
 from spriteforge.pixel.validate import validate
 from spriteforge.providers.base import ImageRequest
 from spriteforge.providers.http import ProviderError
@@ -34,7 +35,7 @@ def pixelspec(task, style):
     )
 
 
-def process(raw, task, style, *, scale_mode="fit"):
+def process(raw, task, style, *, scale_mode="native"):
     source = Image.open(io.BytesIO(raw)).convert("RGBA")
     spec = pixelspec(task, style)
     report = ProcessingReport()
@@ -76,10 +77,7 @@ def process(raw, task, style, *, scale_mode="fit"):
 def deterministic_repair(image, task, style):
     result = image.copy().convert("RGBA")
     if task.spec.type == "tile":
-        pixels = np.array(result)
-        pixels[:, -1] = pixels[:, 0]
-        pixels[-1, :] = pixels[0, :]
-        result = Image.fromarray(pixels)
+        result = repair_seams(result, style.palette)
     else:
         result = postprocess(result, pixelspec(task, style), style)
     return result
@@ -217,6 +215,7 @@ def generate_task(ctx, task, plan):
             request_name in ctx.artifacts
             and raw_name not in ctx.artifacts
             and cache_name not in ctx.artifacts
+            and attempt_prefix + "/retryable.json" not in ctx.artifacts
         )
         ctx.save(request_name, metadata)
         try:
@@ -249,6 +248,19 @@ def generate_task(ctx, task, plan):
                     )
                 ctx.save(raw_name, ctx.data(cache_name), mime="image/png")
             image, failures, report = process(ctx.data(raw_name), task, ctx.style)
+            if task.spec.type == "tile" and any(
+                f.code in {"tile_edges", "tile_wrap"} for f in failures
+            ):
+                ctx.save(attempt_prefix + "/before-seam-repair.png", png(image), mime="image/png")
+                image = deterministic_repair(image, task, ctx.style)
+                failures = validate(image, pixelspec(task, ctx.style), ctx.style)
+                fixed = not any(f.code in {"tile_edges", "tile_wrap"} for f in failures)
+                ctx.store.append_event(
+                    ctx.run_id,
+                    "Pixel Artist",
+                    "asset.seam_repair",
+                    {"id": task.id, "passed": fixed, "attempt": attempt},
+                )
             last_image = image
             ctx.save(attempt_prefix + "/processed.png", png(image), mime="image/png")
             ctx.save(
@@ -263,13 +275,35 @@ def generate_task(ctx, task, plan):
                 ]
             accepted = not failures and scores is not None and scores.passed
         except ProviderError as exc:
-            issues, scores = [str(exc)], None
+            # A known failed dispatch consumes neither an image attempt nor cap.
+            # Stop this workflow invocation; explicit resume retries the same slot.
+            if not interrupted:
+                ctx.save(attempt_prefix + "/retryable.json", {"retryable": True})
+            ctx.store.append_event(
+                ctx.run_id,
+                "Pixel Artist",
+                "asset.provider_failed",
+                {"id": task.id, "attempt": attempt, "message": str(exc)},
+            )
+            raise
         log = {
             "attempt": attempt,
             "request": request_name,
             "cache_key": cache_key,
             "passed": accepted,
             "issues": issues,
+            "router_decisions": [
+                e.payload
+                for e in ctx.store.events(ctx.run_id)
+                if e.type == "router.decision"
+                and (
+                    prefix in e.payload.get("task_id", "")
+                    or e.payload.get("task_id")
+                    == "context:production/context/"
+                    + task.spec.type
+                    + ("-frame.json" if task.base else "-base.json")
+                )
+            ],
             "scores": scores.model_dump() if scores else None,
         }
         ctx.save(result_name, log)
@@ -325,6 +359,7 @@ def generate_task(ctx, task, plan):
         scores=scores,
         issues=issues,
         provenance=provenance,
+        locked=accepted,
     )
     ctx.save(finished, record.model_dump())
     ctx.lock(record, plan)

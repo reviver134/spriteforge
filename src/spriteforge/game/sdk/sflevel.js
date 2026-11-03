@@ -132,8 +132,14 @@
     p.setDepth(10);
     L.spawnAt = [p.x, p.y];
     dressPlayer(scene, L);
-    scene.physics.add.collider(p, layer);
-    scene.physics.add.collider(L.groups.enemy, layer);
+    // A one-way tile holds a body only when its feet were on or above the tile's top before
+    // this step (coming down onto it), as game/reach.py assumes. Arcade alone snaps a body up
+    // onto any tile it overlaps by less than TILE_BIAS: a jump that peaked a few pixels under
+    // a one-way platform landed on it (live 2026-11-03, level 2 of the slime game).
+    const fromAbove = (o, tile) => kindOf[tile.index] !== 'one_way'
+      || o.body.prev.y + o.body.height <= tile.pixelY + 1;
+    scene.physics.add.collider(p, layer, null, fromAbove);
+    scene.physics.add.collider(L.groups.enemy, layer, null, fromAbove);
     const touch = (_, o) => touched(L, o.getData('thing'));
     // Standing on a solid thing counts as ground (body.touching is no use: Arcade sets it for
     // overlaps too, so passing through a coin in mid-air would read as a landing).

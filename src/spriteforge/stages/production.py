@@ -5,6 +5,7 @@ import json
 from spriteforge.agents.models import ChangeRequest, Changes
 from spriteforge.core.cost import BudgetExceeded
 from spriteforge.core.gates import Gates, new_gate
+from spriteforge.providers.http import ProviderError
 
 from .asset_context import ProductionContext, make_manifest
 from .asset_models import Manifest, ProductionPlan, dependents
@@ -62,6 +63,13 @@ def production_step(store, run_id):
             store._event(
                 db, run_id, "Director", "production.budget_exhausted", {"message": message}
             )
+        return False
+    except ProviderError as exc:
+        ctx.store.fail(
+            run_id,
+            "Asset production paused after a provider failure; resume to retry the same attempt. "
+            + str(exc),
+        )
         return False
 
 

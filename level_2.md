@@ -152,7 +152,7 @@ The plan gives every later agent concrete numbers and challenge ideas, not adjec
 ### L2.3: The Level Designer and levels as data (old L2.4 + L2.5, for platformers first)
 
 **Goal.** A Level Designer writes each level as data from the plan and the game's record; code
-proves each level can be played with the slime's real movement; the Programmer writes the
+proves each level can be played with the players real movement; the Programmer writes the
 mechanics once.
 
 * `LevelSpec` as in the old L2.4, plus platformer pieces: tile rows, one-way platforms,

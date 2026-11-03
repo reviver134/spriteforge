@@ -1018,8 +1018,52 @@ and `test_asset_ui` on the uncommitted asset-pipeline changes, and
 `test_memory_okf::test_search_bm25_budget_staleness_and_retrieval_events`, which fails the same
 way without this session's change to the store).
 
-### Not done yet
+### Fixes from the first live run (2026-11-03)
 
-No live run: the acceptance (a live three-level game through G5, its record human-reviewed and
-its lessons in the shared memory) needs a paid run, e.g. `tools/game_live.py --workspace
-workspace/l26-slime --goal "..." --until final`, then G5 answered in the UI.
+The slime game (`workspace/l26-slime`, the L2.3 goal word for word, `--until final`) reached G5
+with build v1 at 0/3 levels cleared and QA 8/10 ($1.31: 22 Spark, 7 Muse Image calls). The
+L2.6 parts worked: the three level tests passed with real keys, G5 opened with the review and
+six lessons, the record had 68 concepts. The levels did not, for three reasons:
+
+* **Two levels code had proved unfinishable were built.** Level 1 had an enemy nothing beats
+  (`opened_by: never`) on its only path; level 3 a 6-tile gap whose landing lay in an enemy's
+  patrol. The Level Designer's retry did not help, because the solver's explanation skipped
+  blockers marked `never` and said only "gets no further than column 23" plus a hint about
+  floors and gaps. Then `write_level` kept the less bad answer, and three Programmer repairs
+  chased a problem in the level data.
+  * The solver now says it: "an enemy (patroller) at column 27 blocks the way and nothing
+    beats it (opened_by 'never'): give it something that beats it, or leave room to jump over
+    it".
+  * Code clears the way (`levels.clear_way`, in `evaluate`'s repair loop with the lowering of
+    floors): looking up to 12 columns past the furthest point the player reaches, it removes
+    an enemy nothing beats, else narrows the next gap from its far side a column at a time,
+    else removes an enemy that can be beaten (part of the level's idea, so last); the first
+    change that gets the player further is kept, with a note, until the level solves. On the
+    live levels: level 1's enemy removed, level 3's gap narrowed to 4 tiles (its acid enemy
+    kept).
+  * A level still unsolved after the retry and the repairs is never built
+    (`pipeline.finishable`): code's own level for that place stands in, with a note.
+* **A jump caught a one-way platform from below.** Level 2 was solved by code, but the bot's
+  jump at step 13 peaked 0.43 tiles under a one-way platform and Arcade snapped it on top
+  (it pushes a body up onto any tile it overlaps by less than TILE_BIAS, a whole tile here).
+  The SDK's tile colliders now let a one-way tile hold a body only when its feet were on or
+  above the tile's top before the step, as `reach.py` assumes. Replayed with the fixed SDK,
+  the live build's level 2 is cleared by the bot (13.6 game seconds) with its own game code.
+* **Checkpoints looked like crates.** The design had no checkpoint entity, and the Level
+  Designer drew every checkpoint with the crate (level 1's "checkpoint" was matched by code to
+  a look-alike). The human played it, noted "some boxes are unbreakable" and approved G5
+  (approve with a note, so the run finished with build v1: its record human-reviewed, six
+  lessons in the shared memory, `game/v1/export.zip`). `fit_level` now never lets a
+  checkpoint wear the look of another thing in its level (a crate, an enemy, a wall, a pickup,
+  the exit): the SDK draws its own flag, with a note.
+* `tools/game_live.py --final-feedback TEXT` answers the open G5 once.
+
+With all four fixes, code re-checks the live run's three levels as solvable: level 1 without
+the enemy nothing beats, level 2 unchanged, level 3 with its gap narrowed to 4 tiles, every
+checkpoint a flag.
+
+Tests (`tests/test_levels.py`): code removes an enemy nothing beats and narrows a gap it cannot
+cross (from the far side); the solver names an enemy nothing beats; a level code cannot finish
+is replaced by code's level (and a solved one is kept); in a browser, a full jump that peaks
+just under a one-way platform comes back down on the floor (it fails on the old SDK); a
+checkpoint never looks like a crate.

@@ -700,7 +700,12 @@ class Search:
             exit_: Thing) -> list[str]:  # fmt: skip
         out = []
         for t in frontier.values():
-            if t.opened_by == "never":
+            if t.opened_by == "never":  # live 2026-11-03: this was not said, and the retry failed
+                if t.kind in ("enemy", "breakable"):
+                    what = "an enemy" if t.kind == "enemy" else "a breakable wall"
+                    out.append(f"{what} ({t.entity}) at column {t.col} blocks the way and nothing "
+                               "beats it (opened_by 'never'): give it something that beats it, or "
+                               "leave room to jump over it")  # fmt: skip
                 continue
             if t.needs and key(t.needs) not in held:
                 what = {"enemy": "an enemy", "breakable": "a breakable wall", "crate": "a crate"}[t.kind]

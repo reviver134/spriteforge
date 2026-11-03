@@ -389,6 +389,25 @@ def level_pack(records: list[LevelRecord], design: GameDesign, plan: PlanRecord,
     return LevelPack(checked, levels_script(checked, design, plan, body))
 
 
+def finishable(record: LevelRecord, design: GameDesign, plan: PlanRecord,
+               earlier: list[LevelRecord], fps: int = 30) -> LevelRecord:
+    """A level code could not solve (after the retry and code's repairs) is never built: code's
+    own level for that place stands in, with a note saying why (live 2026-11-03: two such
+    levels were built, and three Programmer repairs chased them)."""
+    if record.solved:
+        return record
+    n, previous, body = record.spec.n, (earlier[-1] if earlier else None), player_body(design)
+    why = (f"the Level Designer's level {n} could not be finished ({record.problems[0]}); "
+           "code's level stands in") if record.problems else "code's level stands in"  # fmt: skip
+    for variant in range(3):
+        stand_in = evaluate(fallback_level(n, design, plan, variant), n, design, plan, previous,
+                            body, fps, record.retried, [*record.notes, why],
+                            f"code (in place of {record.by})")  # fmt: skip
+        if stand_in.solved:
+            return stand_in
+    return record
+
+
 def better_level(a: LevelRecord, b: LevelRecord) -> LevelRecord:
     """The better of two answers: solvable first, then fewer problems (b wins a tie)."""
     rank = lambda r: (r.solved, -len(r.problems))
@@ -408,7 +427,8 @@ def write_level(models: Models, n: int, design: GameDesign, plan: PlanRecord,
     again = models.ask("Level/Tile Designer", level_retry_prompt(prompt, record.problems), LevelSpec,
                        record.spec, "level")  # fmt: skip
     retried = evaluate(again, n, design, plan, previous, body, fps, True, record.notes, models.name)
-    return better_level(record.model_copy(update={"retried": True}), retried)
+    return finishable(better_level(record.model_copy(update={"retried": True}), retried), design,
+                      plan, earlier, fps)  # fmt: skip
 
 
 def revise_level(models: Models, record: LevelRecord, said: str, design: GameDesign,
@@ -425,7 +445,8 @@ def revise_level(models: Models, record: LevelRecord, said: str, design: GameDes
     again = models.ask("Level/Tile Designer", level_retry_prompt(prompt, revised.problems), LevelSpec,
                        revised.spec, "level")  # fmt: skip
     retried = evaluate(again, n, design, plan, previous, body, fps, True, revised.notes, models.name)
-    return better_level(revised.model_copy(update={"retried": True}), retried)
+    return finishable(better_level(revised.model_copy(update={"retried": True}), retried), design,
+                      plan, earlier, fps)  # fmt: skip
 
 
 def write_research(models: Models, request: str, genre: str, genre_body: str,

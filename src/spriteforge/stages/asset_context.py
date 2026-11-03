@@ -158,13 +158,19 @@ class ProductionContext(ProductionStore):
             + self.prompt_context(task)
             + "\nConfirmed revision: "
             + (instruction or "Initial production")
+            + (
+                f"\nPose {task.index + 1} of {task.spec.frames[task.state]} in the {task.state} cycle. "
+                "Space poses evenly around one cycle; change limb/pedal positions while preserving the accepted subject."
+                if task.base
+                else ""
+            )
         )
 
 
 def mock_manifest(brief, style):
     """Small, explicit offline fixture. Live manifests come from the two designer roles."""
     specs = [
-        ("hero", "character", style.character_canvas, {"idle": 1, "walk": 2}, brief.character),
+        ("hero", "character", style.character_canvas, {"idle": 1, "walk": 4}, brief.character),
         ("enemy", "character", style.character_canvas, {"idle": 1, "walk": 2}, "A readable enemy"),
         ("ground", "tile", style.tile_canvas, {"idle": 1}, "Repeatable ground material"),
         ("wall", "tile", style.tile_canvas, {"idle": 1}, "Repeatable wall material"),
@@ -198,6 +204,11 @@ def make_manifest(ctx):
         memory = KnowledgeStore(ctx.store.path.parent / "memory", ctx.store, ctx.run_id)
         seed(memory)
         genre_body = memory.show(ctx.brief.genre).body
+    locked = (
+        Manifest.model_validate(ctx.read(ctx.read("approval.json")["manifest"]))
+        if "preview/locked-assets.json" in ctx.artifacts
+        else None
+    )
     prompt = (
         "Produce a complete but small AssetSpec manifest for this brief using the genre asset checklist. "
         "Human notes override default descriptions. Include actors, terrain, items, UI and effects as needed. "
@@ -211,13 +222,41 @@ def make_manifest(ctx):
         + "\nStyle: "
         + ctx.style.model_dump_json()
         + f"\nImage cap: {ctx.budget.config.max_image_calls}"
+        + "\nThe hero needs a four-frame walk/movement cycle. For a bike rider this is a pedal cycle, not walking beside the bike."
+        + (
+            "\nReuse these LOCKED Gate 2 base assets and their exact ids/descriptions. "
+            "Add the hero's four-frame cycle; add other assets only if necessary for the approved brief. "
+            "Do not duplicate existing enemies, tiles or items under new ids:\n"
+            + locked.model_dump_json()
+            if locked
+            else ""
+        )
     )
     design = ctx.ask(
         "production/game-design-manifest.json",
         "Game Designer",
         prompt,
         ManifestProposal,
-        mock_manifest(ctx.brief, ctx.style),
+        (
+            ManifestProposal(
+                assets=[
+                    ProposedAsset(
+                        **{
+                            k: v for k, v in a.model_dump().items() if k not in {"frames", "locked"}
+                        },
+                        frames=[
+                            FrameState(state=k, count=v)
+                            for k, v in (
+                                {**a.frames, "walk": 4} if a.id == "hero" else a.frames
+                            ).items()
+                        ],
+                    )
+                    for a in locked.assets
+                ]
+            )
+            if locked
+            else mock_manifest(ctx.brief, ctx.style)
+        ),
     )
     proposal = ctx.ask(
         "production/level-design-manifest.json",
@@ -234,19 +273,23 @@ def make_manifest(ctx):
             raise ValueError("Duplicate animation states")
         values = item.model_dump()
         values["frames"] = {f.state: f.count for f in item.frames}
+        if item.id == "hero":
+            values["frames"]["walk"] = max(4, values["frames"].get("walk", 0))
         if item.type == "character":
             values["size"] = ctx.style.character_canvas
         elif item.type == "tile":
             values["size"] = ctx.style.tile_canvas
         assets.append(AssetSpec.model_validate(values))
     manifest = Manifest(assets=assets)
-    if "preview/locked-assets.json" in ctx.artifacts:
-        locked = Manifest.model_validate(ctx.read(ctx.read("approval.json")["manifest"]))
+    if locked:
         # Keep accepted base specs; new animation states may extend them later.
         proposals = {a.id: a for a in manifest.assets}
         for asset in locked.assets:
             if asset.id in proposals:
-                asset.frames = proposals[asset.id].frames
+                asset.frames = {**asset.frames, **proposals[asset.id].frames}
+            if asset.id == "hero":
+                asset.frames["walk"] = max(4, asset.frames.get("walk", 0))
+            asset.locked = True
             proposals[asset.id] = asset
         manifest = Manifest(assets=list(proposals.values()))
     order = {t.id: i for i, t in enumerate(manifest.tasks())}

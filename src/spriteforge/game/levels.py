@@ -220,6 +220,16 @@ def fit_level(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord) -> 
     rows, legend = one_of(rows, legend, kinds, "start", player, notes)
     kinds = {e.char: e.kind for e in legend}
     rows, legend = one_of(rows, legend, kinds, "exit", exit_entity(design), notes)
+    # A checkpoint never wears the look of another thing in the level: the SDK draws its own
+    # flag. Live 2026-11-03: checkpoints drawn as the crate looked like crates that never open
+    # ("some boxes are unbreakable").
+    others = {e.entity for e in legend if e.kind not in {"checkpoint", "start"} and e.entity}
+    for i, e in enumerate(legend):
+        if e.kind == "checkpoint" and e.entity in others:
+            notes.append(f"legend {e.char!r}: a checkpoint drawn as {e.entity!r} would look like "
+                         f"the {next(x.kind for x in legend if x.entity == e.entity and x.kind != 'checkpoint')}; "
+                         "the SDK draws a flag")  # fmt: skip
+            legend[i] = e.model_copy(update={"entity": ""})
     checks = {c.event for c in design.checks}
     events = [e for e in dict.fromkeys(spec.events) if e in checks]
     if dropped := [e for e in spec.events if e not in checks]:
@@ -593,6 +603,68 @@ def events_off_route(spec: LevelSpec, grid, sol) -> list[str]:
     return out
 
 
+REACH_AHEAD = 12  # columns past the furthest point the player reaches that clear_way looks at
+
+
+def clear_way(spec: LevelSpec, design: GameDesign, m, held, sol, kinds: dict[str, str]):
+    """When the exit cannot be reached, one change that gets the player further, looking just
+    past the furthest point: an enemy nothing beats is removed; else the next gap in the floor
+    is narrowed from its far side, a column at a time; else an enemy that can be beaten is
+    removed (it is part of the level's idea, so it goes last). Returns (spec, grid, solution,
+    note) or None. Live 2026-11-03: an enemy nothing beats on the only path and a gap that
+    landed in an enemy's patrol were built, and the bot could not finish either level."""
+    far_c, far_r = max(sol.reached, key=lambda c: (c[0], -c[1]), default=(0, 0))
+    rows, exclusive = spec.rows, set(spec.exclusive)
+
+    def attempt(new_rows: list[str]):
+        trial = spec.model_copy(update={"rows": new_rows})
+        grid = parse(trial, design)
+        found = solve(grid, m, held, exclusive)
+        further = found.solved or max((c for c, _ in found.reached), default=-1) > far_c
+        return (trial, grid, found) if further else None
+
+    never = {e.char for e in spec.legend if e.opened_by == "never"}
+    enemies = [(c, r, ch) for r, row in enumerate(rows) for c, ch in enumerate(row)
+               if kinds.get(ch) == "enemy" and far_c < c <= far_c + REACH_AHEAD]  # fmt: skip
+
+    def remove(which):
+        for c, r, ch in sorted(which):
+            if done := attempt([row[:c] + " " + row[c + 1:] if y == r else row
+                                for y, row in enumerate(rows)]):  # fmt: skip
+                return (*done, f"an enemy ('{ch}') at column {c} blocked the way past column "
+                               f"{far_c}: removed")  # fmt: skip
+        return None
+
+    return (remove([e for e in enemies if e[2] in never]) or narrow_gap(rows, far_c, far_r, kinds, attempt)
+            or remove([e for e in enemies if e[2] not in never]))  # fmt: skip
+
+
+def narrow_gap(rows: list[str], far_c: int, far_r: int, kinds: dict[str, str], attempt):
+    """The first gap in the floor past column far_c, filled from its far side until `attempt`
+    gets the player further."""
+    floor = far_r + 1
+    if floor >= len(rows) or kinds.get(rows[floor][far_c]) != "solid":
+        return None
+    ground, line = rows[floor][far_c], rows[floor]
+    a = far_c + 1
+    while a < len(line) and kinds.get(line[a]) in ("solid", "one_way"):
+        a += 1
+    b = a
+    while b < len(line) and line[b] in EMPTY:
+        b += 1
+    if a >= len(line) or b >= len(line) or a > far_c + REACH_AHEAD:
+        return None  # no gap ahead, or it runs off the level
+    depth = [y for y in range(floor, len(rows)) if rows[y][far_c] == ground]
+    for k in range(1, b - a + 1):
+        cols = range(b - k, b)
+        new = ["".join(ground if (y in depth and x in cols and ch in EMPTY) else ch
+                       for x, ch in enumerate(row)) for y, row in enumerate(rows)]  # fmt: skip
+        if done := attempt(new):
+            what = f"narrowed to columns {a}-{b - k - 1}" if k < b - a else "filled in"
+            return (*done, f"the gap at columns {a}-{b - 1} could not be crossed: {what}")
+    return None
+
+
 def evaluate(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord,
              previous: LevelRecord | None, body: tuple[float, float], fps: int = 30,
              retried: bool = False, notes: list[str] = (), by: str = "") -> LevelRecord:  # fmt: skip
@@ -603,12 +675,11 @@ def evaluate(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord,
     grid = parse(fitted, design)
     sol = solve(grid, m, held, set(fitted.exclusive))
     kinds = {e.char: e.kind for e in fitted.legend}
-    for _ in range(6):
-        out = floors_out_of_reach(grid, sol, m)
-        if not out:
-            break
+    # Code repairs what it can, one change at a time: a floor out of reach is lowered; when the
+    # exit still cannot be reached, the way past the furthest point is cleared (clear_way).
+    for _ in range(8):
         better = None
-        for c0, c1, r in out:
+        for c0, c1, r in floors_out_of_reach(grid, sol, m):
             for down in (1, 2, 3):
                 rows = lower(fitted.rows, kinds, c0, c1, r, down)
                 if rows is None:
@@ -622,7 +693,9 @@ def evaluate(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord,
                     break
             if better:
                 break
-        if not better:
+        if better is None and not sol.solved:
+            better = clear_way(fitted, design, m, held, sol, kinds)
+        if better is None:
             break
         fitted, grid, sol, note = better
         repairs.append(note)

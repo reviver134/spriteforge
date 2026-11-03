@@ -18,6 +18,7 @@ class AssetSpec(Contract):
     desc: str = Field(min_length=1, max_length=3000)
     depends_on: list[Identifier]
     refs: list[Identifier] = Field(max_length=6)
+    locked: bool = False
 
     @model_validator(mode="after")
     def base_frame(self):
@@ -183,6 +184,7 @@ class AssetRecord(Contract):
     scores: Critique | None
     issues: list[str]
     provenance: str
+    locked: bool = True
 
 
 class ProductionPlan(Contract):

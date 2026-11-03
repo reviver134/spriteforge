@@ -2,6 +2,7 @@
 
 import io
 import json
+import math
 
 import pytest
 from PIL import Image
@@ -542,3 +543,93 @@ def test_an_event_the_route_never_makes_happen_is_dropped():
     assert any("never makes happen dropped: enemy_defeat" in n for n in record.notes)
     kept = check(GATED, n=1, events=["crate_open", "enemy_defeat", "wall_break", "level_complete"])
     assert "enemy_defeat" in kept.spec.events
+
+
+# --- live 2026-11-03: unfinishable levels were built; a jump caught a one-way platform from below --
+
+
+def test_code_clears_an_enemy_nothing_beats_and_narrows_a_gap_it_cannot_cross():
+    never = L("x", "enemy", "walker")  # needs nothing, beaten by nothing
+    width = 40
+    row = lambda fill, **at: "".join(at.get(f"c{c}", fill) for c in range(width))
+    blocked = [row(" ")] * 8 + [row(" ", c1="@", c12="x", c37="D"), row("#"), row("#")]
+    rec = check(blocked, n=1, legend=[*LEGEND, never], challenges=[], events=["level_complete"])
+    assert rec.solved and any("('x') at column 12" in n and "removed" in n for n in rec.notes), rec.notes
+    floor = row("#", **{f"c{c}": " " for c in range(10, 30)})  # a 20-tile gap
+    pit = [row(" ")] * 8 + [row(" ", c1="@", c37="D"), floor, floor]
+    rec = check(pit, n=1, challenges=[], events=["level_complete"])
+    assert rec.solved and any(n.startswith("the gap at columns 10-29 could not be crossed: narrowed")
+                              for n in rec.notes), rec.notes  # fmt: skip
+    assert rec.spec.rows[9][10] == " "  # narrowed from its far side: the near edge stays a gap
+
+
+def test_the_problem_names_an_enemy_nothing_beats():
+    """The solver said only "gets no further than column 23" and the retry failed."""
+    from spriteforge.game.levels import motion_for, parse, start_abilities
+    from spriteforge.game.reach import solve
+
+    design, plan = slime_design(), slime_plan()
+    rows = [" " * 20] * 8 + ["@   x         D     ", "#" * 20, "#" * 20]
+    level = spec(rows, n=1, legend=[*LEGEND, L("x", "enemy", "walker")], challenges=[])
+    found = solve(parse(level, design), motion_for(plan, player_body(design)), start_abilities(plan), set())
+    assert not found.solved
+    assert any("enemy (walker) at column 4 blocks the way and nothing beats it" in p
+               for p in found.problems), found.problems  # fmt: skip
+
+
+def test_a_level_code_cannot_finish_is_never_built():
+    from spriteforge.game.pipeline import finishable
+
+    design, plan = slime_design(), slime_plan()
+    wall = lambda r: r[:21] + "#####" + r[26:]  # solid from the top of the level to the floor
+    walled = [wall(" " * 30)] * 8 + [wall("@" + " " * 26 + "D "), "#" * 30, "#" * 30]
+    rec = check(walled, n=1, challenges=[], events=["level_complete"])
+    assert not rec.solved
+    stood_in = finishable(rec, design, plan, [])
+    assert stood_in.solved and stood_in.by.startswith("code (in place of")
+    assert any("could not be finished" in n and "code's level stands in" in n for n in stood_in.notes)
+    assert finishable(stood_in, design, plan, []) is stood_in  # a solved level is kept as it is
+
+
+def test_a_jump_under_a_one_way_platform_passes_under_it(tmp_path):
+    design, plan = slime_design(), slime_plan()
+    rows = [" " * 24] * 11
+    rows = [*rows[:8], "@         F           D ", "#" * 24, "#" * 24]
+    first = check(rows, n=1, challenges=[], events=["level_complete"])
+    jump = levels_script([first], design, plan, player_body(design))["movement"]["jump"]
+    top = 9 - math.ceil(jump)  # the platform's top just above the jump's peak (within a tile)
+    assert 0 < math.ceil(jump) - jump < 1
+    rows[top] = "=====" + " " * 19  # right over the start
+    record = check(rows, n=1, challenges=[], events=["level_complete"])
+    assert record.spec.rows[top] != rows[top]  # code lowers a platform out of reach; put it back
+    record = record.model_copy(update={"spec": record.spec.model_copy(update={"rows": rows})})
+    build = built(tmp_path, design, plan, [record])
+    with serve(build) as url, sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        try:
+            page = browser.new_page(viewport={"width": 320, "height": 180})
+            page.goto(f"{url}/index.html?headless=1&only=1&level=1&god=1")
+            assert wait_until(page, READY)
+            page.evaluate("window.sfRun(0.5, 30)")
+            page.keyboard.down("Space")  # held: a full jump (letting go early cuts it short)
+            feet = []
+            for _ in range(45):
+                page.evaluate("window.sfRun(1/30, 30, true)")
+                feet.append(page.evaluate("(() => { const L = window.sf.level.current; "
+                                          "return L.player.body.bottom / L.tile })()"))
+            page.keyboard.up("Space")
+            assert min(feet) < top + 1  # it jumped to just under the platform
+            assert abs(feet[-1] - 9) < 0.05, feet  # and came down on the floor, not the platform
+        finally:
+            browser.close()
+
+
+def test_a_checkpoint_never_looks_like_a_crate():
+    """Live 2026-11-03: checkpoints drawn as the crate were "boxes" that never open."""
+    legend = [L("F", "checkpoint", "crate") if e.char == "F" else e for e in LEGEND]
+    rec = check(GATED, n=1, legend=legend, events=["level_complete"])
+    flag = next(e for e in rec.spec.legend if e.char == "F")
+    assert flag.entity == "" and any("checkpoint drawn as 'crate' would look like the crate" in n
+                                     for n in rec.notes), rec.notes  # fmt: skip
+    kept = check(GATED, n=1, events=["level_complete"])  # its own flag entity stays
+    assert next(e for e in kept.spec.legend if e.char == "F").entity == "flag"
