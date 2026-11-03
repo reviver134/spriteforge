@@ -103,13 +103,14 @@ async function renderArtifact(a,container){
  list('Canon — later levels must keep these',s.canon);
  fig.append(box);cap.textContent='Story bible: the canon every later level is written from · '+a.name;}
  else if(a.mime==='application/json'&&/^game\/v\d+\/report\.json$/.test(a.name)){const r=await(await fetch('/api/artifacts/'+a.id)).json();const box=document.createElement('div');
- if(r.play){const play=document.createElement('a');play.href=r.play;play.target='_blank';play.rel='noopener';play.textContent='▶ Play this build in a new tab';box.append(play);}
+ if(r.play){const play=document.createElement('a');play.href=r.play;play.target='_blank';play.rel='noopener';play.textContent='▶ Play this build in a new tab';box.append(play);if(r.sounds){const ed=document.createElement('a');ed.href=r.play.replace(/index\.html$/,'sounds.html');ed.target='_blank';ed.rel='noopener';ed.textContent=' · 🔊 Edit the sounds';box.append(ed);}}
  if(r.levels){const h=document.createElement('h4');h.textContent='Levels (each played on its own by the bot)';const lu=document.createElement('ul');for(const lv of r.levels){const li=document.createElement('li');li.append((lv.cleared?'✔ ':'✖ ')+'Level '+lv.n+': '+lv.name+' — '+(lv.cleared?'cleared in '+lv.game_seconds+' game s':'not cleared ('+(lv.ended||'?')+(lv.bot&&lv.bot.detail?': '+lv.bot.detail:'')+')')+(lv.missing&&lv.missing.length?' · events missing: '+lv.missing.join(', '):'')+' · difficulty '+lv.difficulty+' ');if(lv.play){const a=document.createElement('a');a.href=lv.play;a.target='_blank';a.rel='noopener';a.textContent='▶ play level '+lv.n;li.append(a);}for(const p of lv.problems||[]){const x=document.createElement('div');x.textContent='⚠ code found: '+p;li.append(x);}lu.append(li);}box.append(h,lu);}
  const ul=document.createElement('ul');const li=t=>{const x=document.createElement('li');x.textContent=t;ul.append(x);};
  li((r.passed?'✔ All playtest checks passed':'✖ Some playtest checks failed')+' · written by '+r.chosen_by+' · design v'+r.design_version+' · '+r.attempts.length+' attempt(s)');
  for(const c of r.checks)li((c.ok?'✔ ':'✖ ')+c.event+': '+c.count+'/'+c.min_count+(c.by_second?' by '+c.by_second+' s':'')+' — '+c.description);
  for(const p of r.problems||[])li('✖ '+p);
  for(const x of r.art)li('art '+x.entity+': '+x.source);
+ if(r.sounds)li('Sounds v'+r.sounds.version+' ('+r.sounds.by+'): '+r.sounds.cues.map(c=>c.name+(c.heard?' ✔':'')).join(', ')+(r.sounds.never_heard.length?' · not heard in the bot playtest: '+r.sounds.never_heard.join(', '):''));
  for(const w of r.warnings||[])li('⚠ '+w);
  if(r.revision)li('Feedback applied: design «'+(r.revision.design_changes||'-')+'» · art '+(r.revision.art_changes.map(c=>c.entity).join(', ')||'-')+' · code «'+(r.revision.code_instructions||'-')+'»');
  if(r.game_db)li('Game record (OKF bundle: design, entities, art, code, QA, builds, decisions, and the story when asked for): '+(r.game_db.concepts??r.game_db.entries)+' concepts in '+r.game_db.path);
@@ -182,7 +183,7 @@ async function refreshRun(){const current=selected;const d=await (await fetch('/
  artifactIds=Object.fromEntries(d.artifacts.map(a=>[a.name,a.id]));
  $('status').textContent=d.run.status+' · checkpoint '+d.run.cursor;
  $('error').textContent=d.error||'';
- $('play').replaceChildren();if(d.play){const a=document.createElement('a');a.href=d.play.url;a.target='_blank';a.rel='noopener';a.textContent='▶ Play the latest build (v'+d.play.version+')';$('play').append(a);}
+ $('play').replaceChildren();if(d.play){const a=document.createElement('a');a.href=d.play.url;a.target='_blank';a.rel='noopener';a.textContent='▶ Play the latest build (v'+d.play.version+')';$('play').append(a);if(d.play.sounds){const s=document.createElement('a');s.href=d.play.url.replace(/index\.html$/,'sounds.html');s.target='_blank';s.rel='noopener';s.textContent=' · 🔊 Edit the sounds';$('play').append(s);}}
  const zip=d.artifacts.filter(a=>/^game\/v\d+\/export\.zip$/.test(a.name)).pop();if(zip){const a=document.createElement('a');a.href='/api/artifacts/'+zip.id;a.download=zip.name.replaceAll('/','-');a.textContent=' · ⬇ The finished game (build, record, tests)';$('play').append(a);}
  const u=d.usage, dollars=v=>v==null?'unknown':'$'+v.toFixed(6);
  $('usage').textContent=u?`${u.image_calls} / ${u.cap} image calls (${dollars(u.estimated_image_cost)}) · Spark: ${u.spark.calls} calls, ${u.spark.input_tokens ?? 'unknown'} input / ${u.spark.output_tokens ?? 'unknown'} output tokens, ${u.spark.cached_input_tokens ?? 'unknown'} cached input (${dollars(u.spark.estimated_cost)}) · total estimate ${dollars(u.estimated_total_cost)} · failed attempts: ${u.failed_attempts} (excluded)${u.spark.missing_usage_calls ? ' · token usage unavailable for '+u.spark.missing_usage_calls+' calls' : ''}`:'';

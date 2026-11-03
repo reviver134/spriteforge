@@ -2,6 +2,8 @@
 
     design.json/.md     Game Designer (Muse Spark): rules, entities, checks
     story.json/.md      Game Designer: the story bible, only with --story (the human asked)
+    sounds.json/.md     Sound Director: a synthesised sound for every moment of the game (L2.7),
+                        fitted by code; the build's sounds.html edits them
     motion.json/.md     Art Director: the motion design (rows per entity with what each frame
                         shows, fps and loop; forms; effects), fitted by code (L2.4);
                         motion.png/.gif every animated row as filmstrips and playing
@@ -171,6 +173,20 @@ from .research import (
 )
 from .structure import GameStructure, make_structure, structure_markdown
 from .title_art import TitleArt, make_title_art, manifest_images
+from .sounds import (
+    SoundBrief,
+    SoundRecord,
+    keep_edits,
+    sound_prompt,
+    sound_report,
+    sounds_markdown,
+    sounds_script,
+)
+from .sounds import fallback_brief as fallback_sounds
+from .sounds import make_record as make_sound_record
+from .sounds import offline_revision as offline_sound_revision
+from .sounds import retry_prompt as sound_retry_prompt
+from .sounds import revision_prompt as sound_revision_prompt
 from .story import (
     StoryBible,
     fallback_story,
@@ -548,13 +564,50 @@ class MenuPack:
         return game_assets(art, self)
 
 
-def game_assets(art: ArtResult, menus: "MenuPack | None") -> tuple[dict, dict[str, bytes]]:
-    """The build's assets.json and asset files: the art's, plus the title art with menus."""
+def game_assets(art: ArtResult, menus: "MenuPack | None",
+                sounds: dict | None = None) -> tuple[dict, dict[str, bytes]]:  # fmt: skip
+    """The build's assets.json and asset files: the art's, plus the title art with menus, plus
+    the game's own sound events (the Programmer emits them) with sounds."""
     manifest, files = art.manifest(), art.files()
     if menus:
         manifest["images"] = {**manifest["images"], **menus.images}
         files = {**files, **menus.files}
+    if sounds and sounds.get("custom"):
+        manifest["sound_events"] = dict(sounds["custom"])
     return manifest, files
+
+
+# --- sounds (L2.7) --------------------------------------------------------------------------------
+
+
+def plan_feel(plan: PlanRecord | None) -> str:
+    """What the game plan says players hear, per moment."""
+    return "\n".join(f"* {f.event}: {f.hear}" for f in plan.plan.feel if f.hear.strip()) if plan else ""
+
+
+def write_sounds(models: Models, design: GameDesign, levels: bool, menus: bool,
+                 plan: PlanRecord | None = None, context: str = "", why: str = "") -> SoundRecord:  # fmt: skip
+    """The Sound Director's sounds, fitted and checked by code; problems go back once."""
+    prompt = sound_prompt(design, levels, menus, plan_feel(plan), context)
+    brief = models.ask("Sound Director", prompt, SoundBrief, fallback_sounds(design, levels, menus),
+                       "sounds")  # fmt: skip
+    record = make_sound_record(brief, design, models.name, levels, menus, why)
+    if not record.problems:
+        return record
+    again = models.ask("Sound Director", sound_retry_prompt(prompt, record.problems), SoundBrief,
+                       brief, "sounds")  # fmt: skip
+    second = make_sound_record(again, design, models.name, levels, menus, why, True)
+    return second if len(second.problems) <= len(record.problems) else record
+
+
+def revise_sounds(models: Models, record: SoundRecord, feedback: str, design: GameDesign,
+                  levels: bool, menus: bool, why: str = "") -> SoundRecord:  # fmt: skip
+    """The sounds revised for the human's words; cues it leaves as they were keep their layers
+    (the human's edits in the sound editor survive)."""
+    prompt = sound_revision_prompt(record, feedback, design, levels, menus)
+    brief = models.ask("Sound Director", prompt, SoundBrief,
+                       offline_sound_revision(record, feedback), "sounds")  # fmt: skip
+    return keep_edits(record, make_sound_record(brief, design, models.name, levels, menus, why))
 
 
 def menu_pack(models: Models, record: MenuRecord, design: GameDesign, art: ArtResult, cfg: Config,
@@ -853,11 +906,13 @@ def build_and_test(
     qa: list[QATest] | None = None,
     levels: LevelPack | None = None,
     menus: MenuPack | None = None,
+    sounds: dict | None = None,
 ) -> BuildOutcome:
     """Static checks, build, playtest with the bot (each level on its own for a game with
     levels as data), then the QA tests (real key presses); failures of either go back to the
-    Programmer (bounded). `menus`: the SDK's menus and flow go into every build."""
-    manifest, images = game_assets(art, menus)
+    Programmer (bounded). `menus`: the SDK's menus and flow go into every build; `sounds`
+    (`window.SF_SOUNDS`) the sounds and their editor."""
+    manifest, images = game_assets(art, menus, sounds)
     asset_ids = set(manifest["sprites"]) | set(manifest["images"])
     attempts, report, build_dir, shots, qa_results = [], {}, None, [], []
     best = None  # (rank, attempt index, code, report, shots, qa results)
@@ -867,7 +922,7 @@ def build_and_test(
         return build_game(out / "build", title=design.title, controls=design.controls,
                           files=files.as_dict(), assets=manifest, images=images,
                           credits=art.credits, levels=levels.script if levels else None,
-                          menus=menus.script if menus else None)  # fmt: skip
+                          menus=menus.script if menus else None, sounds=sounds)  # fmt: skip
 
     for n in range(cfg.game.max_repairs + 1):
         folder = out / "attempts" / str(n + 1)
@@ -947,9 +1002,10 @@ def play(build_dir: Path, design: GameDesign, cfg: Config, levels: "LevelPack | 
 
 
 def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out: Path,
-           levels: "LevelPack | None" = None, menus: "MenuPack | None" = None):  # fmt: skip
+           levels: "LevelPack | None" = None, menus: "MenuPack | None" = None,
+           sounds: dict | None = None):  # fmt: skip
     """Build the same code with other art and play the session again: (build, report)."""
-    manifest, images = game_assets(art, menus)
+    manifest, images = game_assets(art, menus, sounds)
     build_dir = build_game(
         out / "build",
         title=design.title,
@@ -960,6 +1016,7 @@ def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out:
         credits=art.credits,
         levels=levels.script if levels else None,
         menus=menus.script if menus else None,
+        sounds=sounds,
     )
     result = play(build_dir, design, cfg, levels)
     return build_dir, {"stage": "playtest", **result}
@@ -988,6 +1045,7 @@ def review_art(
     qa: list[QATest] | None = None,
     levels: LevelPack | None = None,
     menus: MenuPack | None = None,
+    sounds: dict | None = None,
 ) -> Reviewed:
     """The Art Reviewer looks at all the art together and in the running game, blocking
     issues are fixed once (capped), and the same code is played again with the fixed art (and
@@ -1049,7 +1107,7 @@ def review_art(
         fixed_art = replace(art, filled=filled, credits=credits,
                             picks=art.picks | {fx.entity: fx.pick for fx in kept})  # fmt: skip
         log("  playing the game again with the fixed art")
-        build_dir, report = replay(design, fixed_art, outcome.code, cfg, out, levels, menus)
+        build_dir, report = replay(design, fixed_art, outcome.code, cfg, out, levels, menus, sounds)
         replayed = {"passed": report["passed"], "reverted": False}
         new_qa = (
             run_qa(build_dir, qa, cfg.game.playtest_fps)
@@ -1064,7 +1122,7 @@ def review_art(
             failed = sum(not r["passed"] for r in new_qa)
             replayed["qa"] = {"passed": len(new_qa) - failed, "failed": failed}
         if (outcome.report["passed"] and not report["passed"]) or broke:
-            replay(design, art, outcome.code, cfg, out, levels, menus)  # back to the art that passed
+            replay(design, art, outcome.code, cfg, out, levels, menus, sounds)  # back to the art that passed
             replayed["reverted"] = True
             if outcome.report["passed"] and not report["passed"]:
                 why = "reverted: the game failed its playtest with the new art"
@@ -1273,6 +1331,16 @@ def make_game(
                                                      menus_record.problems), encoding="utf-8")  # fmt: skip
         log(f"  {len(menus_record.spec.screens)} screens"
             + (f", {len(menus_record.problems)} problem(s) code could not fix" if menus_record.problems else ""))
+    sound_record = None
+    if cfg.game.sounds:
+        log("sounds: Sound Director is choosing a sound for every moment")
+        sound_record = write_sounds(models, design, False, menus_record is not None,
+                                    why="written from the design")  # fmt: skip
+        save_json(out / "sounds.json", sound_record.model_dump())
+        (out / "sounds.md").write_text(sounds_markdown(sound_record), encoding="utf-8")
+        log(f"  {len(sound_record.sounds.cues)} sounds"
+            + (f", {len(sound_record.problems)} problem(s)" if sound_record.problems else ""))
+    sounds = sounds_script(sound_record, design.title) if sound_record else None
     qa_tests, qa_note = None, ""
     if cfg.game.qa:
         log("qa: QA Playtester is writing tests from the design")
@@ -1306,14 +1374,14 @@ def make_game(
         menus = menu_pack(models, menus_record, design, art, cfg)
         log(f"  title art: {menus.title_art.source}")
     log("code: Programmer is writing the game")
-    code = write_code(models, design, game_assets(art, menus)[0])
+    code = write_code(models, design, game_assets(art, menus, sounds)[0])
     outcome = build_and_test(models, design, art, code, cfg, out, log,
-                             qa_tests.tests if qa_tests else None, menus=menus)  # fmt: skip
+                             qa_tests.tests if qa_tests else None, menus=menus, sounds=sounds)  # fmt: skip
     review = None
     if cfg.game.review and outcome.build:
         log("review: Art Reviewer is looking at the art in the running game")
         review = review_art(models, design, plan, art, outcome, cfg, out, log,
-                            qa=qa_tests.tests if qa_tests else None, menus=menus)  # fmt: skip
+                            qa=qa_tests.tests if qa_tests else None, menus=menus, sounds=sounds)  # fmt: skip
         art, outcome = review.art, review.outcome
         save_json(out / "art-review.json", review.answer.model_dump())
         for name, data in review.images.items():
@@ -1360,6 +1428,7 @@ def make_game(
         "story": bool(story),
         "motion": motion_report(art) if motion else None,
         "menus": menu_report,
+        "sounds": sound_report(sound_record, 1, outcome.report.get("sounds", {})) if sound_record else None,
         "recording": recording.summary if recording else None,
         "model_calls": call_summary(store, run.id),
     }

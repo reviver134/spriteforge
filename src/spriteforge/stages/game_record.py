@@ -35,6 +35,7 @@ PLAN = re.compile(r"game/plan/v(\d+)\.json")
 MOTION = re.compile(r"game/design/v(\d+)-motion\.json")
 LEVELS = re.compile(r"game/levels/v(\d+)/levels\.json")
 MENUS = re.compile(r"game/menus/v(\d+)\.json")
+SOUNDS = re.compile(r"game/sounds/v(\d+)\.json")
 STRUCTURE = re.compile(r"game/design/v(\d+)-structure\.json")
 RESEARCH = "game/research.json"
 

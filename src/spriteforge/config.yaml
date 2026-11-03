@@ -51,6 +51,9 @@ game:
   # calls, locked once drawn; false: code draws them from the game's art).
   menus: true
   title_art: true
+  # Sounds (L2.7): the Sound Director picks a synthesised sound for every moment (one Spark
+  # call; no audio files, no image calls); the SDK plays them, the build's sounds.html edits them.
+  sounds: true
   # (No story switch: the G1 brief decides. A story bible is written only when the human asks
   # for one; every game keeps its full record as an OKF bundle in runs/<id>/game/db.)
   max_code_kb: 200
@@ -100,6 +103,7 @@ llm:
     level: high # Level/Tile Designer writing each level as data (L2.3)
     motion: medium # Art Director's motion design: rows, forms, effects (L2.4)
     menus: medium # Menu Designer: the menus as data and their revisions (L2.5)
+    sounds: low # Sound Director: a preset and tweaks per moment, and their revisions (L2.7)
     lessons: low # Librarian: lessons from a finished game, shown at G5 (L2.6)
 research:
   # tools/probe_web_search.py 2026-11-02: Chat Completions rejects {"type": "web_search"}

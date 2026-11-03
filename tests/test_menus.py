@@ -258,7 +258,7 @@ def test_live_menu_mistakes_are_repaired():
     spec, notes = fit_menu(good.model_copy(update={
         "credits": ["Made by the Goo Squad", "Music: Chiptune Blips"],
         "screens": [settings if s.id == "settings" else s for s in good.screens]}), structure, design)  # fmt: skip
-    assert [i.label for i in screen(spec, "settings").items] == ["Difficulty", "Fewer Flashes", "Back"]
+    assert [i.label for i in screen(spec, "settings").items] == ["Difficulty", "Fewer Flashes", "Sound", "Back"]
     assert spec.credits == credit_lines(design) and any("Goo Squad" in n for n in notes)
     lines = control_lines("Left/Right or A/D to move, Space to jump, Shift to dash")
     assert len(lines) == 2 and all(len(x) <= 36 for x in lines) and "~" not in "".join(lines)

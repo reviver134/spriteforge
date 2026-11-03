@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'">
+<title>Sound editor</title>
+<style>
+:root{--bg:#10121c;--panel:#1a1d2b;--line:#33384d;--text:#e8e8f0;--muted:#94a0b8;--accent:#9ae6b4;--warn:#ffb4b4;--gold:#f4d35e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,sans-serif}
+header{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+h1{font-size:18px;margin:0 12px 0 0}
+main{max-width:1100px;margin:0 auto;padding:16px}
+button,select,input{font:inherit;color:var(--text);background:#232739;border:1px solid var(--line);border-radius:6px}
+button{padding:6px 12px;cursor:pointer}button:hover{border-color:var(--accent)}
+button.primary{background:#2c5a3f;border-color:var(--accent)}
+button.play{min-width:44px;font-size:16px}
+input[type=text]{padding:5px 8px}input[type=number]{width:84px;padding:4px 6px}
+input[type=range]{accent-color:var(--accent);vertical-align:middle}
+label{color:var(--muted);font-size:12px}
+.status{color:var(--accent);min-height:1.4em}.status.bad{color:var(--warn)}
+.cue{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin:0 0 12px}
+.cue.dirty{border-color:var(--gold)}
+.row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.row+.row{margin-top:8px}
+.name{font-weight:600;width:220px}
+.what{flex:1 1 320px}
+.on{width:240px}
+.tweaks button{padding:4px 8px;font-size:12px}
+details{margin-top:8px}summary{cursor:pointer;color:var(--muted)}
+.layers{display:grid;gap:8px;margin-top:8px}
+.layer{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px;padding:8px;border:1px dashed var(--line);border-radius:8px}
+.layer label{display:flex;flex-direction:column;gap:2px}
+.layer .tools{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+.muted{color:var(--muted)}
+.moments{columns:2 280px;font-size:13px}
+.moments div{break-inside:avoid;margin:0 0 4px}
+code{color:var(--gold)}
+@media (max-width:600px){.name,.on{width:100%}}
+</style>
+</head><body>
+<header>
+  <h1 id="title">Sound editor</h1>
+  <label>Master volume <input id="master" type="range" min="0" max="1" step="0.05"></label>
+  <label>Style <input id="style" type="text" size="28"></label>
+  <button id="play-all" type="button">▶ Play all</button>
+  <button id="save" type="button" class="primary" hidden>Save to the game</button>
+  <button id="download" type="button">⬇ Download sounds.js</button>
+  <button id="reset" type="button">Undo all changes</button>
+  <a id="game" href="index.html" target="_blank" rel="noopener">Open the game</a>
+  <span id="status" class="status" role="status"></span>
+</header>
+<main>
+  <p class="muted">Every sound is synthesised by the game itself (no audio files). Press ▶ to hear a
+  sound, change its preset or the quick tweaks, or open its layers to shape it. A sound plays on
+  the moments in <em>plays on</em> (comma separated); a <em>loop</em> repeats while its moment
+  lasts (<code>move</code>: while the player moves). Saving here makes a new locked version of the
+  sounds; reload the game to hear it. In the game, <b>M</b> turns the sound on or off.</p>
+  <div id="cues"></div>
+  <button id="add" type="button">+ Add a sound</button>
+  <details><summary>Moments the game plays sounds on</summary><div id="moments" class="moments"></div></details>
+</main>
+<datalist id="moment-list"></datalist>
+<script src="sounds.js"></script>
+<script src="sfsound.js"></script>
+<script src="sfsound-editor.js"></script>
+</body></html>

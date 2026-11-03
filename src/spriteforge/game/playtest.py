@@ -65,7 +65,7 @@ def playtest(
     `capture_at`, the report has "screenshots": [{"t", "png" (bytes)}]; pop them before saving
     it as JSON."""
     errors: list[str] = []
-    ended, t, counts, state = "timeout", 0.0, {}, {}
+    ended, t, counts, state, sounds = "timeout", 0.0, {}, {}, {}
     limit = session_seconds + GRACE_SECONDS
     pending, shots = sorted(capture_at), []
     with serve(Path(build_dir)) as url, sync_playwright() as pw:
@@ -111,6 +111,7 @@ def playtest(
                     shot()
                 counts = page.evaluate("window.sf.counts")
                 state = page.evaluate("window.sf.state")
+                sounds = page.evaluate("window.sf.soundCount || {}")
             errors += page.evaluate("window.sf ? window.sf.errors : []")
         finally:
             browser.close()
@@ -127,6 +128,7 @@ def playtest(
         "checks": results,
         "events": {name: c["count"] for name, c in sorted(counts.items())},
         "state": state,
+        "sounds": sounds,  # how often each sound played (sfsound.js counts them, silently)
         **({"screenshots": shots} if capture_at else {}),
     }
 
@@ -154,7 +156,7 @@ def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *,
     (the events each level makes happen). With `capture`, one drawn screenshot per level a few
     seconds in (for the art review)."""
     errors: list[str] = []
-    results, shots, counts_by_level, state = [], [], [], {}
+    results, shots, counts_by_level, state, sounds = [], [], [], {}, {}
     with serve(Path(build_dir)) as url, sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         try:
@@ -203,6 +205,8 @@ def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *,
                     counts = page.evaluate("window.sf.counts")
                     state = page.evaluate("window.sf.state")
                     bot = page.evaluate("window.sf.bot") or bot
+                    for name, k in (page.evaluate("window.sf.soundCount || {}") or {}).items():
+                        sounds[name] = sounds.get(name, 0) + k
                 mine += page.evaluate("window.sf ? window.sf.errors : []")
                 page.close()
                 mine = list(dict.fromkeys(mine))[:10]
@@ -231,6 +235,7 @@ def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *,
         "checks": checked,
         "events": {name: c["count"] for name, c in sorted(merged.items())},
         "state": state,
+        "sounds": sounds,
         "levels": results,
         **({"screenshots": shots} if capture else {}),
     }

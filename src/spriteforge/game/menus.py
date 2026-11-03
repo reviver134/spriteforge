@@ -50,6 +50,7 @@ ACTIONS = {
     "back": "back to the screen before",
     "difficulty": "cycle easy / normal / hard",
     "fewer_flashes": "toggle fewer flashes (no screen flash or shake)",
+    "sound": "toggle the sound on / off (M does it anywhere)",
 }
 # Words a model may use for an action, mapped to the action they mean.
 SYNONYMS = {
@@ -60,14 +61,15 @@ SYNONYMS = {
     "select_level": "level_select", "try_again": "retry", "restart_level": "restart",
     "next": "next_level", "continue_level": "next_level", "return": "back", "close": "back",
     "help": "controls", "how_to_play": "controls", "flashes": "fewer_flashes",
-    "reduce_flashes": "fewer_flashes", "set_difficulty": "difficulty",
+    "reduce_flashes": "fewer_flashes", "set_difficulty": "difficulty", "audio": "sound",
+    "mute": "sound", "sfx": "sound", "sound_effects": "sound", "toggle_sound": "sound",
 }  # fmt: skip
 # What each screen may offer, and what it must offer (the first item is the default).
 ALLOWED = {
     "title": {"main", "start"},
     "main": {"start", "continue", "level_select", "settings", "controls", "credits"},
     "pause": {"resume", "restart", "settings", "controls", "title"},
-    "settings": {"difficulty", "fewer_flashes", "controls", "back"},
+    "settings": {"difficulty", "fewer_flashes", "sound", "controls", "back"},
     "controls": {"back"},
     "credits": {"back"},
     "level_select": {"back"},
@@ -77,7 +79,7 @@ ALLOWED = {
 }
 REQUIRED = {
     "title": ["main"], "main": ["start", "settings", "credits"],
-    "pause": ["resume", "restart", "title"], "settings": ["difficulty", "fewer_flashes", "back"],
+    "pause": ["resume", "restart", "title"], "settings": ["difficulty", "fewer_flashes", "sound", "back"],
     "controls": ["back"], "credits": ["back"], "level_select": ["back"],
     "results": ["next_level", "title"], "game_over": ["retry", "title"],
     "victory": ["title", "credits"],
@@ -87,7 +89,7 @@ LABELS = {
     "settings": "Settings", "controls": "Controls", "credits": "Credits", "resume": "Resume",
     "restart": "Restart level", "retry": "Retry", "next_level": "Next level",
     "title": "Quit to title", "back": "Back", "difficulty": "Difficulty",
-    "fewer_flashes": "Fewer flashes",
+    "fewer_flashes": "Fewer flashes", "sound": "Sound",
 }  # fmt: skip
 TITLES = {
     "title": "", "main": "", "pause": "Paused", "settings": "Settings", "controls": "Controls",
@@ -95,6 +97,7 @@ TITLES = {
     "game_over": "Game over", "victory": "Victory",
 }  # fmt: skip
 DIFFICULTY = {"easy": 0.75, "normal": 1.0, "hard": 1.35}
+VALUED = {"difficulty", "fewer_flashes", "sound"}  # settings the SDK shows with their value
 MAX_ITEMS = 7
 # The SDK's text: a monospace font at 8 px (items), 12 px (screen titles), 16 px (the game's
 # title on the title screen), times the art scale; a character is at most 0.62 em wide.
@@ -393,9 +396,9 @@ def fit_menu(spec: MenuSpec, structure: GameStructure, design: GameDesign,
                 notes.append(f"{sid}: item {it.label!r} ({act}) dropped: {why}")
                 continue
             seen.add(act)
-            room = item_room - (VALUE if act in {"difficulty", "fewer_flashes"} else 0)
+            room = item_room - (VALUE if act in VALUED else 0)
             said = it.label
-            if act in {"difficulty", "fewer_flashes"} and SETTING_VALUE.search(said):
+            if act in VALUED and SETTING_VALUE.search(said):
                 # The SDK shows the setting's value after the label (live 2026-11-02: the Menu
                 # Designer wrote "Difficulty: Normal", which would read "Difficulty: Normal: hard").
                 said = SETTING_VALUE.sub("", said)
@@ -407,7 +410,9 @@ def fit_menu(spec: MenuSpec, structure: GameStructure, design: GameDesign,
         for act in required(sid, structure):
             if act not in seen:
                 notes.append(f"{sid}: the {act} item was missing: added")
-                items.append(MenuItem(label=LABELS[act], action=act))
+                ways_out = [i for i, x in enumerate(items) if x.action in {"back", "title"}]
+                at = ways_out[0] if ways_out and act not in {"back", "title"} else len(items)
+                items.insert(at, MenuItem(label=LABELS[act], action=act))
                 seen.add(act)
         if len(items) > MAX_ITEMS:
             notes.append(f"{sid}: {len(items)} items, at most {MAX_ITEMS}: the last ones dropped")
@@ -509,7 +514,7 @@ def menu_problems(spec: MenuSpec, structure: GameStructure, screen_w: int = 320,
                 out.append(f"{s.id}: item {it.label!r} has an unknown action {it.action!r}")
             elif s.id in SCREENS and it.action not in allowed(s.id, structure):
                 out.append(f"{s.id}: item {it.label!r} ({it.action}) is not allowed there")
-            room = item_room - (VALUE if it.action in {"difficulty", "fewer_flashes"} else 0)
+            room = item_room - (VALUE if it.action in VALUED else 0)
             if not it.label.strip():
                 out.append(f"{s.id}: an item has no label")
             elif len(it.label) > room:
@@ -593,7 +598,7 @@ Actions:
 {actions}
 
 Limits: at most {MAX_ITEMS} items a screen; item labels at most
-{max_chars(screen_w, scale, ITEM_PX, MARK)} characters ({max_chars(screen_w, scale, ITEM_PX, MARK) - VALUE} for difficulty and fewer_flashes), headings at most
+{max_chars(screen_w, scale, ITEM_PX, MARK)} characters ({max_chars(screen_w, scale, ITEM_PX, MARK) - VALUE} for difficulty, fewer_flashes and sound), headings at most
 {max_chars(screen_w, scale, TITLE_PX)}, the game's title at most {max_chars(screen_w, scale, BIG_PX)}. Text must read on the
 panel (contrast 4.5 for item text, 3 for the highlight). Code fits the theme to the colours of the
 game's locked art; give the colour intent from the design's look.

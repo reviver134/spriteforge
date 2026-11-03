@@ -47,6 +47,10 @@ class Revision(Contract):
         description="changes to the menus or the title screen (labels, colours, the title "
         "picture, screens): what they want, in their words; ''"
     )
+    sound_changes: str = Field(
+        description="changes to the sound effects (a sound too loud, wrong, missing or unwanted; "
+        "a new sound for something): what they want, in their words; ''"
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -54,7 +58,7 @@ class Revision(Contract):
         """Revisions saved before QA tests, stories, levels or menus existed lack those fields."""
         if isinstance(data, dict):
             data = {"drop_qa_tests": [], "story_changes": "", "level_changes": [],
-                    "menu_changes": "", **data}  # fmt: skip
+                    "menu_changes": "", "sound_changes": "", **data}  # fmt: skip
         return data
 
     @property
@@ -67,6 +71,20 @@ class Revision(Contract):
             or self.drop_qa_tests
             or self.level_changes
             or self.menu_changes.strip()
+            or self.sound_changes.strip()
+        )
+
+    @property
+    def sound_only(self) -> bool:
+        """Only the sounds change: they are data, swapped in the same build (no rebuild)."""
+        return bool(self.sound_changes.strip()) and not (
+            self.design_changes.strip()
+            or self.art_changes
+            or self.code_instructions.strip()
+            or self.drop_qa_tests
+            or self.level_changes
+            or self.menu_changes.strip()
+            or self.story_changes.strip()
         )
 
 
@@ -89,7 +107,8 @@ def revision_prompt(
         "layout: its gaps, platforms, enemies, crates, length or difficulty, with the level "
         "number), and menu_changes (the title screen, menus, pause or game-over screens: "
         "labels, colours, the title picture; the SDK draws them from data, so they are not "
-        "code). Leave a part empty when the feedback does not touch it; do not invent "
+        "code), and sound_changes (sound effects: a sound too loud, quiet, wrong, unwanted or "
+        "missing; the SDK synthesises them from data, so they are not code). Leave a part empty when the feedback does not touch it; do not invent "
         "changes.\n\n"
         f"Feedback:\n{feedback.strip()}\n\nDesign:\n{design.model_dump_json()}\n\n"
         f"Current art sources:\n{sources}"
@@ -136,6 +155,10 @@ def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = (
         return Revision(design_changes="", art_changes=[], code_instructions="",
                         drop_qa_tests=[], story_changes=feedback.strip(), level_changes=[],
                         menu_changes="")  # fmt: skip
+    if SOUND_ASK.search(text):
+        return Revision(design_changes="", art_changes=[], code_instructions="", drop_qa_tests=[],
+                        story_changes="", level_changes=[], menu_changes="",
+                        sound_changes=feedback.strip())  # fmt: skip
     if MENU_ASK.search(text):
         return Revision(design_changes="", art_changes=[], code_instructions="", drop_qa_tests=[],
                         story_changes="", level_changes=[], menu_changes=feedback.strip())  # fmt: skip
@@ -164,5 +187,8 @@ def fallback_revision(design: GameDesign, feedback: str, qa_names: list[str] = (
 STORY_ASK = re.compile(r"\b(stor(y|ies|yline)|plot|lore|backstor(y|ies)|narrative)\b")
 # "the menus should be red", "a darker title screen": the offline Director's menu cue.
 MENU_ASK = re.compile(r"\b(menus?|title screen|title art|pause screen|game over screen|emblem)\b")
+# "the jump sound is too loud", "no menu beeps": the offline Director's sound cue.
+SOUND_ASK = re.compile(r"\b(sounds?|sfx|audio|noises?|beeps?|volume|loud(er)?|quiet(er)?|mute|"
+                       r"splash(es)?|bleeps?)\b")
 # "level 2 is too long", "make level 3 harder": the offline Director's level cue.
 LEVEL_ASK = re.compile(r"\blevel\s+(\d)\b")

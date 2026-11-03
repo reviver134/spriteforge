@@ -133,7 +133,8 @@ def test_settings_and_progress_survive_a_reload_and_reset_clears_them(tmp_path, 
         p.press("Enter")  # Difficulty: normal -> hard
         p.press("ArrowDown")
         p.press("Enter")  # Fewer flashes: on
-        assert p.js("window.sf.settings") == {"difficulty": "hard", "multiplier": 1.35, "fewerFlashes": True}
+        assert p.js("window.sf.settings") == {"difficulty": "hard", "multiplier": 1.35, "fewerFlashes": True,
+                                          "sound": True}
         p.press("Escape")
         assert p.menu() == "main"
         p.goto("headless=1")

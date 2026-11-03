@@ -75,6 +75,13 @@ speeds and distances you tune in pixels by it. Use only the ids listed in the as
   `this.add.rectangle/circle` (projectile trails, flashes), but characters, enemies, pickups and
   tiles must use their asset ids.
 
+## Sounds
+The SDK plays the game's sounds itself (`sfsound.js`, synthesised, no audio files): on every
+`sf.event(...)` and `sf.fx(...)` whose name a sound lists, and a loop while the player moves.
+Do not create audio, load sound files or call `this.sound`. When the assets summary lists
+"Sound events", emit each with `sf.event('<name>')` the moment it happens (e.g. `shoot` when
+the player fires); `sf.sound.play('<cue>')` plays a sound by its name. M mutes (the SDK's).
+
 ## HUD and menus (fixed to the camera)
 * `sf.text(this, x, y, 'HP 10', {size: 8, color: '#ffffff', originX: 0})` → Phaser Text.
 * `sf.bar(this, x, y, w, h, 0x5ad35a)` → `.set(fraction)` (also `setDepth`, `setVisible`, `destroy`).

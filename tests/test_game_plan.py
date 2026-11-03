@@ -352,7 +352,7 @@ def test_g4_design_change_revises_the_plan_and_redraws_no_art(tmp_path, monkeypa
     submit(store, ident)  # approve the design: build v1
     with TestClient(create_app(store=store)) as client:
         detail = client.get(f"/api/runs/{ident}").json()
-    assert detail["play"] == {"version": 1, "url": f"/api/runs/{ident}/play/v1/index.html"}
+    assert detail["play"] == {"version": 1, "url": f"/api/runs/{ident}/play/v1/index.html", "sounds": True}
     submit(store, ident, "make the jump much higher")
     report = read(store, ident, "game/v2/report.json")
     assert report["design_version"] == 2 and report["revision"]["design_changes"]

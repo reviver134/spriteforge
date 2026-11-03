@@ -50,9 +50,10 @@ FORBIDDEN = [
     # and sf.choose and rewrote the menu data so that a QA test found an old menu label.
     (r"\bsf\s*\.\s*(event|start|choose|menu|menus|flow|input|fx|particles|play|sprite|text|bar|has"
      r"|level|progress|settings|clock|errors|events|counts|flags|rand|assets|game|ready|paused"
-     r"|screen|bot|halted)\s*=(?!=)",
+     r"|screen|bot|halted|sound|soundCount)\s*=(?!=)",
      "assignments to the SDK's own functions or data (sf.state is the game's; the rest is the SDK's)"),
-    (r"\bsf\s*\.\s*flow\b|\bSF_MENUS\b|\bSF_LEVELS\b", "the SDK's menus, flow or level data (they are the SDK's)"),
+    (r"\bsf\s*\.\s*flow\b|\bSF_MENUS\b|\bSF_LEVELS\b|\bSF_SOUNDS\b|\bSFSynth\b",
+     "the SDK's menus, flow or level data, or its sounds (they are the SDK's)"),
     (r"\bdefineProperty\s*\(\s*(window\.)?sf\b|\b(window|globalThis)\s*\.\s*sf\s*=", "redefining the SDK"),
 ]
 ASSET_USE = re.compile(
@@ -206,6 +207,10 @@ def assets_summary(manifest: dict) -> str:
     if fx := manifest.get("fx"):
         lines.append("Effects (sf.fx(name, x, y, sprite); the level engine plays the ones with an "
                      "`on` itself): " + ", ".join(f"{n} (on {e['on']})" for n, e in fx.items()))
+    if events := manifest.get("sound_events"):
+        lines.append("Sound events (the SDK plays a sound on each; emit sf.event('<name>') the moment "
+                     "it happens, e.g. when the player fires): "
+                     + ", ".join(f"{n} ({w})" if w else n for n, w in events.items()))
     if forms := manifest.get("forms"):
         lines.append("Forms (the player's look while it holds the ability; the SDK shows it): "
                      + ", ".join(f"{n} ({f['row'] or 'tint ' + f['tint']})" for n, f in forms.items()))

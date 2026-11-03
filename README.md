@@ -892,3 +892,32 @@ build (with its QA tests) and its record; the UI links it next to Play. Lessons 
 games only after a human promotes them (`spriteforge memory promote lessons/<id> --by <you>`):
 promoted lessons of the same genre go into the next game plan's prompt.
 `tools/game_live.py --until final` approves G4 and stops at G5. Details: `docs/level-2.md`.
+
+# Level 2 / L2.7: the Sound Director
+
+Every game has sound. Once per game the **Sound Director** (one Muse Spark call, no image calls)
+gives each moment a sound that fits what makes it: a slime squishes when it jumps, splashes
+when it lands and bubbles while it moves; a crate splinters, a cracked wall crumbles, a shot
+goes pew, a coin dings. It picks from a library of 28 synth presets with pitch, length and
+volume tweaks; code fits the answer (presets, moments, ranges), adds a sound for any moment it
+left silent, and lets a design event share its SDK moment's sound (`crate_open` plays the
+crate's break sound, once). The SDK synthesises everything in the browser with Web Audio
+(`sfsound.js`): no audio files, nothing to license.
+
+Editing the sounds:
+
+* **Sound editor**: every build ships `sounds.html` ("🔊 Edit the sounds" next to the Play links,
+  and in the game's help line). Play each sound, pick another preset, use Higher / Lower /
+  Shorter / Longer, change what it plays on, or shape each synth layer (wave, pitch slide,
+  envelope, filter sweep, wobble). From the local UI, **Save to the game** makes a new locked
+  sounds version that the build plays at once and every later build keeps; opened from a folder
+  (an exported game), **Download sounds.js** and put it next to `index.html`.
+* **In words at G4**: "the splash is too loud", "no menu sounds", "a deeper wall crash": the
+  Director routes it to the Sound Director, which changes only the sounds named; the same build
+  plays them (no rebuild) and your editor changes survive.
+* **In the game**: M turns the sound on or off anywhere; Settings has a **Sound** item; the choice
+  is saved with the other settings.
+
+The bot playtest counts which sounds would have played (silently) and the build report lists
+them, with any sound the bot never heard. `game.sounds: false` turns it off. Details:
+`docs/sound-director.md`.

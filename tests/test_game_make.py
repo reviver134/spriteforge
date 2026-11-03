@@ -266,8 +266,8 @@ def test_make_game_offline_end_to_end(tmp_path):
         "consistency", "readability", "perspective", "scale", "palette"}  # fmt: skip
     assert {"sheet.png", "sheet-4x.png", "shot-1.png", "shot-2.png", "shot-3.png"} <= {
         p.name for p in (out / "review").iterdir()}  # fmt: skip
-    # design, menus, QA, motion, art plan, code, review (no story)
-    assert result.report["model_calls"]["chat"] == 7
+    # design, menus, sounds, QA, motion, art plan, code, review (no story)
+    assert result.report["model_calls"]["chat"] == 8
     assert result.report["qa"]["failed"] == 0 and result.report["qa"]["passed"] >= 5
     # The menus (L2.5): every screen shot, the title art drawn by code offline (no image call).
     menus = result.report["menus"]
@@ -307,6 +307,7 @@ def test_repair_loop_feeds_failures_back(tmp_path, budget):
     cfg.game.qa = False  # (QA tests: test_qa_tests)
     cfg.game.motion = False  # (motion design: test_motion)
     cfg.game.menus = False  # (menus: test_menus)
+    cfg.game.sounds = False  # (sounds: test_sounds)
     result = make_game(
         "arena",
         tmp_path / "g",
@@ -342,7 +343,7 @@ def test_playtest_reports_missing_events(tmp_path, budget):
     )
     cfg = load_config()
     cfg.game.max_repairs, cfg.game.review, cfg.game.qa, cfg.game.motion = 1, False, False, False
-    cfg.game.menus = False
+    cfg.game.menus = cfg.game.sounds = False
     result = make_game(
         "arena", tmp_path / "g", cfg, mock=True, provider=scripted, record=False, log=lambda m: None
     )

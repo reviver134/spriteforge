@@ -26,9 +26,9 @@ def latest_play(store, run_id) -> dict | None:
         if m := re.fullmatch(r"game/v(\d+)/report\.json", a.name):
             reports[int(m[1])] = a
     for version in sorted(reports, reverse=True):
-        play = json.loads(reports[version].data).get("play")
-        if play:
-            return {"version": version, "url": play}
+        report = json.loads(reports[version].data)
+        if report.get("play"):
+            return {"version": version, "url": report["play"], "sounds": bool(report.get("sounds"))}
     return None
 
 
@@ -260,6 +260,28 @@ def create_app(
         media = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
         return Response(target.read_bytes(), media_type=media,
                         headers={"X-Content-Type-Options": "nosniff"})  # fmt: skip
+
+    @app.post("/api/runs/{id}/sounds/{version}")
+    async def save_sounds(id: str, version: str, request: Request):
+        """The build's sound editor saves here: a new sounds version (by the human, clamped by
+        code) that build vN plays at once and every later build plays."""
+        from pydantic import ValidationError
+
+        from spriteforge.game.sounds import SoundSet
+        from spriteforge.stages.game import save_edited_sounds
+
+        require_run(id)
+        if not re.fullmatch(r"v\d+", version):
+            raise HTTPException(404, "Unknown build version")
+        try:
+            body = await request.json()
+            sounds = SoundSet.model_validate((body or {}).get("sounds"))
+        except (ValueError, ValidationError) as exc:
+            raise HTTPException(422, redact(str(exc))[:500]) from None
+        try:
+            return await asyncio.to_thread(save_edited_sounds, store, id, int(version[1:]), sounds)
+        except KeyError as exc:
+            raise HTTPException(404, redact(str(exc))) from None
 
     @app.get("/api/artifacts/{id}")
     def artifact(id: str):

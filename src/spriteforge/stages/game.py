@@ -55,6 +55,12 @@ After the G1 questions:
                              code-drawn) and title-art.json
   gate "menus"               G3, after the first build with menus: text -> the Menu Designer
                              revises the menus -> v(N+1) with the same code and art; empty -> G4
+  game/sounds/vS.json/.md    Sound Director (L2.7): a synthesised sound for every moment (cues on
+                             SDK moments, design events and the game's own events), fitted by
+                             code; v1 written at G2 approval, refitted by code when the design
+                             changes, a new version per sound feedback (G4's sound_changes: the
+                             same build plays it, no rebuild) and per save in the build's sound
+                             editor (sounds.html, by the human); every build plays the latest
   game/vN/poster.png         (+ demo.mp4 with ffmpeg)
   game/vN/report.json        what was built and by whom, art sources, warnings, attempts, play link
   gate "playtest"            text -> Director splits it into design/art/code/level changes ->
@@ -76,6 +82,7 @@ from spriteforge.config import BudgetConfig, Config
 from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Gates, new_gate
 from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
+from spriteforge.game.build import install_sounds
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.design import GameDesign, design_markdown, revision_prompt
 from spriteforge.game.gamedb import context_pack, open_db, promote_all, sync_record
@@ -83,6 +90,17 @@ from spriteforge.game.menus import MenuRecord, menus_markdown, menus_script, ref
 from spriteforge.game.level_preview import first_frame, preview
 from spriteforge.game.levels import LevelRecord, evaluate, level_markdown, player_body
 from spriteforge.game.motion import MotionRecord, motion_markdown
+from spriteforge.game.sounds import (
+    SDK_MOMENTS,
+    SoundRecord,
+    SoundSet,
+    edited_record,
+    moments_of,
+    refit as refit_sounds,
+    sound_report,
+    sounds_markdown,
+    sounds_script,
+)
 from spriteforge.game.pipeline import (
     LevelPack,
     MenuPack,
@@ -106,6 +124,7 @@ from spriteforge.game.pipeline import (
     revise_level,
     revise_menus,
     revise_plan,
+    revise_sounds,
     revise_story,
     uses_levels,
     write_code,
@@ -116,6 +135,7 @@ from spriteforge.game.pipeline import (
     write_plan,
     write_qa_tests,
     write_research,
+    write_sounds,
     write_story,
 )
 from spriteforge.game.plan import PlanRecord, plan_brief, plan_markdown
@@ -145,6 +165,7 @@ from .game_record import (
     MENUS,
     REPORT,
     RESEARCH,
+    SOUNDS,
     latest_version,
     next_story_name,
     run_record,
@@ -392,6 +413,105 @@ def previous_title(ctx: GameContext, version: int) -> TitleArt | None:
     return TitleArt(ctx.data(f"{base}/title-art.png"), ctx.data(f"{base}/emblem.png"),
                     rec.get("source", ""), rec.get("prompts", {}), [], {},
                     rec.get("version") or version - 1)  # fmt: skip
+
+
+# --- sounds (L2.7) -------------------------------------------------------------------------------
+
+
+def sounds_name(version: int) -> str:
+    return f"game/sounds/v{version}.json"
+
+
+def load_sounds(ctx: GameContext, version: int) -> SoundRecord:
+    return SoundRecord.model_validate(ctx.read(sounds_name(version)))
+
+
+def save_sounds(ctx: GameContext, record: SoundRecord, role: str = "Sound Director") -> int:
+    version = latest_version(ctx.artifacts, SOUNDS) + 1
+    name = sounds_name(version)
+    ctx.save(name, record.model_dump(), role)
+    ctx.save(name.removesuffix(".json") + ".md", sounds_markdown(record).encode(), role,
+             "text/markdown")  # fmt: skip
+    return version
+
+
+def ensure_sounds(ctx: GameContext, design: GameDesign, design_version: int, levels: bool,
+                  menus: bool, changed: bool = False) -> int | None:  # fmt: skip
+    """The sounds a build plays: the latest version (the human's edits included); v1 written by
+    the Sound Director the first time; refitted by code (no model call) when the design changed.
+    None when `game.sounds` is off."""
+    if not ctx.cfg.game.sounds:
+        return None
+    latest = latest_version(ctx.artifacts, SOUNDS)
+    if not latest:
+        ctx.log("Sound Director")("choosing a sound for every moment of the game")
+        record = write_sounds(ctx.models, design, levels, menus, load_plan_at(ctx, design_version),
+                              context_pack(ctx.db, "sound feel player enemies pickups things that break", 1200),
+                              why=f"written from design v{design_version}")  # fmt: skip
+        return save_sounds(ctx, record)
+    if not changed:
+        return latest
+    record = load_sounds(ctx, latest)
+    again = refit_sounds(record, design, levels, menus)
+    return latest if again is record else save_sounds(ctx, again, "Sound Director")
+
+
+def next_sounds(ctx: GameContext, n: int, old: int, feedback: str, design: GameDesign,
+                levels: bool, menus: bool, where: str) -> int:  # fmt: skip
+    """The sounds revised for gate n's feedback (once per gate: a re-entered step reuses it)."""
+    pointer = f"game/feedback/gate-{n}-sounds.json"
+    if pointer not in ctx.artifacts:
+        ctx.log("Sound Director")("changing the sounds for the feedback")
+        record = revise_sounds(ctx.models, load_sounds(ctx, old), feedback, design, levels, menus,
+                               why=f"revised for the {where} feedback")  # fmt: skip
+        ctx.save(pointer, {"version": save_sounds(ctx, record), "from": old}, "Sound Director")
+    return ctx.read(pointer)["version"]
+
+
+def swap_sounds(ctx: GameContext, build: int, version: int, design: GameDesign) -> bool:
+    """Build vN plays sounds vS from now on (sounds are data: no rebuild). False when the build
+    has no folder (it did not pass static checks)."""
+    folder = ctx.root / f"game/v{build}/build"
+    if not (folder / "index.html").is_file():
+        return False
+    install_sounds(folder, sounds_script(load_sounds(ctx, version), design.title))
+    # A build from before L2.7 does not load them: the next build will.
+    return "sounds.js" in (folder / "index.html").read_text(encoding="utf-8")
+
+
+def known_moments(ctx: GameContext, design: GameDesign, report: dict) -> set[str]:
+    return set(SDK_MOMENTS) | set(moments_of(design, bool(report.get("levels_version")),
+                                             bool(report.get("menus_version"))))  # fmt: skip
+
+
+def save_edited_sounds(store, run_id: str, build: int, sounds: SoundSet) -> dict:
+    """The sound editor's save: a new sounds version by the human (code clamps it), played by
+    build vN at once and by every later build."""
+    ctx = GameContext(store, run_id)
+    report_name = f"game/v{build}/report.json"
+    if report_name not in ctx.artifacts:
+        raise KeyError(f"No build v{build}")
+    report = ctx.read(report_name)
+    design = load_design(ctx, report["design_version"])
+    latest = latest_version(ctx.artifacts, SOUNDS)
+    old = load_sounds(ctx, latest) if latest else SoundRecord(sounds=SoundSet(cues=[]))
+    record = edited_record(sounds, old, build, known_moments(ctx, design, report))
+    version = save_sounds(ctx, record, "human")
+    playing = swap_sounds(ctx, build, version, design)
+    ctx.store.append_event(run_id, "human", "game.sounds_edited",
+                           {"version": version, "build": build, "cues": len(record.sounds.cues)})  # fmt: skip
+    return {"version": version, "build": build, "playing": playing, "notes": record.notes,
+            "problems": record.problems, "script": sounds_script(record, design.title)}  # fmt: skip
+
+
+def sound_instructions(ctx: GameContext, new: int | None, old: int | None) -> str:
+    """The Programmer emits the game's own sound events a new sounds version added."""
+    if not new:
+        return ""
+    before = set(load_sounds(ctx, old).custom) if old else set()
+    added = {m: w for m, w in load_sounds(ctx, new).custom.items() if m not in before}
+    return "\n".join(f"Emit sf.event('{m}') the moment it happens ({w or 'a sound plays on it'})."
+                     for m, w in added.items())  # fmt: skip
 
 
 def latest_story(ctx: GameContext) -> StoryBible | None:
@@ -691,11 +811,13 @@ def build_version(
     game_plan: PlanRecord | None = None,
     motion: MotionRecord | None = None,
     menus: int | None = None,
+    sounds: int | None = None,
 ) -> list[str]:
     """Art, code, playtest, repair and recording for one build; returns gate artifact names.
     `levels`: the level set the build plays (levels as data), checked with `game_plan`;
     `motion`: the motion design the art's rows follow; `menus`: the menus version the SDK
-    renders (title art, theme in the art's colours, screenshots of every screen)."""
+    renders (title art, theme in the art's colours, screenshots of every screen); `sounds`: the
+    sounds version the SDK plays (and the build's sound editor edits)."""
     prefix = f"game/v{version}"
     if f"{prefix}/report.json" not in ctx.artifacts:
         log = ctx.log("Director")
@@ -712,20 +834,22 @@ def build_version(
                              previous_title(ctx, version))  # fmt: skip
             if not flow.title_art.version:
                 flow.title_art.version = version
+        sound_record = load_sounds(ctx, sounds) if sounds else None
+        script = sounds_script(sound_record, design.title) if sound_record else None
         if base is None or instruction.strip():
             log(f"build v{version}: the Programmer is writing the game")
-            code = write_code(ctx.models, design, game_assets(art, flow)[0], base, instruction, log,
-                              pack)  # fmt: skip
+            code = write_code(ctx.models, design, game_assets(art, flow, script)[0], base,
+                              instruction, log, pack)  # fmt: skip
         else:
             code = base  # feedback touched only the art, the levels or the menus: same code
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log,
-                                 suite.tests if suite else None, pack, flow)  # fmt: skip
+                                 suite.tests if suite else None, pack, flow, script)  # fmt: skip
         review = None
         if ctx.cfg.game.review and outcome.build:
             log(f"build v{version}: the Art Reviewer is looking at the art in the running game")
             review = review_art(ctx.models, design, plan, art, outcome, ctx.cfg,
                                 ctx.root / prefix, log, version,
-                                suite.tests if suite else None, pack, flow)  # fmt: skip
+                                suite.tests if suite else None, pack, flow, script)  # fmt: skip
             art, outcome = review.art, review.outcome
         qa = save_qa(ctx, prefix, outcome, suite) if suite else None  # after the review's replay
         recording = None
@@ -808,6 +932,9 @@ def build_version(
             "art_review": review_report(review.report, prefix) if review else None,
             "motion": motion_report(art) if motion else None,
             **menu_part,
+            **({"sounds_version": sounds,
+                "sounds": sound_report(sound_record, sounds, outcome.report.get("sounds", {}))}
+               if sound_record else {}),
             "qa": qa,
             "model_calls": call_summary(ctx.store, ctx.run_id),
         }
@@ -943,6 +1070,8 @@ def gate_names(ctx: GameContext, version: int) -> list[str]:
                     key=lambda n: int(re.findall(r"\d+", n)[-1]))  # fmt: skip
     names += [n for n in (f"{prefix}/menus.png", f"{prefix}/motion.gif", f"{prefix}/art.png",
                           f"{prefix}/test_game_qa.py") if n in ctx.artifacts]  # fmt: skip
+    if latest := latest_version(ctx.artifacts, SOUNDS):  # what the build plays now
+        names.append(sounds_name(latest))
     return [*names, f"{prefix}/report.json", f"game/design/v{design_version}.json"]
 
 
@@ -1050,9 +1179,10 @@ def game_step(store, run_id) -> bool:
         game_plan = load_plan_at(ctx, design_version)
         levels = previous.get("levels_version")
         motion = ensure_motion(ctx, design_version, design, game_plan, levels)
+        sounds = ensure_sounds(ctx, design, design_version, bool(levels), True)
         suite = qa_suite(ctx, version, design, design_version, menus=menus)
         names = build_version(ctx, version, design, design_version, plan, base, "", revision, suite,
-                              levels, game_plan, motion, menus)  # fmt: skip
+                              levels, game_plan, motion, menus, sounds)  # fmt: skip
         open_after_build(ctx, version, names)
         return False
 
@@ -1100,6 +1230,7 @@ def game_step(store, run_id) -> bool:
         menus = ensure_menus(ctx, design, version)
         if menus:
             sync_db(ctx, f"menus v{menus}")
+        sounds = ensure_sounds(ctx, design, version, levels is not None, menus is not None)
         plan = ctx.once(
             "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design, motion),
             "Art Director",
@@ -1107,7 +1238,7 @@ def game_step(store, run_id) -> bool:
         suite = qa_suite(ctx, 1, design, version, menus=menus)
         open_after_build(ctx, 1, build_version(ctx, 1, design, version, plan, None, "",
                                                suite=suite, levels=levels, game_plan=game_plan,
-                                               motion=motion, menus=menus))  # fmt: skip
+                                               motion=motion, menus=menus, sounds=sounds))  # fmt: skip
         return False
 
     if last.stage in ("playtest", "final") and last.status == "changes_requested":
@@ -1142,6 +1273,16 @@ def game_step(store, run_id) -> bool:
 
         role = ("Level/Tile Designer" if picked is not None else "Art Reviewer") if applied else "Director"
         revision = ctx.once(f"game/feedback/gate-{n}-revision.json", Revision, director, role)
+        if revision.sound_only and ctx.cfg.game.sounds:
+            # Only the sounds change: they are data, so the same build plays the revised ones
+            # (no rebuild) unless they need an event the game's code does not emit yet.
+            flags = (bool(previous.get("levels_version")), bool(previous.get("menus_version")))
+            old_sounds = ensure_sounds(ctx, design, design_version, *flags)
+            new_sounds = next_sounds(ctx, n, old_sounds, revision.sound_changes, design, *flags, "G4")
+            if (not sound_instructions(ctx, new_sounds, old_sounds)
+                    and swap_sounds(ctx, shown_version, new_sounds, design)):  # fmt: skip
+                open_playtest_gate(ctx, shown_version, gate_names(ctx, shown_version))
+                return False
         if revision.story_only:
             # Only the story changes: write it and show the same build again (no rebuild).
             ensure_story(ctx, f"gate-{n}", design, revision.story_changes)
@@ -1230,9 +1371,15 @@ def game_step(store, run_id) -> bool:
                 ctx.save(built, {"version": levels}, "Level/Tile Designer")
         else:
             levels = None
+        flags = (levels is not None, bool(menus))
+        sounds = ensure_sounds(ctx, design, design_version, *flags, changed)
+        if sounds and revision.sound_changes.strip():
+            sounds = next_sounds(ctx, n, sounds, revision.sound_changes, design, *flags, "G4")
+        if emit := sound_instructions(ctx, sounds, previous.get("sounds_version")):
+            instruction = "\n".join(p for p in (instruction, emit) if p)
         names = build_version(
             ctx, version, design, design_version, plan, base, instruction, revision, suite,
-            levels, game_plan, motion, menus,
+            levels, game_plan, motion, menus, sounds,
         )
         open_after_build(ctx, version, names)
         return False

@@ -106,6 +106,9 @@ class GameConfig(Schema):
     # background and emblem (2 image calls; false or offline: code draws them).
     menus: bool = True
     title_art: bool = True
+    # Sounds (L2.7): the Sound Director's synthesised sounds (one Spark call per game), played by
+    # the SDK on the game's moments and edited in the build's sound editor or at G4.
+    sounds: bool = True
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)

@@ -49,6 +49,7 @@
     sf.settings.difficulty = d;
     sf.settings.multiplier = (M.difficulty || {})[d] || 1;
     sf.settings.fewerFlashes = !!P.settings.fewerFlashes;
+    sf.settings.sound = P.settings.sound !== false;  // sfsound.js plays nothing when off
     if (sf.state) sf.state.difficulty = d;
   }
   applySettings();
@@ -231,6 +232,7 @@
     for (const i of out) {
       if (i.action === 'difficulty') i.value = sf.settings.difficulty;
       if (i.action === 'fewer_flashes') i.value = sf.settings.fewerFlashes ? 'on' : 'off';
+      if (i.action === 'sound') i.value = sf.settings.sound ? 'on' : 'off';
     }
     return out;
   }
@@ -257,12 +259,20 @@
       P.settings.difficulty = names[(names.indexOf(sf.settings.difficulty) + 1) % names.length];
     }
     if (act === 'fewer_flashes') P.settings.fewerFlashes = !sf.settings.fewerFlashes;
+    if (act === 'sound') P.settings.sound = !sf.settings.sound;
     applySettings();
     save();
     flow.index = index;
     draw();
   }
   flow.pick = pick;
+  // The sound on or off (the settings item, or M anywhere: sfsound.js), saved with the settings.
+  flow.setSound = function (on) {
+    P.settings.sound = !!on;
+    applySettings();
+    save();
+    if (flow.screen) draw();
+  };
 
   function onKey(e) {
     const k = e.key;
@@ -279,6 +289,7 @@
     else if (k === 'Enter' || k === ' ') return pick(flow.index);
     else if (k === 'Escape') return back();
     else return;
+    if (sf.sound && sf.sound.moment) sf.sound.moment('menu_move');
     draw();
   }
 
