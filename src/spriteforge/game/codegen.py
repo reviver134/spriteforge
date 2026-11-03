@@ -20,7 +20,7 @@ from pydantic import Field
 
 from spriteforge.agents.models import Contract
 
-from .design import GameDesign
+from .design import GameDesign, is_endless
 
 SDK_API = (Path(__file__).parent / "sdk" / "API.md").read_text(encoding="utf-8")
 LEVELS_API = (Path(__file__).parent / "sdk" / "LEVELS.md").read_text(encoding="utf-8")
@@ -267,6 +267,14 @@ def level_requirements(design: GameDesign) -> str:
 * No network, no modules, no eval, no URLs, no Date.now/performance.now."""
 
 
+ENDLESS_REQUIREMENT = """
+* This run never ends: no levels and no exit. Spawn the track (or waves) ahead of the player
+  forever and raise the speed or density over time, as the design says. Emit 'win' when the run
+  reaches its goal, at the latest when the session's time is up, so the playtest sees it; a
+  crash ends the run with 'lose', except under sf.flags.god, where the run carries on (the
+  playtest must reach the goal). The autoplay policy reads what is coming and jumps, slides or
+  dashes in time."""
+
 FLOW_REQUIREMENT = """
 * The SDK draws the title, menus, pause (Escape), results, game over and victory (see "Menus
   and flow"): no title scene, menus or pause handling of your own; your first scene starts
@@ -294,7 +302,7 @@ def requirements_text(design: GameDesign, levels: str = "") -> str:
 {checks}
 * The playtest runs the full {design.session_seconds} s session with your autoplay policy in god
   mode (sf.flags.god: the player can be hurt but HP never drops below 1). The policy must play
-  well enough that every event above happens in time.
+  well enough that every event above happens in time.{ENDLESS_REQUIREMENT if is_endless(design) else ""}
 * Use only the asset ids listed above; characters, enemies, pickups and tiles must use them.
 * sf.state always holds hp, x, y (player position) and time (seconds since this run started;
   a restart resets it), plus level and score when the design has them: QA tests read them.

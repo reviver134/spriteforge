@@ -100,7 +100,7 @@ from .codegen import (
     static_check,
 )
 from .dbsource import folder_record
-from .design import GameDesign, design_markdown, design_prompt, fallback_design
+from .design import GameDesign, design_markdown, design_prompt, fallback_design, is_endless
 from .gamedb import open_db, sync_record
 from .image_cache import ImageCache
 from .level_gen import fallback_level
@@ -357,8 +357,11 @@ def write_design(models: Models, request: str, plan: PlanRecord | None = None) -
 
 
 def uses_levels(design: GameDesign, plan: PlanRecord | None) -> bool:
-    """Levels as data: a side-view game with a plan that has a jump and levels."""
-    return bool(design.camera == "side-view" and plan and plan.kinematics and plan.plan.levels)
+    """Levels as data: a side-view game with a plan that has a jump and levels, unless the run
+    never ends (an endless runner is written whole by the Programmer, with its own autoplay,
+    and played for its full session)."""
+    return bool(design.camera == "side-view" and plan and plan.kinematics and plan.plan.levels
+                and not is_endless(design))  # fmt: skip
 
 
 @dataclass

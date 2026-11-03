@@ -43,6 +43,10 @@ class GameDesign(Contract):
     title: str
     pitch: str = Field(description="Two or three sentences a player would read")
     camera: Literal["top-down", "side-view"]
+    endless: bool = Field(
+        description="True when a run never ends (an endless runner, endless survival): the "
+        "game has no levels with exits; its code spawns the world forever and speeds up"
+    )
     controls: str = Field(description="Keys and what they do (arrows/WASD, Space, X)")
     session_seconds: int = Field(description="Length of a full winning session in seconds")
     player: str = Field(description="Who the player is, stats and abilities")
@@ -56,6 +60,14 @@ class GameDesign(Contract):
     lose: str
     hud: list[str] = Field(description="What the HUD shows")
     checks: list[Check]
+
+    @model_validator(mode="before")
+    @classmethod
+    def older_designs(cls, data):
+        """Designs saved before `endless` existed were never endless."""
+        if isinstance(data, dict) and "endless" not in data:
+            data = {**data, "endless": False}
+        return data
 
     @model_validator(mode="after")
     def normalise(self):
@@ -91,10 +103,16 @@ def design_prompt(request: str, plan: str = "") -> str:
         "* entities: everything the player sees (player, each enemy type, pickups, projectiles, "
         "props, floor/wall/ground tiles, background). Sizes are pixels on a 320x180 screen.\n"
         "* checks: one per important rule, as an event the code will emit with sf.event(name) "
-        "the moment it happens, plus 'win' (or 'lose' for endless games). A bot that cannot die "
-        "plays the full session, so every check must be reachable by simple play. Use by_second "
-        "for rules about timing (e.g. first spawn within 5 s, difficulty rises by 120 s).\n"
-        "* A side-view platformer with a game plan plays its levels as data: the SDK builds each "
+        "the moment it happens, plus 'win'. A bot that cannot die plays the full session, so "
+        "every check must be reachable by simple play (never 'lose': the bot cannot lose). Use "
+        "by_second for rules about timing (e.g. first spawn within 5 s, difficulty rises by "
+        "120 s).\n"
+        "* endless: true for a run that never ends (an endless runner, endless survival). Such "
+        "a game has no levels: its code spawns the track or waves forever and speeds up, its "
+        "autoplay policy dodges what comes, and it emits 'win' when the run reaches its goal "
+        "(a distance or score, or session_seconds survived) so the playtest sees it.\n"
+        "* A side-view platformer that is not endless, with a game plan, plays its levels as "
+        "data: the SDK builds each "
         "level, moves the player with the plan's numbers and emits level_start, level_complete, "
         "checkpoint, respawn, jump, dash and win (after the last level); use these names for "
         "those rules. A bot plays each level on its own, so per-level rules are checked per "
@@ -110,6 +128,22 @@ def design_prompt(request: str, plan: str = "") -> str:
         )
         + f"\nRequest:\n{request.strip()}"
     )
+
+
+ENDLESS = re.compile(
+    r"\bendless\b|\binfinite (?:run|runner|scroll)|\bauto-?runn?er\b|\bauto-?run(?:s|ning)?\b"
+    r"|\bnever[- ]ending\b",
+    re.IGNORECASE,
+)
+
+
+def is_endless(design: "GameDesign") -> bool:
+    """The Game Designer's flag, or what the design says about itself: an endless runner
+    written before the flag existed (or with it left false) must not be built as levels with
+    exits, whose bot cannot play a world that scrolls by itself (live 2026-11-03: a unicorn
+    runner failed four playtests that way)."""
+    said = " ".join([design.title, design.pitch, design.world, design.win, *design.rules])
+    return design.endless or bool(ENDLESS.search(said))
 
 
 def revision_prompt(design: "GameDesign", feedback: str, plan: str = "") -> str:
