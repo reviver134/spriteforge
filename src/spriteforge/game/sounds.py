@@ -438,9 +438,11 @@ def breakables(design: GameDesign) -> list[tuple[str, str]]:
         text = f"{e.id} {e.look} {e.behaviour}"
         if not re.search(r"break|crack|crate|dissolv|smash|destroy|crumbl", text, re.IGNORECASE):
             continue
-        if e.role in ("player", "enemy"):
-            continue
-        preset = ("metal_clang" if METAL.search(e.id) else "crate_break" if WOOD.search(text)
+        if e.role in ("player", "enemy", "pickup", "item", "collectible", "background"):
+            continue  # a coin "from crates" is collected, not broken (live 2026-11-03)
+        # What it is made of, by its own name first: a crate holding metal is still a crate.
+        preset = ("crate_break" if WOOD.search(e.id) else "wall_break" if STONE.search(e.id)
+                  else "metal_clang" if METAL.search(e.id) else "crate_break" if WOOD.search(text)
                   else "wall_break" if STONE.search(text) else "crate_break")  # fmt: skip
         out.append((e.id, preset))
     return out
