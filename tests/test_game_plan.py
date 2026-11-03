@@ -55,7 +55,7 @@ def calls(budget) -> list:
 
 # --- the probe's findings: the Responses API path, citations, searches, cost --------------------
 
-# The shape tools/probe_web_search.py recorded (2026-11-02), trimmed.
+# The shape a live probe recorded (2026-11-02), trimmed.
 RESPONSE = {
     "status": "completed",
     "output": [

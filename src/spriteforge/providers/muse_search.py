@@ -1,7 +1,7 @@
 """Muse Spark with live web search, on the Responses API (`POST /v1/responses`).
 
 Meta's `web_search` is a built-in server-side tool of the Responses API; Chat Completions
-rejects it (tools/probe_web_search.py, 2026-11-02). One call searches (at most
+rejects it (live probe, 2026-11-02). One call searches (at most
 `max_searches` tool calls) and answers in the given JSON schema: the last `message` item holds
 the JSON, earlier ones are progress lines. Every `web_search_call` lists the pages it returned
 (`include: web_search_call.action.sources`); the answer's `url_citation` annotations name the

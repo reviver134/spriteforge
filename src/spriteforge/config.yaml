@@ -68,11 +68,11 @@ image:
   generate_path: /v1/images/generations
   edit_path: /v1/images/edits
   # Request sizes (aspect ratio only). Art requests use the one nearest the subject's aspect.
-  # tools/probe_art_spec.py 2026-10-31, all accepted: 1024x1024 -> 1600x1600,
+  # Live probe 2026-10-31, all accepted: 1024x1024 -> 1600x1600,
   # 1792x1024 -> 2016x1152, 1024x1536 -> 1280x1920. With the grid wording Muse draws big
   # square pixels but chooses its own cell count (16x16 asked: 21x27 cells, ~46 px each).
-  # tools/probe_sheet.py 2026-10-31: 2048x512 (4:1) accepted -> 3200x800.
-  # tools/probe_layouts.py 2026-10-31: 1536x512 (3:1) accepted -> 2736x912.
+  # Live probe 2026-10-31: 2048x512 (4:1) accepted -> 3200x800.
+  # Live probe 2026-10-31: 1536x512 (3:1) accepted -> 2736x912.
   sizes: [[1024, 1024], [1792, 1024], [1024, 1536], [2048, 512], [1536, 512]]
 llm:
   base_url: https://api.meta.ai
@@ -81,7 +81,7 @@ llm:
   # Live probe 2026-10-30: strict json_schema {files:[{path,content}]} returned a complete
   # 375-line Phaser game (8578 completion tokens, finish_reason stop, 43 s); it ran without
   # errors. One call per game file set is enough; no output-length setting was needed.
-  # tools/probe_spark_reasoning.py 2026-10-31: top-level reasoning_effort is accepted and
+  # Live probe 2026-10-31: top-level reasoning_effort is accepted and
   # works (same question: low 113-119 reasoning tokens, max 366-455). Docs list minimal,
   # low, medium, high, xhigh, max ("none" -> HTTP 400). Prefix caching is automatic: a
   # repeated 1558-token prompt reported cached_tokens 1521 on a second run, also across
@@ -106,7 +106,7 @@ llm:
     sounds: low # Sound Director: a preset and tweaks per moment, and their revisions (L2.7)
     lessons: low # Librarian: lessons from a finished game, shown at G5 (L2.6)
 research:
-  # tools/probe_web_search.py 2026-11-02: Chat Completions rejects {"type": "web_search"}
+  # Live probe 2026-11-02: Chat Completions rejects {"type": "web_search"}
   # (HTTP 400 "tools[0] did not match any supported type"); the Responses API accepts it.
   # Citations: `url_citation` annotations on output_text (few), and with
   # include ["web_search_call.action.sources"] every search lists the pages it returned

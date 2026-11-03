@@ -1,6 +1,6 @@
 # Level 2: game design, menus and levels, on an OKF record of the whole game
 
-The plan is `level_2.md` (six sessions, L2.1 to L2.6). This file records what each session
+The plan had six sessions, L2.1 to L2.6. This file records what each session
 built, how to use it, and its live results.
 
 The test game for level 2 is a side-view platformer with three levels: the hero is a slime
@@ -120,13 +120,13 @@ timing flake also seen in M11) and passes when run alone.
 
 ## L2.2: research and the game plan
 
-After the L2.1 playtest the order changed (level_2.md, "Revised order"): research and a game
+After the L2.1 playtest the order changed (the plan's "Revised order"): research and a game
 plan first, so every later agent gets concrete numbers and challenge ideas instead of
 adjectives.
 
 ### Web search, probed first
 
-`tools/probe_web_search.py` (2026-11-02, three calls, about $0.07) decided the path before any code:
+A live probe (2026-11-02, three calls, about $0.07) decided the path before any code:
 
 * Chat Completions rejects `{"type": "web_search"}` (HTTP 400 "tools[0] did not match any
   supported type"); `POST /v1/responses` accepts it.

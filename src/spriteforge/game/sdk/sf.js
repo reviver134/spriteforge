@@ -3,7 +3,7 @@
    own autoplay bot), and exposes the hooks the harness uses to test and record a build:
    window.sf.{ready, errors, events, counts, state, menu, settings}, window.sfCapture(frames, fps),
    window.sfRun(seconds, fps, keepGoing) and window.sfShot(fps). QA tests press real keys while
-   the harness steps frames (tools/probe_keys.py: Playwright key presses reach sf.input and
+   the harness steps frames (a live probe showed: Playwright key presses reach sf.input and
    sf.choose). The model-facing reference is API.md. A build with menus (L2.5) also loads
    sfflow.js: the title, menus, pause, results, game over and victory screens and the saved
    progress; while it pauses the game, sf.paused stops the game clock. */
