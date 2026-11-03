@@ -23,9 +23,9 @@ src/spriteforge/{app,core,providers,agents,pixel,stages,genres,skills,mcp,memory
 
 ## Working rules
 - Work in milestones. After each: run pytest, commit, print what works and what doesn't. Stop at the acceptance criteria and wait for my go-ahead.
-- Python 3.11+, pydantic for every schema, typer CLI, FastAPI + plain HTML/JS (HTMX ok) for the local UI, Playwright for headless tests, Phaser 3 (no build step) for generated games.
+- Python 3.11+, pydantic for every schema, typer CLI, FastAPI + a React frontend (Vite, TypeScript; built output committed so users need no Node) for the local UI, which serves localhost only (docs/ui-plan.md), Playwright for headless tests, Phaser 3 (no build step) for generated games.
 - Verify external APIs (Meta Model API, MCP SDK, OKF spec) against live docs/first real calls; keep endpoint paths and model ids in config.yaml.
-- Cost caps and call counters are mandatory; default max 150 image calls per run.
+- Call counters and the cost ledger are mandatory and visible. Caps stop autonomous agent loops that make no progress; they never block work the user asks for (docs/ui-plan.md, cost policy).
 - Prefer small readable modules. No speculative features.
 - External editor/tool dependencies must be free to use; do not require paid editor licenses.
 - Muse is the core live generation and reasoning platform for the Meta hackathon. The free-tools requirement applies to supporting editors and utilities, not to replacing Muse. Mocks support offline development and testing; deterministic pixel tools clean up, validate, preview and export Muse output. Direct grid drawing is for targeted corrections or test fixtures, not a substitute for Muse-generated game art.
