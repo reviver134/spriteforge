@@ -55,3 +55,41 @@ def test_a_game_that_draws_its_own_background_keeps_it(tmp_path):
                   code=GAME_WITH_OWN_BACKGROUND)  # fmt: skip
     seen = backdrop_of(build)
     assert seen["drawn"] is False and seen["errors"] == []
+
+
+def hazard_pixels(build):
+    """The level's tile texture: how much redder than green each of the hazard's and the
+    ground's cells is on average, and the white spike pixels in each cell's top quarter."""
+    with serve(build) as url, sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 320, "height": 180})
+        page.goto(f"{url}/index.html?autoplay=1&capture=1&god=1&level=1&only=1")
+        assert wait_until(page, READY)
+        out = page.evaluate("""(() => {
+          const L = sf.level.current, chars = Object.keys(L.data.tiles), T = L.tile;
+          const ctx = L.layer.scene.textures.get('__sf_tiles_1').getSourceImage().getContext('2d');
+          const cell = ch => { const i = chars.indexOf(ch), d = ctx.getImageData(i * T, 0, T, T).data;
+            let red = 0, white = 0;
+            for (let p = 0; p < d.length; p += 4) {
+              red += d[p] - d[p + 1];
+              if (p < T * 4 * Math.floor(T / 4) && d[p] > 220 && d[p + 1] > 220 && d[p + 2] > 220) white++;
+            }
+            return {red: red / (T * T), white}; };
+          return {hazard: cell('^'), ground: cell('#')};
+        })()""")
+        browser.close()
+    return out
+
+
+def test_a_hazard_that_looks_like_the_ground_is_marked(tmp_path):
+    """Live 2026-11-03: the foundry's hazard blocks were drawn with its floor tile; the hero
+    stood on them and died. The engine tints such a hazard red and puts spikes on it."""
+    from test_levels import LEGEND, L
+
+    design, plan = slime_design(), slime_plan()
+    legend = [L("^", "hazard", "ground") if e.char == "^" else e for e in LEGEND]
+    rec = check(GATED, n=1, legend=legend, events=["level_complete"])
+    assert next(e for e in rec.spec.legend if e.char == "^").entity == "ground"
+    seen = hazard_pixels(built(tmp_path, design, plan, [rec]))
+    assert seen["hazard"]["red"] > seen["ground"]["red"] + 30 and seen["hazard"]["white"] > 0
+    assert seen["ground"]["white"] == 0  # the ground itself is drawn as it is

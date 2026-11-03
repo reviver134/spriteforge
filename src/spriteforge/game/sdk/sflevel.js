@@ -39,6 +39,22 @@
     return start(opts);
   };
 
+  function dangerMarks(ctx, x, T) {
+    ctx.fillStyle = 'rgba(208, 40, 40, 0.45)';
+    ctx.fillRect(x, 0, T, T);
+    const n = Math.max(2, Math.round(T / 8)), w = T / n, h = Math.max(4, Math.round(T * 0.4));
+    for (let k = 0; k < n; k++) {
+      ctx.fillStyle = '#f0f0f0';
+      ctx.beginPath();
+      ctx.moveTo(x + k * w, h);
+      ctx.lineTo(x + k * w + w / 2, 0);
+      ctx.lineTo(x + (k + 1) * w, h);
+      ctx.closePath();
+      ctx.fill();
+      if (T >= 24) { ctx.strokeStyle = '#401010'; ctx.stroke(); }
+    }
+  }
+
   function tileTexture(scene, L) {
     const key = '__sf_tiles_' + L.n, T = L.tile, chars = Object.keys(L.data.tiles);
     if (!scene.textures.exists(key)) {
@@ -50,6 +66,12 @@
         if (sf.has(t.entity)) {
           const tex = scene.textures.get(t.entity), fr = tex.has(0) ? tex.get(0) : tex.get();
           ctx.drawImage(fr.source.image, fr.cutX, fr.cutY, fr.cutWidth, fr.cutHeight, i * T, 0, T, T);
+          // A hazard drawn with the same art as ground the player stands on would look safe
+          // (live 2026-11-03: the foundry's hazard blocks were its floor tile, and the hero died
+          // standing on them): tint it red and put spikes on its top.
+          const shared = t.kind === 'hazard' && Object.values(L.data.tiles)
+            .some(o => o !== t && o.kind !== 'hazard' && o.entity === t.entity);
+          if (shared) dangerMarks(ctx, i * T, T);
         } else {
           ctx.fillStyle = t.kind === 'hazard' ? '#d04040' : t.kind === 'one_way' ? '#a08060' : '#607080';
           ctx.fillRect(i * T, t.kind === 'one_way' ? 0 : 0, T, t.kind === 'one_way' ? T / 3 : T);
