@@ -163,7 +163,9 @@ def test_project_from_idea_to_final_through_agent_threads(studio):
     assert "Offline mock" in question[1]["text"]
     change = client.post(f"/api/runs/{run_id}/agents/Level%2FTile Designer/messages",
                          json={"text": "make level 2 shorter"}).json()["items"]  # fmt: skip
-    assert change[0]["status"] == "recorded" and change[1]["agent"] == "Level/Tile Designer"
+    # The Level Designer has not run: the change waits for its first run.
+    assert change[0]["status"] == "queued" and change[1]["agent"] == "Level/Tile Designer"
+    assert "first run" in change[1]["text"]
     after = question[-1]["id"]
     tail = client.get(f"/api/runs/{run_id}/agents/Level/Tile Designer/thread?after={after}")
     assert next(i["text"] for i in tail.json()["items"]) == "make level 2 shorter"
@@ -199,6 +201,9 @@ def test_project_from_idea_to_final_through_agent_threads(studio):
     assert project["status"] == "completed" and project["thumbnail"] and project["cost"] > 0
     assert project["title"] != "a slime in a cave"  # the design's title
     assert client.post(f"/api/runs/{run_id}/resume").status_code == 409
+    level = client.get(f"/api/runs/{run_id}/agents/Level/Tile Designer/thread").json()["items"]
+    asked = next(i for i in level if i["kind"] == "chat" and i["role"] == "user")
+    assert asked["status"] == "applied"
 
 
 def test_two_runs_open_a_new_memory_corpus_at_once(tmp_path):

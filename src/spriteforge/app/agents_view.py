@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from spriteforge.core.gates import Gate, Gates
 from spriteforge.core.state import Event, Store
+from spriteforge.stages.chat_changes import changes
 
 # Execution order, as a real run calls them.
 AGENTS = [
@@ -141,11 +142,15 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
         twin = by_name.get(meta["name"].removesuffix(".json") + ".md")
         return twin if meta["mime"] == "application/json" and twin else meta
 
+    applied = {c["id"]: c["applied"] for c in changes(store, run_id)}
     items = []
     for event in store.events(run_id, after):
         kind, payload = event.type, event.payload
         if kind == "chat.user" and payload.get("to") == agent:
-            items.append(item(event, "chat", role="user", **chat_fields(payload)))
+            fields = chat_fields(payload)
+            if event.id in applied:  # a filed change: queued until a step takes it
+                fields["status"] = "applied" if applied[event.id] else "queued"
+            items.append(item(event, "chat", role="user", **fields))
         elif kind == "chat.agent" and event.agent == agent:
             items.append(item(event, "chat", role="agent", **chat_fields(payload)))
         elif kind in {"gate.opened", "gate.responded"}:
@@ -167,6 +172,7 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
                         title=gate.title,
                         status=payload.get("status"),
                         text=response.text if response else "",
+                        chat=len((response.form if response else {}).get("chat_changes") or []),
                     )
                 )
         elif kind == "game.progress" and (director or actor(event) == agent):

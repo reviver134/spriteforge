@@ -233,6 +233,12 @@ def create_app(
                                 ),
                                 Manifest.model_validate(saved.read("preview/manifest.json")),
                             )
+            if feedback.action == "request_changes" and not feedback.text.strip():
+                from spriteforge.stages.chat_changes import for_gate
+
+                if queued := for_gate(store, id):  # the changes asked in agent chats
+                    form = {**feedback.form, "chat_changes": [c["id"] for c in queued]}
+                    feedback = feedback.model_copy(update={"form": form})
             gate = await asyncio.to_thread(Gates(store).respond, id, gate_id, feedback)
         except KeyError:
             raise HTTPException(404, "Gate not found") from None

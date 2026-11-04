@@ -51,14 +51,20 @@ class Revision(Contract):
         description="changes to the sound effects (a sound too loud, wrong, missing or unwanted; "
         "a new sound for something): what they want, in their words; ''"
     )
+    add_qa_checks: list[str] = Field(
+        description="checks the human wants the QA Playtester to add to every build, each in "
+        "their words ('check that the bat cannot fly through walls'); [] if none"
+    )
 
     @model_validator(mode="before")
     @classmethod
     def older(cls, data):
-        """Revisions saved before QA tests, stories, levels or menus existed lack those fields."""
+        """Revisions saved before QA tests, stories, levels, menus, sounds or suggested checks
+        existed lack those fields."""
         if isinstance(data, dict):
             data = {"drop_qa_tests": [], "story_changes": "", "level_changes": [],
-                    "menu_changes": "", "sound_changes": "", **data}  # fmt: skip
+                    "menu_changes": "", "sound_changes": "", "add_qa_checks": [],
+                    **data}  # fmt: skip
         return data
 
     @property
@@ -69,6 +75,7 @@ class Revision(Contract):
             or self.art_changes
             or self.code_instructions.strip()
             or self.drop_qa_tests
+            or self.add_qa_checks
             or self.level_changes
             or self.menu_changes.strip()
             or self.sound_changes.strip()
@@ -82,10 +89,33 @@ class Revision(Contract):
             or self.art_changes
             or self.code_instructions.strip()
             or self.drop_qa_tests
+            or self.add_qa_checks
             or self.level_changes
             or self.menu_changes.strip()
             or self.story_changes.strip()
         )
+
+
+def merge(a: Revision, b: Revision) -> Revision:
+    """Both revisions' changes: texts joined, lists concatenated (an entity or level named in
+    both keeps `b`'s change)."""
+
+    def text(x: str, y: str) -> str:
+        return "\n".join(p.strip() for p in (x, y) if p.strip())
+
+    art = {c.entity: c for c in [*a.art_changes, *b.art_changes]}
+    levels = {c.level: c for c in [*a.level_changes, *b.level_changes]}
+    return Revision(
+        design_changes=text(a.design_changes, b.design_changes),
+        art_changes=list(art.values()),
+        code_instructions=text(a.code_instructions, b.code_instructions),
+        drop_qa_tests=list(dict.fromkeys([*a.drop_qa_tests, *b.drop_qa_tests])),
+        story_changes=text(a.story_changes, b.story_changes),
+        level_changes=list(levels.values()),
+        menu_changes=text(a.menu_changes, b.menu_changes),
+        sound_changes=text(a.sound_changes, b.sound_changes),
+        add_qa_checks=list(dict.fromkeys([*a.add_qa_checks, *b.add_qa_checks])),
+    )
 
 
 def revision_prompt(
@@ -108,8 +138,9 @@ def revision_prompt(
         "number), and menu_changes (the title screen, menus, pause or game-over screens: "
         "labels, colours, the title picture; the SDK draws them from data, so they are not "
         "code), and sound_changes (sound effects: a sound too loud, quiet, wrong, unwanted or "
-        "missing; the SDK synthesises them from data, so they are not code). Leave a part empty when the feedback does not touch it; do not invent "
-        "changes.\n\n"
+        "missing; the SDK synthesises them from data, so they are not code), and add_qa_checks "
+        "(a 'check that ...' the human wants tested in every build: their words). Leave a part "
+        "empty when the feedback does not touch it; do not invent changes.\n\n"
         f"Feedback:\n{feedback.strip()}\n\nDesign:\n{design.model_dump_json()}\n\n"
         f"Current art sources:\n{sources}"
         + (f"\n\nQA tests of this build:\n{tests}" if tests else "")

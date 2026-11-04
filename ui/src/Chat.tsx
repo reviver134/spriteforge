@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { ArtifactGroup } from "./ArtifactCard";
 import { GateCard } from "./GateCard";
 import { Markdown } from "./Markdown";
-import { agentPath, getJson, postJson, type ArtifactMeta, type ThreadItem } from "./api";
+import {
+  agentPath,
+  getJson,
+  postJson,
+  type ArtifactMeta,
+  type QueuedChange,
+  type ThreadItem,
+} from "./api";
 
 type Row =
   | { kind: "item"; item: ThreadItem }
@@ -30,15 +37,24 @@ const RUN_TEXT: Record<string, string> = {
   "game.built": "A build is ready",
 };
 
-function Item({ runId, item }: { runId: string; item: ThreadItem }) {
+// Where a change asked in chat stands (chat_changes.py files and applies it).
+const CHANGE_STATUS: Record<string, string> = {
+  queued: "change request · queued",
+  applied: "change request · applied",
+  unplaced: "change request · not filed",
+};
+
+function Item({ runId, item, queued }: { runId: string; item: ThreadItem; queued: QueuedChange[] }) {
   switch (item.kind) {
     case "chat":
       return (
         <div className={`bubble ${item.role} ${item.error ? "failed" : ""}`}>
           {item.role === "agent" ? <Markdown text={item.text} /> : <p>{item.text}</p>}
           {item.role === "user" && item.intent && item.intent !== "idea" && (
-            <span className="intent">
-              {item.intent === "change" ? "change request" : "question"}
+            <span className={`intent ${item.status ?? ""}`}>
+              {item.intent === "change"
+                ? (CHANGE_STATUS[item.status ?? ""] ?? "change request")
+                : "question"}
             </span>
           )}
         </div>
@@ -52,6 +68,7 @@ function Item({ runId, item }: { runId: string; item: ThreadItem }) {
           runId={runId}
           gate={item.gate}
           artifacts={item.artifacts}
+          queued={item.gate.status === "pending" ? queued : []}
         />
       );
     case "gate_response": {
@@ -63,7 +80,11 @@ function Item({ runId, item }: { runId: string; item: ThreadItem }) {
             : item.status;
       return (
         <div className="bubble user">
-          <p>{verdict + (item.text ? `: ${item.text}` : "")}</p>
+          <p>
+            {verdict +
+              (item.text ? `: ${item.text}` : "") +
+              (item.chat ? ` (${item.chat} from the agent chats)` : "")}
+          </p>
         </div>
       );
     }
@@ -80,7 +101,20 @@ function Item({ runId, item }: { runId: string; item: ThreadItem }) {
   }
 }
 
-export function Chat({ runId, agent, working }: { runId: string; agent: string; working: boolean }) {
+// A starter for the QA Playtester's Suggest a check (the classifier files it as a change).
+const CHECK_STARTER = "Check that ";
+
+export function Chat({
+  runId,
+  agent,
+  working,
+  queued,
+}: {
+  runId: string;
+  agent: string;
+  working: boolean;
+  queued: QueuedChange[];
+}) {
   const client = useQueryClient();
   const thread = useQuery({
     queryKey: ["run", runId, "thread", agent],
@@ -93,6 +127,7 @@ export function Chat({ runId, agent, working }: { runId: string; agent: string; 
     onSuccess: () => client.invalidateQueries({ queryKey: ["run", runId] }),
   });
   const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
   const count = thread.data?.items.length ?? 0;
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
@@ -118,7 +153,7 @@ export function Chat({ runId, agent, working }: { runId: string; agent: string; 
             row.kind === "artifacts" ? (
               <ArtifactGroup key={`a${row.id}`} artifacts={row.artifacts} />
             ) : (
-              <Item key={row.item.id} runId={runId} item={row.item} />
+              <Item key={row.item.id} runId={runId} item={row.item} queued={queued} />
             ),
           )}
         {send.isPending && (
@@ -133,6 +168,23 @@ export function Chat({ runId, agent, working }: { runId: string; agent: string; 
         {send.error && <p className="error">{send.error.message}</p>}
         <div ref={end} />
       </div>
+      {agent === "QA Playtester" && (
+        <div className="composer-tools">
+          <button
+            type="button"
+            className="chip"
+            onClick={() => {
+              if (!text.trim()) setText(CHECK_STARTER);
+              box.current?.focus();
+            }}
+          >
+            + Suggest a check
+          </button>
+          <span className="hint">
+            I write it as a test of the game and run it on every build from the next one.
+          </span>
+        </div>
+      )}
       <form
         className="composer"
         onSubmit={(e) => {
@@ -141,6 +193,7 @@ export function Chat({ runId, agent, working }: { runId: string; agent: string; 
         }}
       >
         <textarea
+          ref={box}
           aria-label={`Message ${agent}`}
           placeholder={`Message ${agent}…`}
           value={text}

@@ -143,13 +143,36 @@ def test_studio_smoke_in_browser(tmp_path):
                 expect(card).to_have_count(1, timeout=120000)
                 title = card.locator("h3").inner_text()
                 seen.append(title)
-                card.get_by_role("button", name="Approve", exact=True).click()
+                if title.startswith("G4") and len(seen) == 6:
+                    # Suggest a check in the QA Playtester's chat: filed for this gate, then
+                    # the Director's card builds v2 with it (phase 3).
+                    agents.get_by_role("link", name=re.compile(r"^QA Playtester")).click()
+                    qa = page.get_by_role("region", name="Chat with QA Playtester")
+                    page.get_by_role("button", name="+ Suggest a check").click()
+                    box = page.get_by_label("Message QA Playtester")
+                    expect(box).to_have_value("Check that ")
+                    box.press_sequentially("the slime never leaves the screen")
+                    box.press("Enter")
+                    expect(qa.locator(".intent.queued")).to_have_text("change request · queued")
+                    expect(qa.locator(".bubble.agent").last).to_contain_text("Request changes")
+                    director.click()
+                    card = chat.locator(".gate-card.open")
+                    expect(card.get_by_role("region", name="Changes from the chats")).to_contain_text(
+                        "QA Playtester: Check that the slime never leaves the screen")
+                    card.get_by_role("button", name="Build with 1 change").click()
+                    expect(chat).to_contain_text("(1 from the agent chats)")
+                else:
+                    card.get_by_role("button", name="Approve", exact=True).click()
                 expect(chat.locator(".gate-card.open h3", has_text=title)).to_have_count(0)
                 if title.startswith("G5"):
                     break
-            assert [t.split()[0] for t in seen] == ["G1", "G1", "G1", "G2", "G3", "G4", "G5"]
+            assert [t.split()[0] for t in seen] == ["G1", "G1", "G1", "G2", "G3", "G4", "G4", "G5"]
             assert not any("(" in t and ")" not in t for t in seen), seen
-            expect(page.locator(".topbar").get_by_role("link", name="Play v1")).to_be_visible()
+            expect(page.locator(".topbar").get_by_role("link", name="Play v2")).to_be_visible()
+            agents.get_by_role("link", name=re.compile(r"^QA Playtester")).click()
+            expect(page.get_by_role("region", name="Chat with QA Playtester").locator(
+                ".intent.applied")).to_have_text("change request · applied")
+            director.click()
             expect(chat).to_contain_text("Finished", timeout=60000)
             # Nothing is left working or waiting on the human (an agent the game did not need,
             # such as the Level/Tile Designer for a one-screen game, stays "waiting").

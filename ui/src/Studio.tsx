@@ -112,7 +112,13 @@ export function Studio({ runId, agent }: { runId: string; agent: string }) {
           )}
           {resume.error && <span className="error">{resume.error.message}</span>}
         </header>
-        <Chat key={agent} runId={runId} agent={agent} working={me?.status === "working"} />
+        <Chat
+          key={agent}
+          runId={runId}
+          agent={agent}
+          working={me?.status === "working"}
+          queued={state.data?.queued ?? []}
+        />
       </main>
       <aside className="side">
         {data && <CostPanel state={data} agent={agent} mock={project.data?.mock ?? false} />}

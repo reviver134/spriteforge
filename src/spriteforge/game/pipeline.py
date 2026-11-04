@@ -551,9 +551,15 @@ class CheckWriter:
     the Programmer's first answer that passed static checks; checks that fail by themselves
     (their own code threw) go back once to be fixed. Forbidden or unparsable checks never run."""
 
-    def __init__(self, models: "Models", design: GameDesign, levels: str = ""):
-        self.models, self.design, self.levels = models, design, levels
+    def __init__(self, models: "Models", design: GameDesign, levels: str = "",
+                 asks: list[str] = ()):  # fmt: skip
+        """`asks`: checks the human suggested in the QA Playtester's chat, in their words."""
+        self.models, self.design, self.levels, self.asks = models, design, levels, list(asks)
         self.notes: list[str] = []
+        if self.asks and getattr(models, "mock", False):
+            self.notes.append("the checks you suggested need the live QA Playtester to write "
+                              "them; offline, only the stand-in checks ran: "
+                              + "; ".join(self.asks))  # fmt: skip
         self.prompt, self.repaired = "", False
 
     def ask(self, prompt: str, fallback: CodeChecks) -> CodeChecks:
@@ -565,7 +571,7 @@ class CheckWriter:
             return fallback
 
     def write(self, code: GameCode) -> list[CodeCheck]:
-        self.prompt = check_prompt(self.design, code, self.levels)
+        self.prompt = check_prompt(self.design, code, self.levels, self.asks)
         checks, notes = usable(self.ask(self.prompt, fallback_checks(self.design)))
         self.notes += notes
         return checks
@@ -906,6 +912,8 @@ def write_code(
     summary = levels.summary if levels else ""
     if base is None:
         prompt = programmer_prompt(design, manifest, summary)
+        if instruction.strip():  # asked in the Programmer's chat before the first build
+            prompt += f"\n\nThe human also asked for this game:\n{instruction.strip()}"
         return models.ask("Programmer", prompt, GameCode, mock_code(levels is not None), "code")
     return edit_code(
         models, base,

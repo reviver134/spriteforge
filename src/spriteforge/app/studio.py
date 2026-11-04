@@ -17,6 +17,7 @@ from spriteforge.core.gates import Gates
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
 from spriteforge.core.usage import usage_report
+from spriteforge.stages.chat_changes import file_change, for_gate
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 
 from .agents_view import AGENTS, summarize, thread
@@ -167,6 +168,7 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
             "status": run.status,
             "busy": busy,
             "gate": gate.model_dump(mode="json") if gate else None,
+            "queued": for_gate(store, id),  # chat changes the open gate's Request changes applies
             "error": workers.errors.get(id),
         }
 
@@ -183,12 +185,10 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
         cursor = max((e.id for e in store.events(id)), default=0)
         user = {"to": agent, "text": body.text, "intent": intent}
         if intent == "change":
-            # Phase 3 files it under the agent's Revision slot; until then it is recorded only.
-            store.append_event(id, "Human", "chat.user", {**user, "status": "recorded"})
-            store.append_event(id, agent, "chat.agent", {
-                "text": "Change noted. It is recorded with my work; applying chat changes to the "
-                "build is not wired up yet, so use the gate's Request changes for now.",
-                "intent": "change"})  # fmt: skip
+            # Filed under the agent's Revision slot; the gated pipeline applies it (chat_changes).
+            fields, reply = await asyncio.to_thread(file_change, store, id, agent, body.text)
+            store.append_event(id, "Human", "chat.user", {**user, **fields})
+            store.append_event(id, agent, "chat.agent", {"text": reply, "intent": "change"})
         else:
             store.append_event(id, "Human", "chat.user", user)
             try:

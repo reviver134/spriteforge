@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ArtifactGroup } from "./ArtifactCard";
-import { postJson, type ArtifactMeta, type FieldRule, type Gate } from "./api";
+import { postJson, type ArtifactMeta, type FieldRule, type Gate, type QueuedChange } from "./api";
 
 // Stages of the gated workflow where Request changes is accepted (as the classic view).
 const CHANGE_STAGES = new Set(["concept", "assets", "gameplay", "design", "menus", "playtest", "final"]);
@@ -102,7 +102,17 @@ function splitTitle(title: string): [string, string] {
   return [title, ""];
 }
 
-export function GateCard({ runId, gate, artifacts }: { runId: string; gate: Gate; artifacts: ArtifactMeta[] }) {
+export function GateCard({
+  runId,
+  gate,
+  artifacts,
+  queued = [],
+}: {
+  runId: string;
+  gate: Gate;
+  artifacts: ArtifactMeta[];
+  queued?: QueuedChange[];
+}) {
   const client = useQueryClient();
   const [values, setValues] = useState<Values>(() => initial(gate));
   const [text, setText] = useState(gate.response?.text ?? "");
@@ -122,6 +132,12 @@ export function GateCard({ runId, gate, artifacts }: { runId: string; gate: Gate
   const canChange = gate.kind !== "confirm_changes" && CHANGE_STAGES.has(gate.stage);
   const busy = answer.isPending;
   const [heading, rest] = splitTitle(gate.title);
+  // Changes asked in agent chats are applied by Request changes, with or without more text.
+  const fromChat = open && canChange ? queued : [];
+  const changeLabel =
+    fromChat.length && !text.trim()
+      ? `Build with ${fromChat.length} change${fromChat.length > 1 ? "s" : ""}`
+      : "Request changes";
   return (
     <section className={`gate-card ${open ? "open" : ""}`} aria-label={heading}>
       <header>
@@ -141,6 +157,18 @@ export function GateCard({ runId, gate, artifacts }: { runId: string; gate: Gate
           <Field key={name} name={name} rule={rule} value={values[name]} disabled={!open || busy}
             onChange={(v) => setValues((old) => ({ ...old, [name]: v }))} />
         ))}
+        {fromChat.length > 0 && (
+          <section className="queued" aria-label="Changes from the chats">
+            <p className="hint">From the agent chats, applied with {changeLabel}:</p>
+            <ul>
+              {fromChat.map((c) => (
+                <li key={c.id}>
+                  <strong>{c.agent}:</strong> {c.text}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {(open || text) && (
           <textarea
             aria-label="Feedback"
@@ -154,14 +182,26 @@ export function GateCard({ runId, gate, artifacts }: { runId: string; gate: Gate
         {open && (
           <div className="actions">
             {single ? (
-              <button type="submit" value="submit" disabled={busy}>
-                {text.trim() ? "Send feedback (new version)" : "Approve"}
-              </button>
+              <>
+                {fromChat.length > 0 && !text.trim() && (
+                  <button type="submit" value="request_changes" className="secondary" disabled={busy}>
+                    {changeLabel}
+                  </button>
+                )}
+                <button type="submit" value="submit" disabled={busy}>
+                  {text.trim() ? "Send feedback (new version)" : "Approve"}
+                </button>
+              </>
             ) : (
               <>
                 {canChange && (
-                  <button type="submit" value="request_changes" className="secondary" disabled={busy || !text.trim()}>
-                    Request changes
+                  <button
+                    type="submit"
+                    value="request_changes"
+                    className="secondary"
+                    disabled={busy || (!text.trim() && !fromChat.length)}
+                  >
+                    {changeLabel}
                   </button>
                 )}
                 <button type="submit" value="approve" disabled={busy}>

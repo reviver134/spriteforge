@@ -547,3 +547,41 @@ button.chip.on {
     max-height: 70vh;
   }
 }
+
+/* Changes asked in agent chats (phase 3) */
+
+.intent.queued {
+  color: var(--warn);
+}
+
+.intent.applied {
+  color: var(--ok);
+}
+
+.gate-card .queued {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--warn);
+  border-radius: 6px;
+}
+
+.gate-card .queued p {
+  margin: 0 0 4px;
+}
+
+.gate-card .queued ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px 0;
+  border-top: 1px solid var(--line);
+}
+
+.composer-tools + .composer {
+  border-top: none;
+}

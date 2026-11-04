@@ -96,6 +96,14 @@ export interface Play {
   sounds: boolean;
 }
 
+/** A change asked in an agent's chat, waiting for the open gate's Request changes. */
+export interface QueuedChange {
+  id: number;
+  agent: string;
+  slot: string;
+  text: string;
+}
+
 export interface RunAgents {
   agents: Agent[];
   last_event: number;
@@ -103,6 +111,7 @@ export interface RunAgents {
   status: RunStatus;
   busy: boolean;
   gate: Gate | null;
+  queued: QueuedChange[];
   error: string | null;
 }
 
@@ -125,7 +134,14 @@ export type ThreadItem = ItemBase &
     | { kind: "progress"; text: string }
     | { kind: "artifact"; artifact: ArtifactMeta }
     | { kind: "gate"; gate: Gate; artifacts: ArtifactMeta[] }
-    | { kind: "gate_response"; gate_id: string; title: string; status: string; text: string }
+    | {
+        kind: "gate_response";
+        gate_id: string;
+        title: string;
+        status: string;
+        text: string;
+        chat?: number;
+      }
     | { kind: "run"; type: string; message: string | null }
   );
 

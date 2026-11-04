@@ -152,7 +152,11 @@ def code_text(code: GameCode, budget: int = CODE_BUDGET) -> str:
     return "\n".join(parts)
 
 
-def check_prompt(design: GameDesign, code: GameCode, levels: str = "") -> str:
+def check_prompt(design: GameDesign, code: GameCode, levels: str = "", asks=()) -> str:
+    """`asks`: checks the human suggested; each becomes one of the checks."""
+    asked = "".join(f"\n* {a.strip()}" for a in asks if a.strip())
+    asked = (f"\nThe human asked for these checks: write one check for each (named after what "
+             f"they asked), then add your own up to {MAX_CHECKS} in all:{asked}\n") if asked else ""
     return f"""Write code checks for this game: 3 to {MAX_CHECKS} small scenario tests of its own
 rules, as JavaScript that runs inside the running game.
 
@@ -164,7 +168,7 @@ without being hit, a bullet that never goes away, a block that kills the player)
 that catches it. Check behaviour a player sees, each check one rule, with a message that says
 what went wrong. Prefer setting a scene up (move the player next to the thing) and playing it
 with real keys over long waits. Every check starts a fresh game.
-
+{asked}
 {QA_API}
 
 {EXAMPLE}

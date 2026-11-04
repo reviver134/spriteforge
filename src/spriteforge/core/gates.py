@@ -122,7 +122,9 @@ class Gates:
             feedback = feedback.resolved(gate)
             if gate.kind == "confirm_changes" and feedback.action == "request_changes":
                 raise ValueError("Approve or abort the parsed requests")
-            if feedback.action == "request_changes" and not feedback.text.strip():
+            # The changes may come from agent chats (the studio lists their ids in the form).
+            if (feedback.action == "request_changes" and not feedback.text.strip()
+                    and not feedback.form.get("chat_changes")):  # fmt: skip
                 raise ValueError("Describe the requested changes")
             if feedback.action == "approve":
                 validate_form(gate.form_schema, feedback.form)

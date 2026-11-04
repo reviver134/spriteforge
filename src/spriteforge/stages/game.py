@@ -155,8 +155,10 @@ from spriteforge.game.qa import (
 )
 from spriteforge.game.record import record_game
 from spriteforge.game.research import ResearchRecord, research_brief, research_markdown
-from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback_revision
+from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback_revision, merge
 from spriteforge.game.revision import revision_prompt as director_prompt
+
+from . import chat_changes
 from spriteforge.game.story import StoryBible, story_markdown
 from spriteforge.game.structure import GameStructure, make_structure, structure_markdown
 from spriteforge.game.lessons import past_lessons
@@ -227,6 +229,10 @@ class GameContext(ProductionStore):
         return lambda message: self.store.append_event(
             self.run_id, role, "game.progress", {"message": message.strip()}
         )
+
+
+def joined(*parts: str) -> str:
+    return "\n".join(p.strip() for p in parts if p and p.strip())
 
 
 def request_text(brief: GameBrief) -> str:
@@ -852,7 +858,8 @@ def build_version(
                               instruction, log, pack)  # fmt: skip
         else:
             code = base  # feedback touched only the art, the levels or the menus: same code
-        writer = (CheckWriter(ctx.models, design, pack.summary if pack else "")
+        writer = (CheckWriter(ctx.models, design, pack.summary if pack else "",
+                              chat_changes.qa_asks(ctx, version))
                   if suite and ctx.cfg.game.qa_checks else None)  # fmt: skip
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log,
                                  suite.tests if suite else None, pack, flow, script, writer)  # fmt: skip
@@ -1176,7 +1183,9 @@ def game_step(store, run_id) -> bool:
         previous = ctx.read(f"game/v{shown_version}/report.json")
         design_version = previous["design_version"]
         design = load_design(ctx, design_version)
-        feedback = feedback or "Try a different take."
+        chat = chat_changes.take(ctx, f"gate-{n}", chat_changes.GATE_SLOTS["menus"],
+                                 f"game/feedback/gate-{n}-revision.json" in ctx.artifacts)
+        feedback = joined(feedback, chat_changes.words(chat)) or "Try a different take."
         menus = next_menus(ctx, n, previous["menus_version"], feedback, design, design_version, "G3")
         revision = ctx.once(f"game/feedback/gate-{n}-revision.json", Revision,
                             lambda: Revision(design_changes="", art_changes=[], code_instructions="",
@@ -1201,7 +1210,9 @@ def game_step(store, run_id) -> bool:
     if last.stage == "design" and last.status == "changes_requested":
         version = design_versions(ctx) + 1
         previous = load_design(ctx, version - 1)
-        feedback = feedback or "Try a different take."
+        chat = chat_changes.take(ctx, f"gate-{n}", chat_changes.DESIGN,
+                                 f"game/design/v{version}.json" in ctx.artifacts)
+        feedback = joined(feedback, chat_changes.words(chat)) or "Try a different take."
         plan = next_plan(ctx, version, version - 1, feedback, feedback)
         design = ctx.once(
             f"game/design/v{version}.json",
@@ -1216,7 +1227,8 @@ def game_step(store, run_id) -> bool:
             "Game Designer",
         )
         save_design(ctx, version, design)
-        if has_story or asks_story(last):  # a story follows the design; one starts on request
+        wants = asks_story(last) or any(c["slot"] == "story_changes" for c in chat)
+        if has_story or wants:  # a story follows the design; one starts on request
             ensure_story(ctx, f"design-v{version}", design, feedback)
         sync_db(ctx, f"design v{version}")
         open_design_gate(ctx, version)
@@ -1234,21 +1246,42 @@ def game_step(store, run_id) -> bool:
         sync_db(ctx, f"G2 approved design v{version}")
         promote_all(ctx.db, f"G2 approved: design v{version}" + (" and its story" if has_story else ""))
         game_plan = load_plan(ctx, version)
+        # Changes asked in the chats of agents that have not run yet are used in their first run.
+        chat = chat_changes.take(ctx, "build-1", chat_changes.BUILD,
+                                 "game/v1/report.json" in ctx.artifacts)
         levels = None
         if uses_levels(design, game_plan):
             levels = latest_version(ctx.artifacts, LEVELS) or first_levels(ctx, design, version, game_plan)
             sync_db(ctx, f"levels v{levels}")
+        count = len(load_levels(ctx, levels)) if levels else 0
+        early, _ = chat_changes.as_revision(chat, design, (), count)
+        if levels and early.level_changes:
+            built = "game/v1/levels-version.json"
+            if built not in ctx.artifacts:
+                changes = {c.level: c.change for c in early.level_changes}
+                ctx.save(built, {"version": next_levels(ctx, levels, design, version, game_plan,
+                                                        changes)}, "Level/Tile Designer")  # fmt: skip
+            levels = ctx.read(built)["version"]
         motion = ensure_motion(ctx, version, design, game_plan, levels)
         menus = ensure_menus(ctx, design, version)
+        if menus and early.menu_changes:
+            menus = next_menus(ctx, n, menus, early.menu_changes, design, version, "G2")
         if menus:
             sync_db(ctx, f"menus v{menus}")
         sounds = ensure_sounds(ctx, design, version, levels is not None, menus is not None)
+        if sounds and early.sound_changes:
+            sounds = next_sounds(ctx, n, sounds, early.sound_changes, design, levels is not None,
+                                 menus is not None, "G2")  # fmt: skip
         plan = ctx.once(
-            "game/v1/art-plan.json", ArtPlan, lambda: plan_art(ctx.models, design, motion),
+            "game/v1/art-plan.json", ArtPlan,
+            lambda: apply_art_changes(plan_art(ctx.models, design, motion), design, early),
             "Art Director",
         )
-        suite = qa_suite(ctx, 1, design, version, menus=menus)
-        open_after_build(ctx, 1, build_version(ctx, 1, design, version, plan, None, "",
+        if chat and "game/v1/revision.json" not in ctx.artifacts:
+            ctx.save("game/v1/revision.json", early.model_dump(), "Director")
+        suite = qa_suite(ctx, 1, design, version, early.drop_qa_tests, menus)
+        open_after_build(ctx, 1, build_version(ctx, 1, design, version, plan, None,
+                                               early.code_instructions, early if chat else None,
                                                suite=suite, levels=levels, game_plan=game_plan,
                                                motion=motion, menus=menus, sounds=sounds))  # fmt: skip
         return False
@@ -1260,16 +1293,24 @@ def game_step(store, run_id) -> bool:
         previous = ctx.read(f"game/v{shown_version}/report.json")
         design_version = previous["design_version"]
         design = load_design(ctx, design_version)
-        feedback = feedback or "Try a different take."
+        tests = {t["name"]: t["passed"] for t in (previous.get("qa") or {}).get("tests", [])}
+        # Changes asked in agent chats are already filed under their Revision slots.
+        chat = chat_changes.take(ctx, f"gate-{n}", chat_changes.EVERY,
+                                 f"game/feedback/gate-{n}-revision.json" in ctx.artifacts)
+        count = len(load_levels(ctx, previous["levels_version"])) if previous.get("levels_version") else 0
+        filed, routed = chat_changes.as_revision(chat, design, list(tests), count)
+        said = joined(feedback, routed)  # what the Director still has to route
+        feedback = said or chat_changes.words(chat) or "Try a different take."
         applied = suggestion_revision(previous, design, last.response.form.get("apply_suggestion"))
         picked = form_level(last)
         if applied is None and picked is not None:  # feedback on one level: the Level Designer
             applied = Revision(design_changes="", art_changes=[], code_instructions="",
                                drop_qa_tests=[], story_changes="",
                                level_changes=[LevelChange(level=picked, change=feedback)])  # fmt: skip
-        tests = {t["name"]: t["passed"] for t in (previous.get("qa") or {}).get("tests", [])}
 
         def director() -> Revision:
+            if applied is None and not said and chat:  # nothing left to route: no Director call
+                return filed
             answer = applied or ctx.models.ask(
                 "Director",
                 director_prompt(
@@ -1281,7 +1322,7 @@ def game_step(store, run_id) -> bool:
             )
             if asks_story(last) and not answer.story_changes.strip():
                 answer = answer.model_copy(update={"story_changes": "Add a story"})
-            return answer
+            return merge(answer, filed) if chat else answer
 
         role = ("Level/Tile Designer" if picked is not None else "Art Reviewer") if applied else "Director"
         revision = ctx.once(f"game/feedback/gate-{n}-revision.json", Revision, director, role)
@@ -1400,6 +1441,11 @@ def game_step(store, run_id) -> bool:
     # design v1 written from the plan (and the story, only when the brief asks for one); then
     # ask the human to approve them.
     plan = None
+    # Design and story changes asked in chat before the first design are part of the request.
+    chat = chat_changes.take(ctx, "design-1", chat_changes.DESIGN,
+                             "game/design/v1.json" in ctx.artifacts)
+    request = joined(request_text(ctx.brief),
+                     "The human also asked:\n" + chat_changes.words(chat) if chat else "")
     if "game/design/v1.json" not in ctx.artifacts:  # runs from before L2.2 have no plan
         research = ensure_research(ctx)
         ctx.log("Game Designer")("writing the game plan")
@@ -1408,12 +1454,12 @@ def game_step(store, run_id) -> bool:
         lessons = (past_lessons(KnowledgeStore(root, ctx.store, ctx.run_id), ctx.brief.genre,
                                 request_text(ctx.brief)) if (root / "lessons").is_dir() else "")  # fmt: skip
         plan = ensure_plan(ctx, 1, lambda: write_plan(
-            ctx.models, request_text(ctx.brief), ctx.brief.notes,
+            ctx.models, request, ctx.brief.notes,
             research_brief(research) if research else "", side_view(ctx), lessons))  # fmt: skip
     design = ctx.once(
         "game/design/v1.json",
         GameDesign,
-        lambda: write_design(ctx.models, request_text(ctx.brief), plan),
+        lambda: write_design(ctx.models, request, plan),
         "Game Designer",
     )
     save_design(ctx, 1, design)
