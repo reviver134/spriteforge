@@ -38,6 +38,7 @@ from PIL import Image, ImageDraw
 from pydantic import Field
 
 from spriteforge.agents.models import Contract
+from spriteforge.core.cost import BudgetExceeded
 from spriteforge.library.looks import (
     FLAT,
     LUMA,
@@ -75,6 +76,7 @@ from .actors import (
 )
 from .design import Entity, GameDesign
 from .image_cache import ImageCache
+from .loops import Progress, within
 from .motion import (
     ACTOR_SOURCES,
     GONE,
@@ -1512,7 +1514,7 @@ def make_art(
     plan: ArtPlan,
     *,
     generate: Generate | None,
-    max_calls: int = 8,
+    max_calls: int | None = 8,
     previous: Callable[[str], dict | None] = lambda eid: None,
     options: "MuseOptions | None" = None,
     cache: ImageCache | None = None,
@@ -1652,7 +1654,10 @@ def run_jobs(jobs: list[tuple["Muse", "MuseJob"]], workers: int) -> dict[str, Fi
 @dataclass
 class MuseOptions:
     sizes: list[tuple[int, int]] = field(default_factory=lambda: [SQUARE])  # `image.sizes`
-    retries: int = 1  # `game.art_retry`: redraws of a frame that fails `check_frame`
+    # `game.art_retry`: an optional limit on redraws of a frame that fails `check_frame`; redraws
+    # go on while they improve (`game.patience`) and the allowance lasts (None: no fixed limit)
+    retries: int | None = 1
+    patience: int = 2  # `game.patience`
     grid_confidence: float = 0.6  # `game.native_grid_confidence`
     # `game.sheet_frames`: sprites are drawn as a sheet, this many frames per animation row
     # (each frame gets a slot of the image, so Muse uses fewer, bigger pixels); 1 = one image
@@ -1667,12 +1672,12 @@ class CallSlots:
     """The build's image-call cap, shared by parallel Muse jobs. Each job's first call is
     reserved in PRIORITY order before dispatch; retries take what is left."""
 
-    def __init__(self, cap: int):
+    def __init__(self, cap: int | None):  # None: no fixed cap (the agent's allowance holds)
         self.cap, self.used, self._lock = cap, 0, threading.Lock()
 
     def take(self) -> bool:
         with self._lock:
-            if self.used >= self.cap:
+            if self.cap is not None and self.used >= self.cap:
                 return False
             self.used += 1
             return True
@@ -1838,7 +1843,10 @@ class Muse:
                 else main_row(rows))  # fmt: skip
         request = job.request
         best, problems, history, made, failed = None, [], [], 0, False
-        for attempt in range(1 + self.options.retries):
+        # Redraws go on while they improve (fewer problems) and the allowance lasts.
+        tries, failures, attempt = Progress(self.options.patience), 0, -1
+        while attempt < 0 or within(attempt, self.options.retries):
+            attempt += 1
             if attempt and not failed:  # a failed call (e.g. HTTP 500) is sent again as it was
                 request = request.model_copy(
                     update={
@@ -1862,14 +1870,20 @@ class Muse:
                 else:
                     frame, info = muse_frame(spec, raw, conf, adapt)
                     frames, infos = [frame], [info]
+            except BudgetExceeded as exc:  # the Pixel Artist's allowance is used up
+                self.warnings.append(f"{e.id}: no more redraws: {exc}")
+                break
             except Exception as exc:  # noqa: BLE001 -- one failed image must not sink the build
                 made += 1
                 detail = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else ""
                 self.warnings.append(f"{e.id}: Muse Image failed ({type(exc).__name__}: "
                                      f"{detail})")  # fmt: skip
                 failed, problems = True, ["the image request failed"]
+                failures += 1
+                if failures >= 2:  # failed twice in a row: the service, not the drawing
+                    break
                 continue
-            failed = False
+            failed, failures = False, 0
             problems = check_frame(spec, frames[0], infos[0], aspect=not adapt)
             cells = used if rows else range(len(infos))
             empty = [i + 1 for i in cells if infos[i].get("subject") is None and i not in gone]
@@ -1885,6 +1899,9 @@ class Muse:
             if frames[0].getchannel("A").getbbox() and (best is None or len(problems) <= len(best[4])):
                 best = (raw, frames, infos, request, problems, cached)
             if not problems:
+                break
+            tries.add(-len(problems))
+            if tries.stuck:  # redraws stopped improving
                 break
         if best is None:
             return self.greybox(e, size, "no usable Muse image")

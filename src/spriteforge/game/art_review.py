@@ -10,8 +10,8 @@ reviewer names every number from its pixels (`named`) and reports issues by numb
 numbers to entities and adds an issue when a name misses (a "gem" seen as "a blue blob"), and
 a blocking one for any greybox placeholder the reviewer did not report.
 
-Fix policy (`plan_fixes`, `fix_jobs`): at most `game.review_max_fixes` entities with a blocking
-issue are fixed once, before G4, as a Muse Image edit of the current image at
+Fix policy (`plan_fixes`, `fix_jobs`): the entities with a blocking issue (at most
+`game.review_max_fixes` when set) are fixed before G4, as a Muse Image edit of the current image at
 `game.review_image_reasoning` (high) with the M10.1 spec. Library art from an
 `ai_allowed: false` pack is never sent: it is drawn fresh from text instead. Parallax
 backdrops are not fixed automatically (the code uses their layer ids). Everything else stays
@@ -354,16 +354,18 @@ def ai_allowed(pick: ArtPick, camera: str) -> bool:
     return pack in packs and packs[pack].ai_allowed
 
 
-def fix_cap(max_fixes: int, cost_cap: float, review_cost: float, image_cost: float) -> int:
+def fix_cap(max_fixes: int | None, cost_cap: float | None, review_cost: float,
+            image_cost: float) -> int | None:  # fmt: skip
     """How many fixes fit: at most `max_fixes`, and the review call plus one image call per
-    fix within `cost_cap`."""
-    if image_cost <= 0:
-        return max_fixes
-    return max(0, min(max_fixes, math.floor((cost_cap - review_cost) / image_cost + 1e-9)))
+    fix within `cost_cap`. None: no fixed cap (the Art Reviewer's allowance holds)."""
+    fit = (None if cost_cap is None or image_cost <= 0
+           else max(0, math.floor((cost_cap - review_cost) / image_cost + 1e-9)))  # fmt: skip
+    caps = [c for c in (max_fixes, fit) if c is not None]
+    return min(caps) if caps else None
 
 
 def plan_fixes(
-    issues: list[Issue], design: GameDesign, art: ArtResult, cap: int, why: str = ""
+    issues: list[Issue], design: GameDesign, art: ArtResult, cap: int | None, why: str = ""
 ) -> list[str]:
     """Entities to fix, in priority order (player first), at most `cap`; marks the status of
     every blocking issue that is not fixed (`why`: what set the cap)."""
@@ -378,7 +380,7 @@ def plan_fixes(
             i.status = "not fixed: a parallax backdrop (the code uses its layers); apply it"
         elif i.entity in chosen:
             continue
-        elif len(chosen) >= cap:
+        elif cap is not None and len(chosen) >= cap:
             i.status = f"not fixed: {why or f'fix cap ({cap}) reached'}"
         else:
             chosen.append(i.entity)

@@ -155,8 +155,6 @@ def as_revision(taken: list[dict], design: GameDesign | None, tests=(), levels: 
             names = dropped_tests(text, list(tests))
             rev[slot] += names
             routed += [] if names else [text]
-        elif slot == "add_qa_checks":
-            rev[slot].append(text)
         elif slot in rev:
             rev[slot].append(text)
         else:

@@ -17,7 +17,7 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
-class Cancelled(BaseException):  # noqa: N818 -- like asyncio.CancelledError
+class Cancelled(BaseException):
     """The human asked to stop and go back (docs/ui-plan.md, interrupt and rewind): no new model
     call starts. A BaseException, so the broad handlers that keep a build going (one failed
     image, a failed review) never swallow it; calls already in flight finish and are kept."""
@@ -154,9 +154,16 @@ class Budget:
                 raise Cancelled("the human asked to stop and go back")
             rows = [r for r in ledger(db, self.run_id).values() if r.status != "failed"]
             if self.config.per_request:
+                # Each agent's own allowance since the human's last action.
                 recent = allowance_calls(db, self.run_id)
-                rows = [r for r in rows if r.attempt_id in recent]
-            if not user and (
+                mine = sum(r.estimated_cost for r in rows
+                           if r.attempt_id in recent and r.agent == usage.agent)  # fmt: skip
+                cap = self.config.max_agent_cost
+                if not user and mine + usage.estimated_cost > cap + 1e-9:
+                    who = f"the {usage.agent}" if usage.agent else "this agent"
+                    raise BudgetExceeded(f"{who} used up its ${cap:g} allowance (${mine:.2f} "
+                                         "spent since your last action)")  # fmt: skip
+            elif not user and (
                 sum(r.image for r in rows) + image > self.config.max_image_calls
                 or (
                     self.config.max_total_calls is not None

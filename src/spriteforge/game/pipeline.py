@@ -104,6 +104,18 @@ from .design import GameDesign, design_markdown, design_prompt, fallback_design,
 from .gamedb import open_db, sync_record
 from .image_cache import ImageCache
 from .level_gen import fallback_level
+from .levels import (
+    SDK_EVENTS,
+    LevelRecord,
+    LevelSpec,
+    evaluate,
+    level_prompt,
+    level_retry_prompt,
+    level_revision_prompt,
+    levels_script,
+    player_body,
+)
+from .loops import Progress, patience, within
 from .menus import (
     MenuRecord,
     MenuSpec,
@@ -118,17 +130,6 @@ from .menus import (
     offline_revision,
 )
 from .menus import retry_prompt as menu_retry_prompt
-from .levels import (
-    SDK_EVENTS,
-    LevelRecord,
-    LevelSpec,
-    evaluate,
-    level_prompt,
-    level_retry_prompt,
-    level_revision_prompt,
-    levels_script,
-    player_body,
-)
 from .motion import (
     AnimationBrief,
     MotionRecord,
@@ -155,8 +156,8 @@ from .plan import (
 from .playtest import failure_summary, playtest, playtest_levels, review_times
 from .qa import (
     QATest,
-    bind_selects,
     QATests,
+    bind_selects,
     fallback_qa,
     qa_failures,
     qa_prompt,
@@ -165,6 +166,8 @@ from .qa import (
     without_pictures,
     write_export,
 )
+from .qa_checks import CodeCheck, CodeChecks, check_failures, check_prompt, fallback_checks, usable
+from .qa_checks import repair_prompt as check_repair_prompt
 from .record import READY, record_game, serve, wait_until
 from .research import (
     Research,
@@ -174,10 +177,6 @@ from .research import (
     research_prompt,
     structure_prompt,
 )
-from .structure import GameStructure, make_structure, structure_markdown
-from .title_art import TitleArt, make_title_art, manifest_images
-from .qa_checks import CodeCheck, CodeChecks, check_failures, check_prompt, fallback_checks, usable
-from .qa_checks import repair_prompt as check_repair_prompt
 from .sounds import (
     SoundBrief,
     SoundRecord,
@@ -200,6 +199,8 @@ from .story import (
     story_prompt,
     story_revision_prompt,
 )
+from .structure import GameStructure, make_structure, structure_markdown
+from .title_art import TitleArt, make_title_art, manifest_images
 
 
 def role_prompt(role: str) -> str:
@@ -431,11 +432,29 @@ def write_level(models: Models, n: int, design: GameDesign, plan: PlanRecord,
     record = evaluate(spec, n, design, plan, previous, body, fps, by=models.name)
     if not record.problems:
         return record
-    again = models.ask("Level/Tile Designer", level_retry_prompt(prompt, record.problems), LevelSpec,
-                       record.spec, "level")  # fmt: skip
-    retried = evaluate(again, n, design, plan, previous, body, fps, True, record.notes, models.name)
-    return finishable(better_level(record.model_copy(update={"retried": True}), retried), design,
-                      plan, earlier, fps)  # fmt: skip
+    return finishable(level_retries(models, prompt, record, n, design, plan, previous, body, fps),
+                      design, plan, earlier, fps)  # fmt: skip
+
+
+def level_retries(models: Models, prompt: str, record: LevelRecord, n: int, design: GameDesign,
+                  plan: PlanRecord, previous, body, fps: int) -> LevelRecord:  # fmt: skip
+    """Code's problems go back to the Level Designer while its answers improve (fewer problems;
+    game.patience) and its allowance lasts; the best level is kept."""
+    best, tries = record, Progress(patience(models))
+    tries.add(-len(record.problems))
+    while best.problems and not tries.stuck:
+        try:
+            again = models.ask("Level/Tile Designer", level_retry_prompt(prompt, best.problems),
+                               LevelSpec, best.spec, "level")  # fmt: skip
+        except BudgetExceeded:
+            break
+        asked = best.spec
+        retried = evaluate(again, n, design, plan, previous, body, fps, True, best.notes, models.name)
+        best = better_level(best.model_copy(update={"retried": True}), retried)
+        tries.add(-len(best.problems))
+        if again == asked:
+            break  # the same answer again: nothing more to gain
+    return best
 
 
 def revise_level(models: Models, record: LevelRecord, said: str, design: GameDesign,
@@ -449,11 +468,8 @@ def revise_level(models: Models, record: LevelRecord, said: str, design: GameDes
     revised = evaluate(spec, n, design, plan, previous, body, fps, by=models.name)
     if not revised.problems:
         return revised
-    again = models.ask("Level/Tile Designer", level_retry_prompt(prompt, revised.problems), LevelSpec,
-                       revised.spec, "level")  # fmt: skip
-    retried = evaluate(again, n, design, plan, previous, body, fps, True, revised.notes, models.name)
-    return finishable(better_level(revised.model_copy(update={"retried": True}), retried), design,
-                      plan, earlier, fps)  # fmt: skip
+    return finishable(level_retries(models, prompt, revised, n, design, plan, previous, body, fps),
+                      design, plan, earlier, fps)  # fmt: skip
 
 
 def write_research(models: Models, request: str, genre: str, genre_body: str,
@@ -596,12 +612,23 @@ def write_menus(models: Models, design: GameDesign, structure: GameStructure, co
     offline = fallback_menu(design, structure)
     spec = models.ask("Menu Designer", prompt, MenuSpec, offline, "menus")
     record = checked(spec, structure, design, models.name, why=why)
-    if not record.problems:
-        return record
-    again = models.ask("Menu Designer", menu_retry_prompt(prompt, record.problems), MenuSpec,
-                       record.spec, "menus")  # fmt: skip
-    second = checked(again, structure, design, models.name, True, record.notes, why)
-    return second if len(second.problems) <= len(record.problems) else record
+    # Code's problems go back while the answers improve (game.patience) and the allowance lasts.
+    tries = Progress(patience(models))
+    tries.add(-len(record.problems))
+    while record.problems and not tries.stuck:
+        try:
+            again = models.ask("Menu Designer", menu_retry_prompt(prompt, record.problems),
+                               MenuSpec, record.spec, "menus")  # fmt: skip
+        except BudgetExceeded:
+            break
+        asked = record.spec
+        second = checked(again, structure, design, models.name, True, record.notes, why)
+        tries.add(-len(second.problems))
+        if len(second.problems) <= len(record.problems):
+            record = second
+        if again == asked:
+            break  # the same answer again: nothing more to gain
+    return record
 
 
 def revise_menus(models: Models, record: MenuRecord, feedback: str, design: GameDesign,
@@ -840,6 +867,7 @@ def muse_options(cfg: Config, **changes) -> MuseOptions:
         MuseOptions(
             sizes=cfg.image.sizes,
             retries=cfg.game.art_retry,
+            patience=cfg.game.patience,
             grid_confidence=cfg.game.native_grid_confidence,
             sheet_frames=cfg.game.sheet_frames,
             adapt_size=cfg.game.adapt_size,
@@ -1009,7 +1037,11 @@ def build_and_test(
                           credits=art.credits, levels=levels.script if levels else None,
                           menus=menus.script if menus else None, sounds=sounds)  # fmt: skip
 
-    for n in range(cfg.game.max_repairs + 1):
+    # Repairs go on while they improve (game.patience) and the Programmer's allowance lasts;
+    # game.max_repairs is an optional fixed limit on top.
+    progress, n = Progress(cfg.game.patience), -1
+    while True:
+        n += 1
         folder = out / "attempts" / str(n + 1)
         (folder / "files").mkdir(parents=True, exist_ok=True)
         for f in code.files:
@@ -1034,9 +1066,24 @@ def build_and_test(
                 qa_results = run_qa(build_dir, suite, cfg.game.playtest_fps)
                 broken = [r for r in qa_results if r.get("broken")]
                 if broken and checks and not checks.repaired:
-                    log(f"  QA Playtester is fixing {len(broken)} check(s) that failed by themselves")
-                    written = checks.repair(written or [], broken)
-                    qa_results = run_qa(build_dir, [*(qa or []), *written], cfg.game.playtest_fps)
+                    # Fixed again while fewer checks fail by themselves (patience, allowance).
+                    # (A used-up allowance makes the writer answer with the same checks.)
+                    tries, kept = Progress(cfg.game.patience), None
+                    tries.add(-len(broken))
+                    while broken and not tries.stuck:
+                        log(f"  QA Playtester is fixing {len(broken)} check(s) that failed by themselves")
+                        fixed = checks.repair(written or [], broken)
+                        if fixed == written:
+                            break  # the same checks again: nothing more to gain
+                        written = fixed
+                        qa_results = run_qa(build_dir, [*(qa or []), *written], cfg.game.playtest_fps)
+                        now = [r for r in qa_results if r.get("broken")]
+                        tries.add(-len(now))
+                        if kept is None or len(now) <= len(kept[2]):
+                            kept = (written, qa_results, now)
+                        broken = now
+                    if kept:
+                        written, qa_results, broken = kept
                 failed = sum(not r["passed"] and not r.get("broken") for r in qa_results)
                 report["qa"] = {"passed": sum(r["passed"] for r in qa_results), "failed": failed,
                                 "broken": sum(bool(r.get("broken")) for r in qa_results),
@@ -1067,10 +1114,17 @@ def build_and_test(
         rank = attempt_rank(report, qa_results, n)
         if best is None or rank > best[0]:
             best = (rank, n, code, report, shots, qa_results)
-        if ok or n == cfg.game.max_repairs:
-            if not ok:
-                attempts[-1]["stopped"] = (f"the Programmer stopped after {n} repair(s): "
-                                           "the repair limit")  # fmt: skip
+        progress.add(rank[:-1])  # the attempt's quality, without the later-wins tiebreak
+        if ok:
+            break
+        if not within(n, cfg.game.max_repairs):
+            attempts[-1]["stopped"] = (f"the Programmer stopped after {n} repair(s): "
+                                       "the repair limit")  # fmt: skip
+            break
+        if progress.stuck:
+            log(f"  {progress.stale} repairs in a row did not improve the game: keeping the best attempt")
+            attempts[-1]["stopped"] = (f"the Programmer stopped after {n} repair(s): the last "
+                                       f"{progress.stale} brought no improvement")  # fmt: skip
             break
         if n and failures == attempts[-2]["summary"]:
             # The same failure twice in a row: more repairs would loop without progress.
@@ -1099,6 +1153,9 @@ def build_and_test(
             attempts[-1]["stopped"] = f"the Programmer stopped after {n + 1} attempt(s): {why}"
             break
         if fixed == code:  # the mock (or a stuck model) returned the same files: stop early
+            if n:  # (the offline stand-in changes nothing: no note for a first attempt)
+                attempts[-1]["stopped"] = (f"the Programmer stopped after {n} repair(s): the "
+                                           "last repair changed nothing")  # fmt: skip
             break
         attempts[-1]["repair"] = how
         code = fixed
@@ -1206,7 +1263,7 @@ def review_art(
     cap = fix_cap(g.review_max_fixes, g.review_cost_cap, review_cost, cfg.budget.image_cost)
     why = (
         f"fix cap ({cap}) reached"
-        if cap == g.review_max_fixes
+        if cap is None or cap == g.review_max_fixes
         else f"review cost cap reached (${g.review_cost_cap:.2f}; the review cost "
         f"${review_cost:.3f}, {cap} fix(es) fit)"
     )

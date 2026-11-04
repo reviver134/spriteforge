@@ -196,7 +196,9 @@ def test_reference_change_makes_a_new_call(budget, tmp_path):
 
 def test_budget_reservations_hold_under_concurrency(tmp_path):
     store = Store(tmp_path / "state.sqlite3")
-    cap = BudgetConfig(**{**load_config().budget.model_dump(), "max_image_calls": 5})
+    # The per-run caps (per_request off), held by concurrent reservations.
+    cap = BudgetConfig(**{**load_config().budget.model_dump(), "max_image_calls": 5,
+                          "per_request": False})
     run = store.create_run({"workflow": "t", "budget": cap.model_dump()})
     budget = Budget(store, run.id, cap)
 

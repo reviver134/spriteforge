@@ -60,6 +60,7 @@ export interface Agent {
   calls: number;
   images: number;
   cost: number;
+  allowance: number;
   last: string | null;
 }
 
@@ -112,6 +113,7 @@ export interface RunAgents {
   busy: boolean;
   gate: Gate | null;
   queued: QueuedChange[];
+  agent_cap: number | null;
   error: string | null;
 }
 

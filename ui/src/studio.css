@@ -613,3 +613,14 @@ button.chip.on {
 .go-back button {
   white-space: nowrap;
 }
+
+/* Each agent's allowance */
+
+.allowance p {
+  margin: 8px 0 4px;
+  font-size: 13px;
+}
+
+.allowance meter {
+  width: 100%;
+}

@@ -31,9 +31,10 @@ loud"). The Director routes it to the agent it is about, and only that part is r
   reachability and QA tests are checked deterministically, not trusted.
 - **Accepted art is locked.** Muse Image has no seed, so approved assets are never regenerated
   unless you ask for a change to them.
-- **Hard cost caps.** Every Muse call is counted in a durable ledger with a per-run cap
-  (`budget.max_image_calls`, `budget.max_total_calls`, `game.review_cost_cap` in
-  `src/spriteforge/config.yaml`). `spriteforge report RUN_ID` shows calls, tokens and cost.
+- **A cost cap per agent.** Every Muse call is counted in a durable ledger. Each agent may
+  spend $10 (`budget.max_agent_cost` in `src/spriteforge/config.yaml`) since your last action;
+  its loops (repairs, redraws, review rounds) go on while they improve, until that is used up.
+  `spriteforge report RUN_ID` shows calls, tokens and cost.
 - **Local-first.** All data stays in a workspace folder. The API key is read from the
   environment and scrubbed from logs, memory and exports.
 - **Auditable learning.** Knowledge is plain Markdown in a git repo (OKF format). Agent-written

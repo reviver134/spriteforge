@@ -3,13 +3,13 @@ agent's Revision slot and applied by the gated pipeline; QA's Suggest a check.""
 
 import json
 
+from test_studio_api import by_name, wait_for
+
+from spriteforge.game.codegen import GameCode
 from spriteforge.game.design import GameDesign
 from spriteforge.game.qa_checks import check_prompt
-from spriteforge.game.codegen import GameCode
 from spriteforge.game.revision import ArtChange, Revision, merge
 from spriteforge.stages.chat_changes import as_revision, named_entities, slot_for
-
-from test_studio_api import by_name, studio, wait_for  # noqa: F401 -- the fixture
 
 DESIGN = {
     "title": "Cave", "pitch": "p", "camera": "side-view", "endless": False, "controls": "arrows",

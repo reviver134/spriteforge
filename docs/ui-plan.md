@@ -115,17 +115,22 @@ caught; tests cover a stop during art, during code generation and during a repai
 Call counters and the cost ledger stay mandatory and visible (right panel, per agent, per run).
 What changes is what a cap does:
 
-* **Work the user asks for always starts.** A gate response or an agent change opens a fresh
-  allowance for the autonomous work it triggers (configurable per kind: image calls, Spark calls,
-  USD). Run totals never refuse a user's request.
-* **Caps exist to stop an agent looping without progress:**
-  * repair rounds stay bounded (`game.max_repairs`);
-  * the same failure twice in a row stops that loop early;
-  * art redraws stay bounded per entity (`game.art_retry`);
-  * a step that exhausts its allowance stops that loop.
-  When a loop is stopped, the run does not end: it opens the gate it was heading to with the
-  best result so far and a note ("the Programmer stopped after 3 repairs: the same jump test
-  failed each time"). The user decides what next.
+* **Work the user asks for always starts.** A gate response, Go back or Continue opens a fresh
+  allowance for the autonomous work it triggers. Run totals never refuse a user's request, and
+  an answer to a question is never refused or stopped.
+* **Each agent has its own allowance: $10** (`budget.max_agent_cost`, estimated USD) since the
+  user's last action (decided 2026-11-04; the per-kind call caps apply only to the legacy
+  stages). The right panel shows each agent's spend against it.
+* **Agent loops go on while they improve** (decided 2026-11-04): Programmer repairs, Muse
+  redraws, QA check fixes, Menu and Level retries and Art Reviewer rounds (review, fix, review
+  again) try again until either
+  * the agent has used up its $10 allowance, or
+  * no further improvement is possible: `game.patience` (2) tries in a row did not beat the
+    best so far, the same failure came back twice in a row, or a try changed nothing.
+  The fixed counts (`game.max_repairs`, `art_retry`, `max_art_calls`, `review_max_fixes`) are
+  optional limits on top, unset by default. When a loop stops, the run does not end: it opens
+  the gate it was heading to with the best result so far and a note ("the Programmer stopped
+  after 3 repairs: the same jump test failed each time"). The user decides what next.
 * `budget_exhausted` is no longer a final status. Old runs that ended that way can be resumed.
 * **Recommended, to confirm:** one run-level spending ceiling in USD as a guard against a bug
   (hackathon credits are $150). Reaching it pauses with a question ("This project has spent

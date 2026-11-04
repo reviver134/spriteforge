@@ -282,8 +282,10 @@ def test_fix_cap_and_no_second_review(tmp_path, budget):
     reply = answer(*[(n, f"problem {n}", "blocking") for n in range(1, len(slots) + 1)])
     reviewer = Reviewer(budget, reply)
     outcome = mock_build(tmp_path, design, art, budget)
+    cfg = load_config()
+    cfg.game.review_max_fixes = 4  # an optional fixed limit (by default: the allowance only)
     reviewed = review_art(models(budget, reviewer, images, max_fixes=4), design, plan, art,
-                          outcome, load_config(), tmp_path / "out", lambda m: None)  # fmt: skip
+                          outcome, cfg, tmp_path / "out", lambda m: None)  # fmt: skip
     assert len(reviewer.requests) == 1 and len(images.calls) == 4
     fixed = [f["entity"] for f in reviewed.report["fixes"] if f["fixed"]]
     assert fixed == ["hero", "slime", "bat", "gem"]  # priority order: player, enemies, pickups

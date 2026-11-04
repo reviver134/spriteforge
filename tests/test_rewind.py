@@ -5,16 +5,17 @@ import json
 import threading
 
 import pytest
+from test_chat_changes import answer_until
+from test_studio_api import by_name, wait_for
 
 from spriteforge.config import BudgetConfig, init_workspace
+from spriteforge.core.acting import acting
 from spriteforge.core.cost import Budget, BudgetExceeded, Cancelled, for_the_user
 from spriteforge.core.state import Store
 from spriteforge.game import pipeline
+from spriteforge.game.loops import Progress, within
 from spriteforge.stages import game as game_stage
 from spriteforge.stages.rewind import request_stop
-
-from test_chat_changes import answer_until
-from test_studio_api import by_name, studio, wait_for  # noqa: F401 -- the fixture
 
 
 @pytest.fixture
@@ -40,20 +41,34 @@ def test_a_stop_request_refuses_new_calls_but_not_the_users(run):
         budget.reserve("meta", "spark")
 
 
-def test_caps_count_from_the_last_human_action(run):
+def test_each_agent_has_its_own_allowance_from_the_last_human_action(run):
     store, r = run
-    budget = Budget(store, r.id, BudgetConfig(max_image_calls=2, per_request=True))
-    budget.reserve("meta", "image", image=True)
-    budget.reserve("meta", "image", image=True)
-    with pytest.raises(BudgetExceeded):
+    # $0.02 each: two images at budget.image_cost $0.01.
+    budget = Budget(store, r.id, BudgetConfig(per_request=True, max_agent_cost=0.02,
+                                              max_image_calls=0))  # fmt: skip
+    with acting("Pixel Artist"):
+        budget.reserve("meta", "image", image=True)  # the per-run call caps do not apply
+        budget.reserve("meta", "image", image=True)
+        with pytest.raises(BudgetExceeded, match=r"the Pixel Artist used up its \$0.02 allowance"):
+            budget.reserve("meta", "image", image=True)
+    with acting("Art Reviewer"):  # another agent's allowance is its own
         budget.reserve("meta", "image", image=True)
     store.append_event(r.id, "Human", "gate.responded", {"id": "g1"})  # a fresh allowance
-    budget.reserve("meta", "image", image=True)
+    with acting("Pixel Artist"):
+        budget.reserve("meta", "image", image=True)
     whole_run = Budget(store, r.id, BudgetConfig(max_image_calls=2, per_request=False))
     with pytest.raises(BudgetExceeded):
         whole_run.reserve("meta", "image", image=True)
     with for_the_user():
         whole_run.reserve("meta", "image", image=True)
+
+
+def test_loops_stop_when_tries_stop_improving():
+    tries = Progress(patience=2)
+    assert tries.add(-3) and tries.add(-1)  # fewer problems: better
+    assert not tries.add(-1) and not tries.stuck  # one try without improvement
+    assert not tries.add(-2) and tries.stuck  # two in a row: stop
+    assert within(5, None) and within(0, 1) and not within(1, 1)
 
 
 def artifacts(store, run_id):
@@ -188,7 +203,7 @@ def test_the_same_failure_twice_stops_the_repairs_and_opens_the_gate(studio, mon
     run_id = client.post("/api/projects", json={"text": "a slime in a cave", "mock": True}).json()["id"]
     seen = set()
     state = answer_until(client, run_id, "playtest", seen)
-    play, original = pipeline.play, pipeline.edit_code
+    play = pipeline.play
 
     def failing_play(*args, **kwargs):
         result = play(*args, **kwargs)
@@ -272,3 +287,30 @@ def test_go_back_during_the_first_build_revises_the_design_without_reopening_g2(
     assert report(store, run_id, 2)["design_version"] == 2
     assert json.loads(names["game/v2/base.json"].data) == {"base": None}
     assert "game/v1/art/" not in "".join(names)  # the stopped build saved no art
+
+
+def test_repairs_go_past_the_old_limit_while_they_improve(studio, monkeypatch):
+    store, client = studio
+    run_id = client.post("/api/projects", json={"text": "a slime in a cave", "mock": True}).json()["id"]
+    seen = set()
+    state = answer_until(client, run_id, "playtest", seen)
+    play, plays = pipeline.play, []
+
+    def improving_play(*args, **kwargs):  # 4 errors, then 3, 2, 1, then it passes
+        plays.append(1)
+        result = play(*args, **kwargs)
+        left = 5 - len(plays)
+        return {**result, "passed": left <= 0, "errors": [f"error {i}" for i in range(left)]}
+
+    def changed(models, code, prompt_for, log):
+        files = [f.model_copy(update={"content": f.content + "\n// tried"}) for f in code.files]
+        return code.model_copy(update={"files": files}), "edits"
+
+    monkeypatch.setattr(pipeline, "play", improving_play)
+    monkeypatch.setattr(pipeline, "edit_code", changed)
+    client.post(f"/api/runs/{run_id}/agents/Programmer/messages", json={"text": "make it faster"})
+    request_changes(client, run_id, state, seen)
+    answer_until(client, run_id, "playtest", seen)
+    attempts = report(store, run_id, 2)["attempts"]
+    assert len(attempts) >= 5 and attempts[-1]["passed"]  # 4+ repairs (the old limit was 3)
+    assert not any(a.get("stopped") for a in attempts)

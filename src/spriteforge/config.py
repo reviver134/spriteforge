@@ -43,10 +43,13 @@ class BudgetConfig(Schema):
     # token cost" (https://dev.meta.ai/docs/pricing-rate-limits, 2026-11-02).
     web_search_cost: float = Field(default=0.0025, ge=0)
     max_estimated_cost: float = Field(default=5, ge=0)
-    # True (config.yaml): the caps above count the calls since the human's last action (a gate
-    # answer, Go back, Continue), so they stop agent loops, never work the user asks for.
-    # False: per run (the legacy concept and production stages, budgets made in code).
+    # True (config.yaml): each agent may spend `max_agent_cost` (USD, estimated) since the
+    # human's last action (a gate answer, Go back, Continue); the caps above do not apply. Its
+    # loops run until that is used up or a try brings no improvement (game.patience), and work
+    # the user asks for always starts. False: the caps above, per run (the legacy concept and
+    # production stages, budgets made in code).
     per_request: bool = False
+    max_agent_cost: float = Field(default=10, ge=0)
 
 
 class ResearchConfig(Schema):
@@ -85,11 +88,16 @@ class PreviewConfig(Schema):
 class GameConfig(Schema):
     """Prompt-driven games: Spark writes the code, the harness checks and playtests it."""
 
-    max_repairs: int = Field(default=3, ge=0, le=6)  # Programmer fix rounds after failed checks
-    max_art_calls: int = Field(default=16, ge=0, le=40)  # Muse Image calls per build
+    # Agent loops (Programmer repairs, Muse redraws, QA check fixes, Menu and Level retries,
+    # Art Reviewer rounds) try again while they improve: they stop after `patience` tries in a
+    # row without improvement, or when the agent's allowance (budget.max_agent_cost) is used
+    # up. The counts below are optional fixed limits on top (None: no fixed limit).
+    patience: int = Field(default=2, ge=1, le=10)
+    max_repairs: int | None = Field(default=None, ge=0)  # Programmer fix rounds after failed checks
+    max_art_calls: int | None = Field(default=None, ge=0)  # Muse Image calls per build
     image_workers: int = Field(default=4, ge=1, le=8)  # Muse Image calls in flight at once
     image_cache: bool = True  # identical Muse requests reuse workspace/cache/muse-image
-    art_retry: int = Field(default=1, ge=0, le=2)  # redraws of a Muse frame that fails checks
+    art_retry: int | None = Field(default=None, ge=0)  # redraws of a Muse frame that fails checks
     native_grid_confidence: float = Field(default=0.6, ge=0, le=1)  # big-pixel grid read-back
     # Muse sprites as sheets: frames per animation row (1 = one image per sprite)
     sheet_frames: int = Field(default=4, ge=1, le=6)
@@ -97,10 +105,10 @@ class GameConfig(Schema):
     # Art Reviewer (M10.3): one vision call after the playtest; blocking issues are fixed once
     # (at most review_max_fixes Muse Image edits at review_image_reasoning) before G4.
     review: bool = True
-    review_max_fixes: int = Field(default=4, ge=0, le=8)
+    review_max_fixes: int | None = Field(default=None, ge=0)
     review_image_reasoning: Literal["low", "high"] = "high"
     # Review call plus fixes stay within this estimate: fewer fixes when the review costs more.
-    review_cost_cap: float = Field(default=0.08, ge=0)
+    review_cost_cap: float | None = Field(default=None, ge=0)
     # QA tests (M10.4): the QA Playtester writes tests from each design version; every build runs
     # them (and earlier versions' tests) with real key presses after the bot playtest.
     qa: bool = True

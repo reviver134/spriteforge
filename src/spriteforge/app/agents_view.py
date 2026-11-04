@@ -5,6 +5,7 @@ import re
 
 from pydantic import BaseModel
 
+from spriteforge.core.cost import ALLOWANCE_EVENTS
 from spriteforge.core.gates import Gate, Gates
 from spriteforge.core.state import Event, Store
 from spriteforge.stages.chat_changes import changes
@@ -78,17 +79,22 @@ class AgentSummary(BaseModel):
     calls: int
     images: int
     cost: float
+    allowance: float  # what it spent since the human's last action (its cap: budget.max_agent_cost)
     last: str | None  # its latest progress message
 
 
 def summarize(store: Store, run_id: str, busy: bool) -> list[AgentSummary]:
     """`busy`: a worker is stepping this run now (so its latest actor is working)."""
     stats = {
-        a: {"artifacts": 0, "calls": 0, "images": 0, "cost": 0.0, "last": None} for a in AGENTS
+        a: {"artifacts": 0, "calls": 0, "images": 0, "cost": 0.0, "allowance": 0.0, "last": None}
+        for a in AGENTS
     }
     seen, attempts, current = set(), {}, None
     for event in store.events(run_id):
         who = actor(event)
+        if event.type in ALLOWANCE_EVENTS:  # a human action: every agent's allowance restarts
+            for s in stats.values():
+                s["allowance"] = 0.0
         if event.type == "cost.reserved":
             # Calls booked before agents were recorded go to whoever was working then.
             attempts[event.payload["attempt_id"]] = who or current or "Director"
@@ -99,6 +105,7 @@ def summarize(store: Store, run_id: str, busy: bool) -> list[AgentSummary]:
                 stats[agent]["calls"] += 1
                 stats[agent]["images"] += bool(usage.get("image"))
                 stats[agent]["cost"] += usage.get("estimated_cost") or 0.0
+                stats[agent]["allowance"] += usage.get("estimated_cost") or 0.0
         if who:
             seen.add(who)
             current = who
@@ -123,7 +130,8 @@ def summarize(store: Store, run_id: str, busy: bool) -> list[AgentSummary]:
                 name=name,
                 status=status,
                 needs_you=int(name in waiting_on),
-                **{**stats[name], "cost": round(stats[name]["cost"], 6)},
+                **{**stats[name], "cost": round(stats[name]["cost"], 6),
+                   "allowance": round(stats[name]["allowance"], 6)},
             )
         )
     return result

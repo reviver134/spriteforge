@@ -40,6 +40,17 @@ function CostPanel({ state, agent, mock }: { state: RunAgents; agent: string; mo
             <dt>Files</dt>
             <dd>{mine.artifacts}</dd>
           </dl>
+          {state.agent_cap != null && (
+            <div className="allowance">
+              <p>
+                {money(mine.allowance)} of {money(state.agent_cap)} since your last action
+              </p>
+              <meter min={0} max={state.agent_cap} value={mine.allowance} aria-label="Allowance used" />
+              <p className="muted">
+                Its loops go on while they improve, until this allowance is used up.
+              </p>
+            </div>
+          )}
         </>
       )}
     </section>

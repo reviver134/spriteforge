@@ -4,23 +4,13 @@ their threads and chat messages."""
 import time
 
 import pytest
-from fastapi.testclient import TestClient
 
 from spriteforge.app.agents_view import AGENTS, actor
 from spriteforge.app.chat import ChatAnswer, answer_question, classify
-from spriteforge.app.server import create_app
-from spriteforge.config import BudgetConfig, init_workspace, load_config
+from spriteforge.config import BudgetConfig, init_workspace
 from spriteforge.core.acting import acting
 from spriteforge.core.cost import Budget
 from spriteforge.core.state import Artifact, Event, Store
-
-
-@pytest.fixture
-def studio(tmp_path, monkeypatch):
-    monkeypatch.delenv("META_API_KEY", raising=False)
-    store = Store(init_workspace(tmp_path) / "state.sqlite3")
-    with TestClient(create_app(store, interval=0.01, cfg=load_config(None))) as client:
-        yield store, client
 
 
 def wait_for(client, run_id, done, timeout=60):

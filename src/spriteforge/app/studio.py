@@ -100,6 +100,12 @@ def project(store: Store, run, busy: bool) -> dict:
     }
 
 
+def agent_cap(run) -> float | None:
+    """Each agent's allowance since the human's last action (None: the run's caps are per run)."""
+    budget = run.config.get("budget") or {}
+    return budget.get("max_agent_cost", 10) if budget.get("per_request") else None
+
+
 def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
     api = APIRouter(prefix="/api")
 
@@ -177,6 +183,7 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
             "busy": busy,
             "gate": gate.model_dump(mode="json") if gate else None,
             "queued": for_gate(store, id),  # chat changes the open gate's Request changes applies
+            "agent_cap": agent_cap(run),
             "error": workers.errors.get(id),
         }
 

@@ -196,6 +196,14 @@ def test_retry_respects_cap(budget):
     assert len(images.requests) == 1 and art.filled["hero"].source == "placeholder"
 
 
+def test_redraws_go_on_until_they_stop_improving(budget):
+    d = hero_only()
+    images = ScriptedImages(budget, [magenta()] * 8)  # the same problem every time
+    art = make_art(d, keyword_plan(d), generate=images, options=MuseOptions(retries=None, patience=2))
+    assert len(images.requests) == 3  # the first draw, then two redraws without improvement
+    assert art.filled["hero"].source == "placeholder"
+
+
 def test_empty_retry_keeps_first_frame_and_its_problems(budget):
     d = hero_only()
     wide = Image.new("RGB", (600, 300), (255, 0, 255))

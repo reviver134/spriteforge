@@ -80,6 +80,7 @@ The playable build is runs/<id>/game/vN/build, served at /api/runs/<id>/play/vN/
 """
 
 import re
+from dataclasses import replace
 from pathlib import Path
 
 from spriteforge.config import BudgetConfig, Config
@@ -90,26 +91,18 @@ from spriteforge.game.build import install_sounds
 from spriteforge.game.codegen import GameCode
 from spriteforge.game.design import GameDesign, design_markdown, revision_prompt
 from spriteforge.game.gamedb import context_pack, open_db, promote_all, sync_record
-from spriteforge.game.menus import MenuRecord, menus_markdown, menus_script, refit
+from spriteforge.game.lessons import past_lessons
 from spriteforge.game.level_preview import first_frame, preview
 from spriteforge.game.levels import LevelRecord, evaluate, level_markdown, player_body
+from spriteforge.game.loops import Progress
+from spriteforge.game.menus import MenuRecord, menus_markdown, menus_script, refit
 from spriteforge.game.motion import MotionRecord, motion_markdown
-from spriteforge.game.sounds import (
-    SDK_MOMENTS,
-    SoundRecord,
-    SoundSet,
-    edited_record,
-    moments_of,
-    refit as refit_sounds,
-    sound_report,
-    sounds_markdown,
-    sounds_script,
-)
 from spriteforge.game.pipeline import (
     CheckWriter,
     LevelPack,
     MenuPack,
     Models,
+    Reviewed,
     art_sources,
     art_summary,
     build_and_test,
@@ -149,23 +142,33 @@ from spriteforge.game.qa import (
     QATests,
     bind_selects,
     merge_suite,
-    with_level_tests,
     screenshot_files,
+    with_level_tests,
     write_export,
 )
 from spriteforge.game.record import record_game
 from spriteforge.game.research import ResearchRecord, research_brief, research_markdown
 from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback_revision, merge
 from spriteforge.game.revision import revision_prompt as director_prompt
-
-from . import chat_changes
-from .rewind import LATE, round_key
+from spriteforge.game.sounds import (
+    SDK_MOMENTS,
+    SoundRecord,
+    SoundSet,
+    edited_record,
+    moments_of,
+    sound_report,
+    sounds_markdown,
+    sounds_script,
+)
+from spriteforge.game.sounds import (
+    refit as refit_sounds,
+)
 from spriteforge.game.story import StoryBible, story_markdown
 from spriteforge.game.structure import GameStructure, make_structure, structure_markdown
-from spriteforge.game.lessons import past_lessons
 from spriteforge.game.title_art import TitleArt
 from spriteforge.memory.okf.store import KnowledgeStore
 
+from . import chat_changes
 from .asset_store import ProductionStore
 from .game_final import finish, open_final_gate
 from .game_record import (
@@ -182,6 +185,7 @@ from .game_record import (
     story_names,
 )
 from .intake import GameBrief
+from .rewind import LATE, round_key
 
 STAGES = {"design", "playtest", "final"}
 ADD_STORY = "Add a story"
@@ -869,13 +873,24 @@ def build_version(
                   if suite and ctx.cfg.game.qa_checks else None)  # fmt: skip
         outcome = build_and_test(ctx.models, design, art, code, ctx.cfg, ctx.root / prefix, log,
                                  suite.tests if suite else None, pack, flow, script, writer)  # fmt: skip
-        review = None
+        review, reviews = None, []
         if ctx.cfg.game.review and outcome.build:
-            log(f"build v{version}: the Art Reviewer is looking at the art in the running game")
-            review = review_art(ctx.models, design, plan, art, outcome, ctx.cfg,
-                                ctx.root / prefix, log, version,
-                                suite.tests if suite else None, pack, flow, script)  # fmt: skip
-            art, outcome = review.art, review.outcome
+            # It looks again after its fixes while the blocking issues go down (game.patience)
+            # and its allowance lasts; a round that fixes nothing ends the rounds.
+            tries, reviewed = Progress(ctx.cfg.game.patience), plan
+            while True:
+                again = f" again (round {len(reviews) + 1})" if reviews else ""
+                log(f"build v{version}: the Art Reviewer is looking at the art in the running game{again}")
+                review = review_art(ctx.models, design, reviewed, art, outcome, ctx.cfg,
+                                    ctx.root / prefix, log, version,
+                                    suite.tests if suite else None, pack, flow, script)  # fmt: skip
+                reviews.append(review)
+                art, outcome, reviewed = review.art, review.outcome, review.plan
+                left = blocking_left(review.report)
+                tries.add(-sum(1 for i in review.report["issues"] if i["severity"] == "blocking"))
+                if not left or not any(f["fixed"] for f in review.report["fixes"]) or tries.stuck:
+                    break
+            review = combined_review(reviews)
         qa = save_qa(ctx, prefix, outcome, suite) if suite else None  # after the review's replay
         recording = None
         if outcome.build:
@@ -978,6 +993,27 @@ def build_version(
             },
         )
     return gate_names(ctx, version)
+
+
+def blocking_left(report: dict) -> int:
+    return sum(1 for i in report["issues"] if i["severity"] == "blocking" and i["status"] != "fixed")
+
+
+def combined_review(reviews: list) -> "Reviewed":
+    """The Art Reviewer's rounds as one: the last round's art, plan, answer and issues (the
+    current state), every round's fixes and pictures (round k's named "rk-..." from round 2)."""
+    images, fixes, rounds = {}, [], []
+    for k, r in enumerate(reviews, 1):
+        tag = "" if k == 1 else f"r{k}-"
+        images |= {tag + name: data for name, data in r.images.items()}
+        fixes += [{**f, "before": tag + f["before"] if f["before"] else None,
+                   "after": tag + f["after"] if f["after"] else None} for f in r.report["fixes"]]  # fmt: skip
+        rounds.append({"round": k, "blocking": sum(i["severity"] == "blocking" for i in r.report["issues"]),
+                       "fixed": sum(bool(f["fixed"]) for f in r.report["fixes"]),
+                       "cost": r.report["cost"]})  # fmt: skip
+    last = reviews[-1]
+    report = {**last.report, "fixes": fixes, "images": sorted(images), "rounds": rounds}
+    return replace(last, report=report, images=images)
 
 
 def review_report(report: dict, prefix: str) -> dict:
@@ -1194,7 +1230,7 @@ def revised_design(ctx: GameContext, version: int, design: GameDesign, design_ve
         f"game/design/v{design_version}.json",
         GameDesign,
         lambda: ctx.models.ask("Game Designer", revision_prompt(old, changes, brief), GameDesign,
-                               old, "design"),  # fmt: skip
+                               old, "design"),
         "Game Designer",
     )
     save_design(ctx, design_version, design)
