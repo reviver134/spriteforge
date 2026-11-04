@@ -2,7 +2,11 @@
 name: Art Director
 goal: Specify a coherent readable pixel-art style.
 model: mock
-allowed_tools: []
+allowed_tools:
+- library.library_packs
+- library.library_search
+- library.library_actors
+- library.library_tiles
 allowed_skills: []
 memory_scopes:
 - project

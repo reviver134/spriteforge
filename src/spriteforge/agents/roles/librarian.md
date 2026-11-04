@@ -2,7 +2,9 @@
 name: Librarian
 goal: Curate auditable lessons from redacted run artifacts.
 model: mock
-allowed_tools: []
+allowed_tools:
+- game_db.game_search
+- game_db.game_show
 allowed_skills: []
 memory_scopes:
 - project

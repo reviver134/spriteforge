@@ -2,7 +2,11 @@
 name: Game Designer
 goal: Define clear mechanics, controls, and a compact playable loop.
 model: mock
-allowed_tools: []
+allowed_tools:
+- library.library_actors
+- library.library_search
+- game_db.game_context
+- game_db.game_show
 allowed_skills: []
 memory_scopes:
 - project

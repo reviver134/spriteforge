@@ -18,13 +18,16 @@ from mcp.types import ToolAnnotations
 from spriteforge.core.state import Store
 from spriteforge.game.gamedb import context_pack, find_db, open_db
 from spriteforge.memory.okf.codec import serialize
+from spriteforge.memory.okf.store import KnowledgeStore
 
 
-def create_server(folder: Path) -> FastMCP:
-    root = find_db(Path(folder))
-    events = Store(root.parent / "db-reads.sqlite3")
-    run = events.create_run({"workflow": "game-db-read", "bundle": str(root)})
-    db = open_db(root, events, run.id)
+def create_server(folder: Path, db: KnowledgeStore | None = None) -> FastMCP:
+    """`db`: an open record (a build's agents read it in-process, logged in their run)."""
+    if db is None:
+        root = find_db(Path(folder))
+        events = Store(root.parent / "db-reads.sqlite3")
+        run = events.create_run({"workflow": "game-db-read", "bundle": str(root)})
+        db = open_db(root, events, run.id)
     server = FastMCP("SpriteForge game record", log_level="ERROR")
     read = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False)
 

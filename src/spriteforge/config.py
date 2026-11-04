@@ -124,6 +124,11 @@ class GameConfig(Schema):
     # Sounds (L2.7): the Sound Director's synthesised sounds (one Spark call per game), played by
     # the SDK on the game's moments and edited in the build's sound editor or at G4.
     sounds: bool = True
+    # Agent tools: in a live build each agent's Spark call may look things up with the tools its
+    # role grants (the built-in library and game-record MCP servers, its skills, and the user's
+    # MCP tools granted to it that need no confirmation), for up to `tool_rounds` rounds.
+    agent_tools: bool = True
+    tool_rounds: int = Field(default=3, ge=0, le=10)
     max_code_kb: int = Field(default=200, ge=10, le=1000)
     playtest_fps: int = Field(default=30, ge=10, le=60)
     record_seconds: int = Field(default=20, ge=5, le=60)
