@@ -373,11 +373,26 @@ def test_spark_schemas_are_strict():
                 out += problems(v, f"{path}[{i}]")
         return out
 
+    from spriteforge.app.chat import ChatAnswer
+    from spriteforge.game.art_review import ArtReview
+    from spriteforge.game.codegen import CodePatch
+    from spriteforge.game.lessons import Lessons
+    from spriteforge.game.levels import LevelSpec
+    from spriteforge.game.menus import MenuSpec
+    from spriteforge.game.motion import AnimationBrief
+    from spriteforge.game.plan import GamePlan
     from spriteforge.game.qa import QATests
+    from spriteforge.game.qa_checks import CodeChecks
+    from spriteforge.game.research import Research
     from spriteforge.game.revision import Revision
+    from spriteforge.game.sounds import SoundBrief
     from spriteforge.game.story import StoryBible
+    from spriteforge.game.team_reports import TaskList
 
-    for schema in (GameDesign, ArtPlan, GameCode, QATests, Revision, StoryBible):
+    # Every answer schema the game pipeline and the studio chat send to Spark.
+    for schema in (GameDesign, ArtPlan, GameCode, QATests, Revision, StoryBible, ChatAnswer,
+                   ArtReview, CodePatch, Lessons, LevelSpec, MenuSpec, AnimationBrief, GamePlan,
+                   CodeChecks, Research, SoundBrief, TaskList):  # fmt: skip
         assert problems(schema.model_json_schema()) == [], schema.__name__
 
 

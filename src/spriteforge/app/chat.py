@@ -4,8 +4,9 @@ agent's own work as context) or a change (filed for the gated pipeline, never ru
 import re
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from spriteforge.agents.models import Contract
 from spriteforge.config import BudgetConfig, Config
 from spriteforge.core.cost import Budget, for_the_user
 from spriteforge.core.state import Store
@@ -38,7 +39,7 @@ def classify(text: str) -> Intent:
     return "change"
 
 
-class ChatAnswer(BaseModel):
+class ChatAnswer(Contract):  # Contract: Meta's strict json_schema needs additionalProperties false
     answer: str = Field(description="Your reply to the human, in plain words", max_length=4000)
 
 
