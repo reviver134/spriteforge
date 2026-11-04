@@ -11,5 +11,7 @@ dist/
 *.log
 *.log.*
 logs/
+# `spriteforge game make --out out/...`
+out/
 # Third-party art packs (most may not be redistributed); ingested into assets/library locally.
 characters/
