@@ -26,6 +26,7 @@ class PreviewContext(ProductionContext):
         self.cfg = Config.model_validate(self.run.config["settings"])
         cap = BudgetConfig.model_validate(self.run.config["budget"])
         cap.max_image_calls = min(cap.max_image_calls, self.cfg.preview.max_image_calls)
+        cap.per_request = False  # the preview's cap is for the whole stage
         self.budget = Budget(store, run_id, cap)
         self.brief = GameBrief.model_validate(self.read("brief.json"))
         history = Gates(store).all(run_id)

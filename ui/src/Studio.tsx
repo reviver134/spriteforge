@@ -110,6 +110,14 @@ export function Studio({ runId, agent }: { runId: string; agent: string }) {
               Retry
             </button>
           )}
+          {data?.status === "budget_exhausted" && (
+            <>
+              <span className="note">Paused: this step used up its allowance.</span>
+              <button type="button" onClick={() => resume.mutate()} disabled={resume.isPending}>
+                Continue
+              </button>
+            </>
+          )}
           {resume.error && <span className="error">{resume.error.message}</span>}
         </header>
         <Chat

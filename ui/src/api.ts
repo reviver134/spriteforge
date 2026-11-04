@@ -115,6 +115,16 @@ export interface RunAgents {
   error: string | null;
 }
 
+/** The Go back card: a change to work a running round already did (docs/ui-plan.md, 3b). */
+export interface GoBack {
+  change: number;
+  round: string;
+  working: string;
+  build: number | null;
+  cost: number;
+  state: "open" | "going_back" | "went_back" | "queued" | "expired";
+}
+
 interface ItemBase {
   id: number;
   at: string;
@@ -130,6 +140,7 @@ export type ThreadItem = ItemBase &
         intent?: string;
         status?: string;
         error?: boolean;
+        rewind?: GoBack;
       }
     | { kind: "progress"; text: string }
     | { kind: "artifact"; artifact: ArtifactMeta }

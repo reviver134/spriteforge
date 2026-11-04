@@ -672,7 +672,9 @@ def build_concepts(rec: GameRecord) -> list[Entry]:
             f"story: {safe_text(rev['story_changes'])}" if rev.get("story_changes") else "",
         ] if rev else [], "- nothing: a new build")  # fmt: skip
         changed = "\n".join(line for line in changed.splitlines() if line.strip() != "-")
-        prev = f"Previous: [v{b.version - 1}](/builds/v{b.version - 1}.md). " if b.version > 1 else ""
+        # The build before it (a build a Go back stopped has no page: numbers can skip).
+        before = max((x.version for x in rec.builds if x.version < b.version), default=None)
+        prev = f"Previous: [v{before}](/builds/v{before}.md). " if before else ""
         body = f"""
 # Build v{b.version}
 {"All design checks pass." if r.get("passed") else "Some design checks FAIL."} Design

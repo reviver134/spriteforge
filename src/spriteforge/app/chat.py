@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from spriteforge.config import BudgetConfig, Config
-from spriteforge.core.cost import Budget
+from spriteforge.core.cost import Budget, for_the_user
 from spriteforge.core.state import Store
 
 Intent = Literal["question", "change"]
@@ -106,5 +106,6 @@ def answer_question(store: Store, run_id: str, agent: str, text: str, models=Non
         answer=f"(Offline mock: no model is called.) I'm the {agent}. Ask again with a live "
         "Muse key for a real answer about my work."
     )
-    return models.ask(agent, question_prompt(store, run_id, agent, text), ChatAnswer, fallback,
-                      "chat").answer  # fmt: skip
+    with for_the_user():  # the human asked: no cap or stop request refuses it
+        return models.ask(agent, question_prompt(store, run_id, agent, text), ChatAnswer,
+                          fallback, "chat").answer  # fmt: skip

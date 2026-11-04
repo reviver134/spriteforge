@@ -68,10 +68,24 @@ def shown(ctx, gate: Gate, pattern: re.Pattern) -> int | None:
     return max(found) if found else None
 
 
+def latest_round(ctx, n: int, what: str) -> str | None:
+    """The newest round's `game/feedback/gate-{n}[.k]-{what}.json` (a Go back redoes a round)."""
+    pattern = rf"game/feedback/gate-{n}(\.\d+)?-{what}\.json"
+    rounds = [name for name in ctx.artifacts if re.fullmatch(pattern, name)]
+    return max(rounds, key=lambda name: tuple(map(int, name.split("gate-")[1].split("-")[0].split("."))),
+               default=None)
+
+
+def round_build(ctx, n: int, shown_version: int) -> int:
+    """The build gate n's changes made (usually the next one; a Go back skips a number)."""
+    name = latest_round(ctx, n, "build")
+    return ctx.read(name)["version"] if name else shown_version + 1
+
+
 def gate_revision(ctx, n: int, version: int | None = None) -> Revision | None:
     """What the Director made of gate n's feedback (runs before L2.1 kept it only as the next
     build's revision.json)."""
-    for name in (f"game/feedback/gate-{n}-revision.json", f"game/v{(version or 0) + 1}/revision.json"):
+    for name in (latest_round(ctx, n, "revision"), f"game/v{(version or 0) + 1}/revision.json"):
         if name in ctx.artifacts:
             return Revision.model_validate(ctx.read(name))
     return None
@@ -98,8 +112,9 @@ def decisions(ctx) -> list[Decision]:
                 out.append(Decision(gate, "approved", words, f"the menus of build v{v} approved: "
                                     "its playtest (G4) follows", v))  # fmt: skip
             else:
+                b = round_build(ctx, n, v)
                 out.append(Decision(gate, "changes requested", words, "the menus revised: build "
-                                    f"v{v + 1} with the same code and art", v + 1, True))  # fmt: skip
+                                    f"v{b} with the same code and art", b, True))  # fmt: skip
             continue
         added = story_for_trigger(ctx.artifacts, f"gate-{n}")
         if g.stage == "design":
@@ -139,7 +154,7 @@ def decisions(ctx) -> list[Decision]:
                 f"menus: {rev.menu_changes}" if rev and rev.menu_changes else "",
             ]  # fmt: skip
             changed = "; ".join(p for p in parts if p) or "a new build"
-            out.append(Decision(gate, "changes requested", words, changed, v + 1, True))
+            out.append(Decision(gate, "changes requested", words, changed, round_build(ctx, n, v), True))
     return out
 
 

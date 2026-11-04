@@ -50,7 +50,7 @@ from pydantic import ValidationError
 from spriteforge.agents.roles import load_roles
 from spriteforge.config import Config
 from spriteforge.core.acting import acting
-from spriteforge.core.cost import Budget, ledger
+from spriteforge.core.cost import Budget, BudgetExceeded, ledger
 from spriteforge.core.state import Store
 from spriteforge.providers.base import ChatRequest, Message, SearchRequest, SearchResult, chat_json
 from spriteforge.providers.http import ProviderError
@@ -1068,6 +1068,16 @@ def build_and_test(
         if best is None or rank > best[0]:
             best = (rank, n, code, report, shots, qa_results)
         if ok or n == cfg.game.max_repairs:
+            if not ok:
+                attempts[-1]["stopped"] = (f"the Programmer stopped after {n} repair(s): "
+                                           "the repair limit")  # fmt: skip
+            break
+        if n and failures == attempts[-2]["summary"]:
+            # The same failure twice in a row: more repairs would loop without progress.
+            why = failures.strip().splitlines()[0][:160]
+            log(f"  the same failure twice in a row ({why}): keeping the best attempt so far")
+            attempts[-1]["stopped"] = (f"the Programmer stopped after {n} repair(s): the same "
+                                       f"failure each time ({why})")  # fmt: skip
             break
         log("  Programmer is repairing the game")
         summary = levels.summary if levels else ""
@@ -1078,13 +1088,15 @@ def build_and_test(
                 lambda error, c=code, f=failures, s=summary: repair_prompt(design, c, f, manifest, error, s),
                 log,
             )
-        except ProviderError as exc:
+        except (ProviderError, BudgetExceeded) as exc:
             # A repair call that fails (live 2026-11-03: three read timeouts on long repair
-            # prompts) ends the repairs; the best attempt so far is kept instead of the whole
-            # build being lost.
+            # prompts) or a round that used up its allowance ends the repairs; the best attempt
+            # so far is kept and its gate opens with a note instead of the build being lost.
+            # (Cancelled, a Go back, is a BaseException: it is never caught here.)
             why = str(exc).strip().splitlines()[0][:200] if str(exc).strip() else type(exc).__name__
             log(f"  the repair call failed ({why}): keeping the best attempt so far")
             attempts[-1]["repair"] = f"failed: {why}"
+            attempts[-1]["stopped"] = f"the Programmer stopped after {n + 1} attempt(s): {why}"
             break
         if fixed == code:  # the mock (or a stuck model) returned the same files: stop early
             break

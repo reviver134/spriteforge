@@ -141,6 +141,25 @@ class Store:
             db.execute("UPDATE stages SET status='failed' WHERE run_id=?", (run_id,))
             self._event(db, run_id, "Director", "run.failed", {"message": message})
 
+    def pause_for_budget(self, run_id: str, message: str) -> None:
+        """A step used up its allowance: the run waits for the human (Continue), it does not
+        end (cost policy: caps stop loops, not the user)."""
+        with self.connect() as db:
+            db.execute("UPDATE runs SET status='budget_exhausted' WHERE id=?", (run_id,))
+            self._event(db, run_id, "Director", "run.paused", {"message": message})
+
+    def continue_run(self, run_id: str) -> None:
+        """Continue a run paused by its allowance (or one that ended so before the cost
+        policy): a fresh allowance for the work it does next."""
+        with self.connect() as db:
+            changed = db.execute(
+                "UPDATE runs SET status='running' WHERE id=? AND status='budget_exhausted'",
+                (run_id,),
+            )
+            if not changed.rowcount:
+                raise ValueError("Only a paused run can be continued")
+            self._event(db, run_id, "Human", "allowance.granted", {})
+
     def retry_failed(self, run_id: str) -> None:
         """Explicit retry keeps artifacts, gate answers and cost reservations intact."""
         with self.connect() as db:

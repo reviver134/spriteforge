@@ -159,6 +159,7 @@ from spriteforge.game.revision import ArtChange, LevelChange, Revision, fallback
 from spriteforge.game.revision import revision_prompt as director_prompt
 
 from . import chat_changes
+from .rewind import LATE, round_key
 from spriteforge.game.story import StoryBible, story_markdown
 from spriteforge.game.structure import GameStructure, make_structure, structure_markdown
 from spriteforge.game.lessons import past_lessons
@@ -417,13 +418,13 @@ def flow_script(ctx: GameContext, menus: int | None, design: GameDesign) -> dict
 
 def previous_title(ctx: GameContext, version: int) -> TitleArt | None:
     """The previous build's title art, so an unchanged request reuses it (locked)."""
-    base = f"game/v{version - 1}/menus"
+    base = f"game/v{base_build(ctx, version)}/menus"
     if f"{base}/title-art.json" not in ctx.artifacts or f"{base}/title-art.png" not in ctx.artifacts:
         return None
     rec = ctx.read(f"{base}/title-art.json")
     return TitleArt(ctx.data(f"{base}/title-art.png"), ctx.data(f"{base}/emblem.png"),
                     rec.get("source", ""), rec.get("prompts", {}), [], {},
-                    rec.get("version") or version - 1)  # fmt: skip
+                    rec.get("version") or base_build(ctx, version))  # fmt: skip
 
 
 # --- sounds (L2.7) -------------------------------------------------------------------------------
@@ -730,9 +731,10 @@ def ensure_motion(ctx: GameContext, design_version: int, design: GameDesign,
 
 def previous_art(ctx: GameContext, version: int):
     """Muse records of the previous build, so unchanged requests reuse their art."""
+    before = base_build(ctx, version)
 
     def lookup(eid: str) -> dict | None:
-        base = f"game/v{version - 1}/art/{eid}"
+        base = f"game/v{before}/art/{eid}"
         if f"{base}.json" not in ctx.artifacts or f"{base}-raw.png" not in ctx.artifacts:
             return None
         record = ctx.read(f"{base}.json")
@@ -753,7 +755,8 @@ def qa_suite(
     name = f"game/v{version}/qa-tests.json"
     if name in ctx.artifacts:
         return QASuite.model_validate(ctx.read(name))
-    before = f"game/v{version - 1}/qa-tests.json"
+    prior = base_build(ctx, version)
+    before = f"game/v{prior}/qa-tests.json"
     previous = QASuite.model_validate(ctx.read(before)) if before in ctx.artifacts else None
     if previous is not None and menus:
         # Each earlier test's `select` steps name actions, read from the menus of the build it
@@ -765,7 +768,7 @@ def qa_suite(
             bound += bind_selects([t], flow_script(ctx, written, design)) if written else [t]
         previous = previous.model_copy(update={"tests": bound})
     old_design = (
-        ctx.read(f"game/v{version - 1}/report.json")["design_version"] if version > 1 else None
+        ctx.read(f"game/v{prior}/report.json")["design_version"] if prior else None
     )
     new, notes = None, []
     if previous is None or design_version != old_design:
@@ -852,6 +855,9 @@ def build_version(
                 flow.title_art.version = version
         sound_record = load_sounds(ctx, sounds) if sounds else None
         script = sounds_script(sound_record, design.title) if sound_record else None
+        # Programmer changes asked in chat while this build's earlier agents worked (no stop).
+        late = chat_changes.take(ctx, f"code-v{version}", LATE)
+        instruction = joined(instruction, *(c["text"] for c in late))
         if base is None or instruction.strip():
             log(f"build v{version}: the Programmer is writing the game")
             code = write_code(ctx.models, design, game_assets(art, flow, script)[0], base,
@@ -1018,6 +1024,9 @@ def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None
         verdict += f"; QA {qa['passed']}/{total} tests pass" + (
             f" ({qa['failed']} failing: test or game bug?)" if qa["failed"] else ""
         )
+    # A repair loop stopped early (the limit, the same failure twice, the allowance): say so.
+    if stopped := next((a["stopped"] for a in report.get("attempts", []) if a.get("stopped")), None):
+        verdict += f" ({stopped}; this is the best attempt)"
     story = latest_story(ctx)
     title = (
         f"G4 Playtest v{version}: {report['title']}, {verdict}. Watch the autoplay or play it; "
@@ -1142,10 +1151,62 @@ def form_level(gate) -> int | None:
     return int(match[1]) if match else None
 
 
+def superseded_builds(ctx: GameContext) -> set[int]:
+    return {e.payload["build"] for e in ctx.store.events(ctx.run_id)
+            if e.type == "round.superseded" and e.payload.get("build")}  # fmt: skip
+
+
+def round_build(ctx: GameContext, n: str, base: int | None) -> int:
+    """The build number round n makes, chosen once: the next one after every finished build,
+    skipping builds a Go back stopped (their artifacts stay; the number is never reused).
+    `base`: the build it changes (None: the first build, from the design)."""
+    pointer = f"game/feedback/gate-{n}-build.json"
+    if pointer not in ctx.artifacts:
+        version = max(latest_version(ctx.artifacts, REPORT), base or 0) + 1
+        stopped = superseded_builds(ctx)
+        while version in stopped:
+            version += 1
+        ctx.save(pointer, {"version": version, "base": base}, "Director")
+        if (base or 0) != version - 1:  # usually the build before; recorded when it is not
+            ctx.save(f"game/v{version}/base.json", {"base": base}, "Director")
+    return ctx.read(pointer)["version"]
+
+
+def base_build(ctx: GameContext, version: int) -> int | None:
+    """The build vN changes (its art, title art and QA tests are reused from it)."""
+    name = f"game/v{version}/base.json"
+    return ctx.read(name)["base"] if name in ctx.artifacts else version - 1
+
+
+def revised_design(ctx: GameContext, version: int, design: GameDesign, design_version: int,
+                   changes: str, feedback: str) -> tuple[GameDesign, int]:  # fmt: skip
+    """The design revised for build vN's changes: a new design version (and plan)."""
+    old, old_version = design, design_version
+    # Chosen once per build: a step re-entered after a failure (a budget cap, a timeout)
+    # reuses it instead of counting the versions again (live 2026-11-02 made a stray v3).
+    chosen = f"game/v{version}/design-version.json"
+    if chosen not in ctx.artifacts:
+        ctx.save(chosen, {"version": design_versions(ctx) + 1}, "Game Designer")
+    design_version = ctx.read(chosen)["version"]
+    game_plan = next_plan(ctx, design_version, old_version, changes, feedback)
+    brief = plan_brief(game_plan) if game_plan else ""
+    design = ctx.once(
+        f"game/design/v{design_version}.json",
+        GameDesign,
+        lambda: ctx.models.ask("Game Designer", revision_prompt(old, changes, brief), GameDesign,
+                               old, "design"),  # fmt: skip
+        "Game Designer",
+    )
+    save_design(ctx, design_version, design)
+    return design, design_version
+
+
 def game_step(store, run_id) -> bool:
     ctx = GameContext(store, run_id)
     history = Gates(store).all(run_id)
-    last, n = history[-1], len(history)  # n: this gate's number (story and revision keys)
+    last = history[-1]
+    # n: this gate's number, the key of its round's checkpoints ("5.1" after a Go back).
+    n = round_key(store, run_id, last, len(history))
     feedback = ((last.response.text if last.response else "") or "").strip()
     has_story = latest_story(ctx) is not None
 
@@ -1179,7 +1240,7 @@ def game_step(store, run_id) -> bool:
         # Menus are data: the Menu Designer revises them and the same code and art are built
         # again with them (no Programmer call), then G3 again.
         shown_version = shown(ctx, last, REPORT)
-        version = shown_version + 1
+        version = round_build(ctx, n, shown_version)
         previous = ctx.read(f"game/v{shown_version}/report.json")
         design_version = previous["design_version"]
         design = load_design(ctx, design_version)
@@ -1246,21 +1307,34 @@ def game_step(store, run_id) -> bool:
         sync_db(ctx, f"G2 approved design v{version}")
         promote_all(ctx.db, f"G2 approved: design v{version}" + (" and its story" if has_story else ""))
         game_plan = load_plan(ctx, version)
-        # Changes asked in the chats of agents that have not run yet are used in their first run.
-        chat = chat_changes.take(ctx, "build-1", chat_changes.BUILD,
-                                 "game/v1/report.json" in ctx.artifacts)
+        build = round_build(ctx, n, None)
+        # Changes asked in the chats of agents that have not run yet are used in their first run;
+        # after a Go back, design and story changes too (the design is revised, G2 not reopened).
+        again = "." in n
+        chat = chat_changes.take(ctx, f"build-{n}" if again else "build-1",
+                                 chat_changes.EVERY if again else chat_changes.BUILD,
+                                 f"game/v{build}/report.json" in ctx.artifacts)
+        early, _ = chat_changes.as_revision(chat, design)
+        # Director messages taken after a Go back are about the game as a whole: the design.
+        asked = joined(early.design_changes, *(c["text"] for c in chat if c["slot"] == "feedback"))
+        redesigned = bool(asked)
+        if redesigned:
+            design, version = revised_design(ctx, build, design, version, asked, asked)
+            game_plan = load_plan_at(ctx, version)
+        if early.story_changes.strip():
+            ensure_story(ctx, f"gate-{n}", design, early.story_changes)
         levels = None
         if uses_levels(design, game_plan):
             levels = latest_version(ctx.artifacts, LEVELS) or first_levels(ctx, design, version, game_plan)
             sync_db(ctx, f"levels v{levels}")
         count = len(load_levels(ctx, levels)) if levels else 0
         early, _ = chat_changes.as_revision(chat, design, (), count)
-        if levels and early.level_changes:
-            built = "game/v1/levels-version.json"
-            if built not in ctx.artifacts:
+        if levels and (early.level_changes or redesigned):
+            built = f"game/v{build}/levels-version.json"
+            if built not in ctx.artifacts:  # a revised design rechecks every level
                 changes = {c.level: c.change for c in early.level_changes}
                 ctx.save(built, {"version": next_levels(ctx, levels, design, version, game_plan,
-                                                        changes)}, "Level/Tile Designer")  # fmt: skip
+                                                        changes, asked)}, "Level/Tile Designer")  # fmt: skip
             levels = ctx.read(built)["version"]
         motion = ensure_motion(ctx, version, design, game_plan, levels)
         menus = ensure_menus(ctx, design, version)
@@ -1268,19 +1342,20 @@ def game_step(store, run_id) -> bool:
             menus = next_menus(ctx, n, menus, early.menu_changes, design, version, "G2")
         if menus:
             sync_db(ctx, f"menus v{menus}")
-        sounds = ensure_sounds(ctx, design, version, levels is not None, menus is not None)
+        sounds = ensure_sounds(ctx, design, version, levels is not None, menus is not None,
+                               redesigned)  # fmt: skip
         if sounds and early.sound_changes:
             sounds = next_sounds(ctx, n, sounds, early.sound_changes, design, levels is not None,
                                  menus is not None, "G2")  # fmt: skip
         plan = ctx.once(
-            "game/v1/art-plan.json", ArtPlan,
+            f"game/v{build}/art-plan.json", ArtPlan,
             lambda: apply_art_changes(plan_art(ctx.models, design, motion), design, early),
             "Art Director",
         )
-        if chat and "game/v1/revision.json" not in ctx.artifacts:
-            ctx.save("game/v1/revision.json", early.model_dump(), "Director")
-        suite = qa_suite(ctx, 1, design, version, early.drop_qa_tests, menus)
-        open_after_build(ctx, 1, build_version(ctx, 1, design, version, plan, None,
+        if chat and f"game/v{build}/revision.json" not in ctx.artifacts:
+            ctx.save(f"game/v{build}/revision.json", early.model_dump(), "Director")
+        suite = qa_suite(ctx, build, design, version, early.drop_qa_tests, menus)
+        open_after_build(ctx, build, build_version(ctx, build, design, version, plan, None,
                                                early.code_instructions, early if chat else None,
                                                suite=suite, levels=levels, game_plan=game_plan,
                                                motion=motion, menus=menus, sounds=sounds))  # fmt: skip
@@ -1289,7 +1364,7 @@ def game_step(store, run_id) -> bool:
     if last.stage in ("playtest", "final") and last.status == "changes_requested":
         # G5 feedback is handled as G4 feedback: a new build, then G4 again.
         shown_version = shown(ctx, last, REPORT)
-        version = shown_version + 1
+        version = round_build(ctx, n, shown_version)
         previous = ctx.read(f"game/v{shown_version}/report.json")
         design_version = previous["design_version"]
         design = load_design(ctx, design_version)
@@ -1346,29 +1421,8 @@ def game_step(store, run_id) -> bool:
             ctx.save(f"game/v{version}/revision.json", revision.model_dump(), role)
         changed = bool(revision.design_changes.strip())
         if changed:
-            old, old_version = design, design_version
-            # Chosen once per build: a step re-entered after a failure (a budget cap, a timeout)
-            # reuses it instead of counting the versions again (live 2026-11-02 made a stray v3).
-            chosen = f"game/v{version}/design-version.json"
-            if chosen not in ctx.artifacts:
-                ctx.save(chosen, {"version": design_versions(ctx) + 1}, "Game Designer")
-            design_version = ctx.read(chosen)["version"]
-            game_plan = next_plan(ctx, design_version, old_version, revision.design_changes,
-                                  feedback)
-            brief = plan_brief(game_plan) if game_plan else ""
-            design = ctx.once(
-                f"game/design/v{design_version}.json",
-                GameDesign,
-                lambda: ctx.models.ask(
-                    "Game Designer",
-                    revision_prompt(old, revision.design_changes, brief),
-                    GameDesign,
-                    old,
-                    "design",
-                ),
-                "Game Designer",
-            )
-            save_design(ctx, design_version, design)
+            design, design_version = revised_design(ctx, version, design, design_version,
+                                                    revision.design_changes, feedback)  # fmt: skip
         if changed and (has_story or revision.story_changes.strip()):
             ask = "\n".join(p for p in (revision.design_changes, revision.story_changes) if p.strip())
             ensure_story(ctx, f"design-v{design_version}", design, ask)
@@ -1382,11 +1436,11 @@ def game_step(store, run_id) -> bool:
             ctx.once(
                 f"game/v{version}/art-plan-new.json",
                 ArtPlan,
-                lambda: plan_new_art(ctx.models, design, last_plan(ctx, version - 1), motion),
+                lambda: plan_new_art(ctx.models, design, last_plan(ctx, shown_version), motion),
                 "Art Director",
             )
             if changed
-            else last_plan(ctx, version - 1)
+            else last_plan(ctx, shown_version)
         )
         plan = apply_art_changes(base_plan, design, revision)
         if f"game/v{version}/art-plan.json" not in ctx.artifacts:
@@ -1399,7 +1453,7 @@ def game_step(store, run_id) -> bool:
             )
             if part
         )
-        base = GameCode.model_validate(ctx.read(f"game/v{version - 1}/code.json"))
+        base = GameCode.model_validate(ctx.read(f"game/v{shown_version}/code.json"))
         # Menus: kept, refitted by code to a changed structure, or revised for menu feedback.
         # A build from before menus existed (L2.5) stays without them.
         menus = previous.get("menus_version")

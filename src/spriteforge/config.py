@@ -43,6 +43,10 @@ class BudgetConfig(Schema):
     # token cost" (https://dev.meta.ai/docs/pricing-rate-limits, 2026-11-02).
     web_search_cost: float = Field(default=0.0025, ge=0)
     max_estimated_cost: float = Field(default=5, ge=0)
+    # True (config.yaml): the caps above count the calls since the human's last action (a gate
+    # answer, Go back, Continue), so they stop agent loops, never work the user asks for.
+    # False: per run (the legacy concept and production stages, budgets made in code).
+    per_request: bool = False
 
 
 class ResearchConfig(Schema):

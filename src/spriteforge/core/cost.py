@@ -2,6 +2,7 @@
 
 import json
 from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Literal
 from uuid import uuid4
 
@@ -14,6 +15,52 @@ from spriteforge.core.state import Store
 
 class BudgetExceeded(RuntimeError):
     pass
+
+
+class Cancelled(BaseException):  # noqa: N818 -- like asyncio.CancelledError
+    """The human asked to stop and go back (docs/ui-plan.md, interrupt and rewind): no new model
+    call starts. A BaseException, so the broad handlers that keep a build going (one failed
+    image, a failed review) never swallow it; calls already in flight finish and are kept."""
+
+
+# The newest of these says whether a stop is requested (the worker clears it on rewinding).
+STOP_EVENTS = ("run.stop_requested", "run.stop_cleared")
+# Cost policy: each human action opens a fresh allowance for the autonomous work it triggers,
+# so the caps stop agent loops, never work the user asks for.
+ALLOWANCE_EVENTS = ("run.created", "gate.responded", "round.rewound", "allowance.granted")
+
+# A call the human asked for directly (an answer to their question): never refused or stopped.
+on_behalf = ContextVar("on_users_behalf", default=False)
+
+
+@contextmanager
+def for_the_user():
+    token = on_behalf.set(True)
+    try:
+        yield
+    finally:
+        on_behalf.reset(token)
+
+
+def stop_requested(db, run_id) -> bool:
+    row = db.execute(
+        f"SELECT type FROM events WHERE run_id=? AND type IN {STOP_EVENTS} ORDER BY id DESC LIMIT 1",
+        (run_id,),
+    ).fetchone()
+    return bool(row) and row[0] == "run.stop_requested"
+
+
+def allowance_calls(db, run_id) -> set[str]:
+    """Attempt ids reserved since the latest human action (the current allowance)."""
+    start = db.execute(
+        f"SELECT COALESCE(MAX(id), 0) FROM events WHERE run_id=? AND type IN {ALLOWANCE_EVENTS}",
+        (run_id,),
+    ).fetchone()[0]
+    rows = db.execute(
+        "SELECT payload FROM events WHERE run_id=? AND type='cost.reserved' AND id>?",
+        (run_id, start),
+    )
+    return {json.loads(r[0]).get("attempt_id") for r in rows}
 
 
 class Usage(BaseModel):
@@ -100,10 +147,16 @@ class Budget:
             estimated_cost=self.config.image_cost if image else 0,
             agent=acting_agent.get(),
         )
+        user = on_behalf.get()
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            if not user and stop_requested(db, self.run_id):
+                raise Cancelled("the human asked to stop and go back")
             rows = [r for r in ledger(db, self.run_id).values() if r.status != "failed"]
-            if (
+            if self.config.per_request:
+                recent = allowance_calls(db, self.run_id)
+                rows = [r for r in rows if r.attempt_id in recent]
+            if not user and (
                 sum(r.image for r in rows) + image > self.config.max_image_calls
                 or (
                     self.config.max_total_calls is not None

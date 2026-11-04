@@ -233,6 +233,13 @@ def create_app(
                                 ),
                                 Manifest.model_validate(saved.read("preview/manifest.json")),
                             )
+            from spriteforge.core.cost import stop_requested
+            from spriteforge.stages.rewind import clear_stop
+
+            with store.connect() as db:
+                stale = stop_requested(db, id)
+            if stale:  # a Go back that came too late: the round had already reached its gate
+                clear_stop(store, id, "the gate opened first")
             if feedback.action == "request_changes" and not feedback.text.strip():
                 from spriteforge.stages.chat_changes import for_gate
 

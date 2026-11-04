@@ -191,7 +191,10 @@ def test_project_from_idea_to_final_through_agent_threads(studio):
     assert {"Director", "Librarian"} in waits
 
     agents = by_name(state)
-    assert all(a["status"] == "done" for a in agents.values())
+    # Nobody is left working or waiting on the human; an agent the game did not need (the
+    # Level/Tile Designer of a one-screen game) only chatted, which is not work: "waiting".
+    assert all(a["status"] in {"done", "waiting"} for a in agents.values())
+    assert agents["Programmer"]["status"] == "done" and agents["Librarian"]["status"] == "done"
     assert agents["Pixel Artist"]["images"] > 0 and agents["Pixel Artist"]["cost"] > 0
     assert agents["Programmer"]["calls"] >= 1 and agents["Sound Director"]["calls"] >= 1
     programmer = client.get(f"/api/runs/{run_id}/agents/Programmer/thread").json()["items"]

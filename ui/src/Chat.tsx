@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { GoBackCard } from "./GoBackCard";
+
 import { ArtifactGroup } from "./ArtifactCard";
 import { GateCard } from "./GateCard";
 import { Markdown } from "./Markdown";
@@ -50,6 +52,7 @@ function Item({ runId, item, queued }: { runId: string; item: ThreadItem; queued
       return (
         <div className={`bubble ${item.role} ${item.error ? "failed" : ""}`}>
           {item.role === "agent" ? <Markdown text={item.text} /> : <p>{item.text}</p>}
+          {item.rewind && <GoBackCard runId={runId} card={item.rewind} />}
           {item.role === "user" && item.intent && item.intent !== "idea" && (
             <span className={`intent ${item.status ?? ""}`}>
               {item.intent === "change"
@@ -93,7 +96,9 @@ function Item({ runId, item, queued }: { runId: string; item: ThreadItem; queued
         <p className={`milestone ${item.type === "run.failed" ? "error" : ""}`}>
           {item.type === "run.failed"
             ? `Stopped: ${item.message ?? "an error"}`
-            : (RUN_TEXT[item.type] ?? item.type)}
+            : item.type === "round.rewound" || item.type === "run.paused"
+              ? (item.message ?? "Went back")
+              : (RUN_TEXT[item.type] ?? item.type)}
         </p>
       );
     default:

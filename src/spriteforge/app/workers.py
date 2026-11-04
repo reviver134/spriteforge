@@ -6,13 +6,16 @@ from contextlib import suppress
 
 from spriteforge.agents.workflow import WORKFLOW
 from spriteforge.agents.workflow import workflow_step as agent_step
+from spriteforge.core.cost import BudgetExceeded, Cancelled
 from spriteforge.core.demo import demo_step
 from spriteforge.core.security import redact
 from spriteforge.core.state import Store
+from spriteforge.stages.rewind import rewind
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 from spriteforge.stages.workflow import workflow_step as intake_step
 
-FINAL = {"completed", "aborted", "failed", "budget_exhausted"}
+# budget_exhausted is not final: the run waits for Continue (cost policy).
+FINAL = {"completed", "aborted", "failed"}
 
 
 def step_for(store: Store, run_id: str):
@@ -47,6 +50,14 @@ class Workers:
                 more = await asyncio.to_thread(step_for(self.store, run_id), self.store, run_id)
                 if not more:
                     break
+            except Cancelled:
+                # Go back: the stopped round is superseded and starts again with the changes.
+                await asyncio.to_thread(rewind, self.store, run_id)
+                continue
+            except BudgetExceeded as exc:
+                await asyncio.to_thread(self.store.pause_for_budget, run_id,
+                                        f"{redact(str(exc))}: press Continue for a fresh allowance")  # fmt: skip
+                break
             except Exception as exc:  # noqa: BLE001 -- persist any worker failure at task boundary
                 # No traceback/HTTP headers: errors are scrubbed at this boundary.
                 self.errors[run_id] = redact(str(exc))

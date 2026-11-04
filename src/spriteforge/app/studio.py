@@ -18,9 +18,10 @@ from spriteforge.core.security import redact
 from spriteforge.core.state import Store
 from spriteforge.core.usage import usage_report
 from spriteforge.stages.chat_changes import file_change, for_gate
+from spriteforge.stages.rewind import LATE, request_stop, round_info
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 
-from .agents_view import AGENTS, summarize, thread
+from .agents_view import AGENTS, actor, summarize, thread
 from .chat import Intent, answer_question, classify
 from .workers import FINAL, Workers
 
@@ -34,6 +35,11 @@ THUMBNAILS = [r"game/v(\d+)/poster\.png", r"game/v(\d+)/menus/title\.png", r"gam
 class NewProject(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
     mock: bool = False
+
+
+class Stop(BaseModel):
+    change: int  # the chat change (its chat.user event id) the Go back card is about
+    later: bool = False  # Queue for later: apply it at the next gate instead
 
 
 class ChatMessage(BaseModel):
@@ -147,6 +153,8 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
         run = require_run(id)
         if run.status == "failed" and run.config.get("workflow") == INTAKE:
             store.retry_failed(id)
+        elif run.status == "budget_exhausted":  # Continue: a fresh allowance (cost policy)
+            store.continue_run(id)
         elif run.status in FINAL:
             raise HTTPException(409, f"This project is {run.status.replace('_', ' ')}")
         return {"started": workers.start(id)}
@@ -188,7 +196,11 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
             # Filed under the agent's Revision slot; the gated pipeline applies it (chat_changes).
             fields, reply = await asyncio.to_thread(file_change, store, id, agent, body.text)
             store.append_event(id, "Human", "chat.user", {**user, **fields})
-            store.append_event(id, agent, "chat.agent", {"text": reply, "intent": "change"})
+            answer = {"text": reply, "intent": "change"}
+            info = round_info(store, id) if fields.get("slot") and workers.busy(id) else None
+            if info:
+                answer = await asyncio.to_thread(go_back_offer, id, agent, fields["slot"], info)
+            store.append_event(id, agent, "chat.agent", answer)
         else:
             store.append_event(id, "Human", "chat.user", user)
             try:
@@ -200,5 +212,39 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
                 reply = {"text": "I couldn't answer: " + redact(str(exc))[:300], "error": True}
             store.append_event(id, agent, "chat.agent", {**reply, "intent": "question"})
         return {"items": thread(store, id, agent, cursor)}
+
+    def go_back_offer(id: str, agent: str, slot: str, info: dict) -> dict:
+        """A change asked while a round of work runs: the agent's reply, with the Go back card
+        when the change concerns work this round already did (or is doing)."""
+        events = store.events(id, info["start"])
+        change = max(e.id for e in events if e.type == "chat.user")
+        build = f"build v{info['build']}" if info["build"] else "this round"
+        if slot in LATE and not any(actor(e) == agent for e in events):
+            return {"text": f"Noted: I'll use it when I get to it in {build}. Nothing stops.",
+                    "intent": "change"}  # fmt: skip
+        working = next((a.name for a in summarize(store, id, True) if a.status == "working"),
+                       "Director")  # fmt: skip
+        return {
+            "text": f"This stops the {working} ({build}, ${info['cost']:.2f} so far) and goes "
+                    f"back to the {agent}, so no more is spent on work this change replaces.",
+            "intent": "change",
+            "rewind": {"change": change, "round": info["round"], "working": working,
+                       "build": info["build"], "cost": info["cost"]},
+        }  # fmt: skip
+
+    @api.post("/runs/{id}/stop")
+    def stop(id: str, body: Stop):
+        """The Go back card's answer: stop the round now (the worker rewinds it with every
+        queued change) or keep the change queued for the next gate."""
+        require_run(id)
+        if body.later:
+            store.append_event(id, "Human", "rewind.declined", {"change": body.change})
+            return {"stopping": False}
+        info = round_info(store, id)
+        if info is None or not workers.busy(id):
+            raise HTTPException(409, "That work already finished: your change waits for the "
+                                "review that is open now")  # fmt: skip
+        request_stop(store, id, [body.change])
+        return {"stopping": True, "round": info["round"]}
 
     return api

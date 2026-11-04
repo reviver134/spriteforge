@@ -46,8 +46,12 @@ NARRATION = [
 ]
 
 # Journal noise that is not an agent's own work (each memory read, the cost ledger).
-QUIET = {"memory.retrieved", "cost.reserved", "cost.succeeded", "cost.failed"}
-RUN_EVENTS = {"run.created", "run.failed", "run.completed", "run.retry_requested", "game.built"}
+QUIET = {"memory.retrieved", "cost.reserved", "cost.succeeded", "cost.failed",
+         # Chat and its bookkeeping: talking about the work is not doing it.
+         "chat.user", "chat.agent", "chat.applied", "chat.unapplied", "rewind.declined",
+         "run.stop_requested", "run.stop_cleared", "round.superseded", "round.rewound"}
+RUN_EVENTS = {"run.created", "run.failed", "run.completed", "run.retry_requested", "game.built",
+              "run.paused"}
 
 
 def owners(gate: Gate) -> list[str]:
@@ -143,6 +147,7 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
         return twin if meta["mime"] == "application/json" and twin else meta
 
     applied = {c["id"]: c["applied"] for c in changes(store, run_id)}
+    offers = go_back_states(store, run_id)
     items = []
     for event in store.events(run_id, after):
         kind, payload = event.type, event.payload
@@ -152,7 +157,12 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
                 fields["status"] = "applied" if applied[event.id] else "queued"
             items.append(item(event, "chat", role="user", **fields))
         elif kind == "chat.agent" and event.agent == agent:
-            items.append(item(event, "chat", role="agent", **chat_fields(payload)))
+            fields = chat_fields(payload)
+            if "rewind" in payload:
+                fields["rewind"] = {**payload["rewind"], "state": offers.get(event.id, "open")}
+            items.append(item(event, "chat", role="agent", **fields))
+        elif kind == "round.rewound" and director:
+            items.append(item(event, "run", type=kind, message=payload.get("message")))
         elif kind in {"gate.opened", "gate.responded"}:
             gate = gates.get(payload.get("id"))
             if gate is None or agent not in owners(gate):
@@ -190,6 +200,33 @@ def artifact_metas(store: Store, run_id: str) -> dict[str, dict]:
     with store.connect() as db:
         rows = db.execute("SELECT id,name,mime FROM artifacts WHERE run_id=?", (run_id,))
         return {r["id"]: dict(r) for r in rows}
+
+
+def go_back_states(store: Store, run_id: str) -> dict[int, str]:
+    """Each Go back card's state: "open", "going_back" (stop requested), "went_back" (the round
+    started again), "queued" (Queue for later) or "expired" (the round reached its gate or was
+    redone before an answer)."""
+    stops, declined, out, cards = {}, set(), {}, []
+    rewound, opened = [], []
+    for e in store.events(run_id):
+        if e.type == "chat.agent" and "rewind" in e.payload:
+            cards.append((e.id, e.payload["rewind"]["change"]))
+        elif e.type == "run.stop_requested":
+            stops.update(dict.fromkeys(e.payload.get("changes", []), e.id))
+        elif e.type == "rewind.declined":
+            declined.add(e.payload.get("change"))
+        elif e.type == "round.rewound":
+            rewound.append(e.id)
+        elif e.type == "gate.opened":
+            opened.append(e.id)
+    for card, change in cards:
+        if change in stops:
+            out[card] = "went_back" if any(r > stops[change] for r in rewound) else "going_back"
+        elif change in declined:
+            out[card] = "queued"
+        elif any(i > card for i in rewound + opened):
+            out[card] = "expired"
+    return out
 
 
 def chat_fields(payload: dict) -> dict:

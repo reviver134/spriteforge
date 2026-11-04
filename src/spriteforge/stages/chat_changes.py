@@ -49,8 +49,9 @@ EVERY = DESIGN | BUILD
 # What each gate's change round takes.
 GATE_SLOTS = {"design": DESIGN, "menus": {"feedback", "menu_changes"}, "playtest": EVERY,
               "final": EVERY}  # fmt: skip
-# First runs: the first design (from G1) and the first build (from G2 approved).
-FIRST = {"design-1": (DESIGN, "game/design/v1.json"), "build-1": (BUILD, "game/v1/report.json")}
+# First runs: the first design (from G1) and the first build (from G2 approved), done once
+# an artifact matching the pattern exists.
+FIRST = {"design-1": (DESIGN, r"game/design/v1\.json"), "build-1": (BUILD, r"game/v\d+/report\.json")}
 
 DROP_ASK = re.compile(rf"\b({'|'.join(DROP_VERBS)})\b.*\b(tests?|checks?)\b")
 
@@ -81,6 +82,9 @@ def changes(store: Store, run_id: str) -> list[dict]:
                           "text": e.payload.get("text", "")})  # fmt: skip
         elif e.type == "chat.applied":
             applied.update(dict.fromkeys(e.payload.get("ids", []), e.payload.get("where")))
+        elif e.type == "chat.unapplied":  # its round was stopped (Go back): queued again
+            for i in e.payload.get("ids", []):
+                applied.pop(i, None)
     return [{**c, "applied": applied.get(c["id"])} for c in filed]
 
 
@@ -102,7 +106,10 @@ def landing(store: Store, run_id: str, slot: str) -> str:
         return "gate"
     with store.connect() as db:  # names only: the artifacts' data is not loaded
         names = {r[0] for r in db.execute("SELECT name FROM artifacts WHERE run_id=?", (run_id,))}
-    if any(slot in slots and done not in names for slots, done in FIRST.values()):
+    def done(pattern):
+        return any(re.fullmatch(pattern, n) for n in names)
+
+    if any(slot in slots and not done(pattern) for slots, pattern in FIRST.values()):
         return "first"
     return "later"
 

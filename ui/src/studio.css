@@ -73,7 +73,7 @@ a.button {
   padding: 0;
 }
 
-.agent {
+.agents .agent {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -83,21 +83,21 @@ a.button {
   text-decoration: none;
 }
 
-.agent:hover {
+.agents .agent:hover {
   background: var(--panel);
 }
 
-.agent.selected {
+.agents .agent.selected {
   background: var(--line);
 }
 
-.agent .icon {
+.agents .agent .icon {
   width: 14px;
   text-align: center;
   color: var(--muted);
 }
 
-.agent .name {
+.agents .agent .name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -584,4 +584,32 @@ button.chip.on {
 
 .composer-tools + .composer {
   border-top: none;
+}
+
+/* Go back (phase 3b) */
+
+.go-back {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.go-back-state {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.go-back-state.went_back,
+.go-back-state.going_back {
+  color: var(--warn);
+}
+
+.chat-head .note {
+  color: var(--warn);
+  font-size: 13px;
+}
+
+.go-back button {
+  white-space: nowrap;
 }

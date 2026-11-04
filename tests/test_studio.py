@@ -208,3 +208,80 @@ def test_studio_smoke_in_browser(tmp_path):
     finally:
         process.terminate()
         process.wait(timeout=10)
+
+
+def test_go_back_card_in_browser(tmp_path, monkeypatch):
+    """Phase 3b: a change while build v2's art is being made offers Go back (Enter), which
+    stops the round and redoes it with both changes."""
+    import json
+    import threading
+
+    import uvicorn
+
+    from spriteforge.stages import game as game_stage
+    from test_chat_changes import answer_until
+
+    monkeypatch.delenv("META_API_KEY", raising=False)
+    store = Store(init_workspace(tmp_path) / "state.sqlite3")
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(create_app(store, interval=0.01, cfg=load_config(None)),
+                                           host="127.0.0.1", port=port, log_level="warning"))  # fmt: skip
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{port}"
+    entered, release, original = threading.Event(), threading.Event(), game_stage.produce_art
+    try:
+        with httpx.Client(base_url=url, headers={"Origin": url}, timeout=30) as client:
+            deadline = time.monotonic() + 20
+            while not server.started and time.monotonic() < deadline:
+                time.sleep(0.05)
+            run_id = client.post("/api/projects", json={"text": "a slime in a cave", "mock": True}).json()["id"]
+            seen = set()
+            state = answer_until(client, run_id, "playtest", seen)
+            entity = next(a for a in store.artifacts(run_id) if a.name == "game/v1/report.json")
+            entity = json.loads(entity.data)["art"][0]["entity"].replace("_", " ")
+            client.post(f"/api/runs/{run_id}/agents/Pixel Artist/messages",
+                        json={"text": f"make the {entity} purple"})  # fmt: skip
+
+            def produce_art(*args, **kwargs):
+                entered.set()
+                assert release.wait(60)
+                return original(*args, **kwargs)
+
+            monkeypatch.setattr(game_stage, "produce_art", produce_art)
+            seen.add(state["gate"]["id"])
+            client.post(f"/api/runs/{run_id}/gates/{state['gate']['id']}?wait=false",
+                        json={"action": "request_changes", "text": ""})  # fmt: skip
+            assert entered.wait(60)
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(headless=True)
+                page = browser.new_page(viewport={"width": 1400, "height": 900})
+                errors = []
+                page.on("pageerror", lambda error: errors.append(str(error)))
+                page.goto(f"{url}/?project={run_id}&agent=Game+Designer")
+                box = page.get_by_label("Message Game Designer")
+                box.fill("make the enemies faster")
+                box.press("Enter")
+                chat = page.get_by_role("region", name="Chat with Game Designer")
+                card = chat.get_by_role("group", name="Go back")
+                expect(chat.locator(".bubble.agent").last).to_contain_text("goes back to the Game Designer")
+                expect(card.get_by_role("button", name="Go back")).to_be_focused()
+                page.keyboard.press("Enter")  # Go back is the default
+                expect(chat).to_contain_text("Stopping")
+                monkeypatch.setattr(game_stage, "produce_art", original)
+                release.set()
+                expect(chat).to_contain_text("Went back: the round started again", timeout=60000)
+                page.get_by_role("navigation", name="Agents").get_by_role(
+                    "link", name=re.compile(r"^Director")).click()
+                director = page.get_by_role("region", name="Chat with Director")
+                expect(director).to_contain_text("Went back: build v2 was stopped")
+                expect(director.locator(".gate-card.open h3")).to_have_text("G4 Playtest v3", timeout=90000)
+                expect(page.locator(".topbar").get_by_role("link", name="Play v3")).to_be_visible()
+                assert not errors
+                browser.close()
+    finally:
+        release.set()
+        server.should_exit = True
+        thread.join(timeout=10)
