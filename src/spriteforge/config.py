@@ -97,6 +97,9 @@ class GameConfig(Schema):
     max_art_calls: int | None = Field(default=None, ge=0)  # Muse Image calls per build
     image_workers: int = Field(default=4, ge=1, le=8)  # Muse Image calls in flight at once
     image_cache: bool = True  # identical Muse requests reuse workspace/cache/muse-image
+    # Muse Image's strength for every first draw (the API has low and high; redraws and the
+    # Art Reviewer's fixes use high too).
+    image_reasoning: Literal["low", "high"] = "high"
     art_retry: int | None = Field(default=None, ge=0)  # redraws of a Muse frame that fails checks
     native_grid_confidence: float = Field(default=0.6, ge=0, le=1)  # big-pixel grid read-back
     # Muse sprites as sheets: frames per animation row (1 = one image per sprite)

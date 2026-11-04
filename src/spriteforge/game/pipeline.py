@@ -944,6 +944,7 @@ def muse_options(cfg: Config, **changes) -> MuseOptions:
             sheet_frames=cfg.game.sheet_frames,
             adapt_size=cfg.game.adapt_size,
             workers=cfg.game.image_workers,
+            reasoning=cfg.game.image_reasoning,
         ),
         **changes,
     )
