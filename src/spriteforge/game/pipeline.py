@@ -839,6 +839,11 @@ def menu_sheet(shots: dict[str, bytes]) -> bytes | None:
         return None
     images = [(sid, Image.open(io.BytesIO(data)).convert("RGB")) for sid, data in shots.items()]
     w, h = images[0][1].size
+    if w > 960:  # a full-HD screen: the sheet shows each at half size
+        k = -(-w // 960)
+        images = [(sid, img.resize((img.width // k, img.height // k), Image.Resampling.BOX))
+                  for sid, img in images]  # fmt: skip
+        w, h = images[0][1].size
     cols, label = 2, 14
     rows = (len(images) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * (w + 8) + 8, rows * (h + label + 8) + 8), "#1b1d27")
@@ -945,6 +950,7 @@ def muse_options(cfg: Config, **changes) -> MuseOptions:
             adapt_size=cfg.game.adapt_size,
             workers=cfg.game.image_workers,
             reasoning=cfg.game.image_reasoning,
+            screen_scale=cfg.game.screen_scale,
         ),
         **changes,
     )
@@ -1677,7 +1683,7 @@ def make_game(
     if outcome.build and record:
         log("record: capturing the autoplay")
         recording = record_game(
-            outcome.build, out, seconds=cfg.game.record_seconds, scale=4 // art.scale
+            outcome.build, out, seconds=cfg.game.record_seconds, scale=max(1, 4 // art.scale)
         )
     summary = {
         "request": request,

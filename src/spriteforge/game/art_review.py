@@ -49,6 +49,7 @@ from .art import (
     tile_break,
     tile_ids,
     whole_objects,
+    zoom_art,
 )
 from .art_checks import Finding, first_frame
 from .design import Entity, GameDesign
@@ -109,10 +110,10 @@ def review_slots(art: ArtResult) -> list[str]:
     return list(art.filled)
 
 
-def sheet_image(f: Filled) -> Image.Image:
+def sheet_image(f: Filled, widest: int = BACKGROUND_THUMB) -> Image.Image:
     image = first_frame(f)
-    if f.meta.get("role") == "background" and image.width > BACKGROUND_THUMB:
-        k = math.ceil(image.width / BACKGROUND_THUMB)
+    if f.meta.get("role") == "background" and image.width > widest:
+        k = math.ceil(image.width / widest)
         image = image.resize((image.width // k, image.height // k), Image.Resampling.BOX)
     return image
 
@@ -132,33 +133,43 @@ def sheet_layout(art: ArtResult, slots: list[str]) -> list[list[int]]:
 def review_sheets(art: ArtResult, slots: list[str]) -> tuple[bytes, bytes]:
     """(native, 4x) sheets: every entity's first frame side by side at game size (feet on the
     cell floor), on a neutral grey; the 4x sheet numbers them. No names: the reviewer must say
-    what it sees."""
-    images = [sheet_image(art.filled[eid]) for eid in slots]
+    what it sees. Art drawn for a bigger screen (art.scale) is zoomed less, with padding and
+    labels grown to match, so the sheet stays about the same size."""
+    zoom = max(1, ZOOM // art.scale)
+    pad, label = -(-PAD * ZOOM // zoom), -(-LABEL * ZOOM // zoom)
+    images = [sheet_image(art.filled[eid], BACKGROUND_THUMB * ZOOM // zoom) for eid in slots]
     placed, width, top = [], 1, 0  # (slot index, x, top, cell width, cell height)
     for row in sheet_layout(art, slots):
-        cell_w = max(images[n].width for n in row) + 2 * PAD
-        cell_h = max(images[n].height for n in row) + 2 * PAD + LABEL
+        cell_w = max(images[n].width for n in row) + 2 * pad
+        cell_h = max(images[n].height for n in row) + 2 * pad + label
         placed += [(n, i * cell_w, top, cell_w, cell_h) for i, n in enumerate(row)]
         width, top = max(width, len(row) * cell_w), top + cell_h
     sheet = Image.new("RGBA", (width, max(top, 1)), SHEET_BACKGROUND)
     for n, x, y, cell_w, cell_h in placed:
         image = images[n]
         sheet.alpha_composite(
-            image, (x + (cell_w - image.width) // 2, y + cell_h - PAD - image.height)
+            image, (x + (cell_w - image.width) // 2, y + cell_h - pad - image.height)
         )
-    zoomed = sheet.resize((sheet.width * ZOOM, sheet.height * ZOOM), Image.Resampling.NEAREST)
+    zoomed = sheet.resize((sheet.width * zoom, sheet.height * zoom), Image.Resampling.NEAREST)
     draw = ImageDraw.Draw(zoomed)
-    font = ImageFont.load_default(size=LABEL * ZOOM - 2)
+    font = ImageFont.load_default(size=label * zoom - 2)
     for n, x, y, _, _ in placed:
-        draw.text((x * ZOOM + 4, y * ZOOM), str(n + 1), fill=(255, 255, 255, 255), font=font)
+        draw.text((x * zoom + 4, y * zoom), str(n + 1), fill=(255, 255, 255, 255), font=font)
     return png(sheet), png(zoomed)
 
 
+SHOT_WIDTH = 1280  # widest screenshot the reviewer gets (a full-HD frame is halved)
+
+
 def screenshot(data: bytes) -> bytes:
-    """A playtest frame at game scale, doubled when small so the reviewer sees its pixels."""
+    """A playtest frame at game scale: doubled when small so the reviewer sees its pixels,
+    shrunk by a whole factor when wider than SHOT_WIDTH (each art pixel is still several)."""
     image = Image.open(io.BytesIO(data)).convert("RGB")
     if image.width < 640:
         image = image.resize((image.width * 2, image.height * 2), Image.Resampling.NEAREST)
+    elif image.width > SHOT_WIDTH:
+        k = -(-image.width // SHOT_WIDTH)
+        image = image.resize((image.width // k, image.height // k), Image.Resampling.BOX)
     return png(image)
 
 
@@ -468,12 +479,14 @@ def run_fixes(
     resolved, _ = resolve_plan(reviewed_plan(plan, fixes, every=True), design, motion)
     entities = {e.id: e for e in design.entities}
     forms = {f.ability: f.looks for f in motion.brief.forms} if motion else {}
-    hero_px = next(e.height for e in design.entities if e.role == "player") * art.scale
+    # Fixes are drawn at the art's own detail and grown to the screen like the rest of it.
+    s = art.drawn_at
+    hero_px = next(e.height for e in design.entities if e.role == "player") * s
     slots, jobs = CallSlots(len(fixes)), []
     for fx in fixes:
         fx.pick = resolved[fx.entity]
         e = entities[fx.entity]
-        size = art.screen if e.role == "background" else (e.width * art.scale, e.height * art.scale)
+        size = (320 * s, 180 * s) if e.role == "background" else (e.width * s, e.height * s)
         old = {"raw": fx.source_png, "version": version} if fx.source_png else None
         muse = Muse(generate, lambda eid, o=old: o, slots, options, hero_px, cache,
                     brief=motion.rows(e.id) if motion else [], forms=forms)  # fmt: skip
@@ -495,7 +508,7 @@ def run_fixes(
         out.record["review_fix"] = {"issues": fx.issues, "mode": fx.mode}
         if motion and entities[fx.entity].role == "tile":
             tile_break(entities[fx.entity], out, motion.rows(fx.entity))
-        fx.after = out
+        fx.after = zoom_art(out, art.zoom)
     return warnings
 
 

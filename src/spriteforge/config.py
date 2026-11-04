@@ -97,6 +97,10 @@ class GameConfig(Schema):
     max_art_calls: int | None = Field(default=None, ge=0)  # Muse Image calls per build
     image_workers: int = Field(default=4, ge=1, le=8)  # Muse Image calls in flight at once
     image_cache: bool = True  # identical Muse requests reuse workspace/cache/muse-image
+    # The game's screen: 320x180 design pixels times screen_scale (6: 1920x1080, a laptop's
+    # full-HD screen). Every sprite, tile, text and distance is that many times bigger, so a
+    # sprite keeps more of the detail Muse drew and words stay readable.
+    screen_scale: int = Field(default=6, ge=1, le=8)
     # Muse Image's strength for every first draw (the API has low and high; redraws and the
     # Art Reviewer's fixes use high too).
     image_reasoning: Literal["low", "high"] = "high"

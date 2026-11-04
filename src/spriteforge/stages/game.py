@@ -998,7 +998,7 @@ def build_version(
                 outcome.build,
                 ctx.root / prefix / "recording",
                 seconds=ctx.cfg.game.record_seconds,
-                scale=4 // art.scale,
+                scale=max(1, 4 // art.scale),
             )
         for eid, f in art.filled.items():
             ctx.save(f"{prefix}/art/{eid}.png", f.png, "Pixel Artist", "image/png")
