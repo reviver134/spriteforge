@@ -7,7 +7,7 @@ allowed_tools:
 - library.library_search
 - game_db.game_context
 - game_db.game_show
-allowed_skills: []
+allowed_skills: [level-design, platformer, puzzle]
 memory_scopes:
 - project
 max_steps: 8

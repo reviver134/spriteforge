@@ -35,30 +35,33 @@ from .plan import TILE, PlanRecord
 from .reach import Grid, Motion, Solution, Thing, World, gap_limits, key, solve
 
 Kind = Literal["solid", "one_way", "hazard", "breakable", "crate", "pickup", "enemy",
-               "checkpoint", "exit", "start"]  # fmt: skip
+               "checkpoint", "exit", "start", "lever", "gate"]  # fmt: skip
 TILE_KINDS = ("solid", "one_way", "hazard")
 # Events the SDK emits for every level game; a level lists only the game's own events.
-SDK_EVENTS = ("level_start", "level_complete", "checkpoint", "respawn", "jump", "dash", "win")
-STANDS = ("crate", "enemy", "checkpoint", "exit", "start")  # things that rest on a floor
+SDK_EVENTS = ("level_start", "level_complete", "checkpoint", "respawn", "jump", "dash", "win",
+              "lever")
+STANDS = ("crate", "enemy", "checkpoint", "exit", "start", "lever")  # things that rest on a floor
 EMPTY = " ."
-MIN_COLS, MAX_COLS, MIN_ROWS, MAX_ROWS = 24, 200, 8, 18
+MIN_COLS, MAX_COLS, MIN_ROWS, MAX_ROWS = 24, 200, 8, 24
 PATROL = 3  # an enemy walks at most this many tiles each way from where it is placed
 WEIGHTS = {"gap": 1.0, "wide gap": 1.0, "climb": 1.0, "dash": 1.5, "hazard": 1.0,
-           "enemy": 2.0, "lock": 2.0}  # fmt: skip
+           "enemy": 2.0, "lock": 2.0, "puzzle": 2.5}  # fmt: skip
 
 
 class LegendEntry(Contract):
     char: str = Field(description="one character used in the rows (not ' ' or '.')")
     kind: Kind
     entity: str = Field(description="the design entity id it shows (the player's id for start)")
-    needs: str = Field(description="ability that opens, breaks or beats it; '' = no ability needed")
+    needs: str = Field(description="ability that opens, breaks or beats it; a gate: the name "
+                       "of the lever that opens it; '' = no ability needed")
     opened_by: Literal["touch", "dash", "never"] = Field(
         description="how the player opens a breakable or crate or beats an enemy: touch, dash "
         "into it, or never (an enemy to avoid); 'never' for tiles and the other things"
     )
     holds: str = Field(description="crate: the entity id it drops when opened; '' otherwise")
     gives: str = Field(
-        description="pickup, or what a crate drops: the ability it gives; '' (coins and others)"
+        description="pickup, or what a crate drops: the ability it gives; a lever: its name "
+        "(e.g. 'lever A'); '' (coins and others)"
     )
 
 
@@ -165,10 +168,12 @@ def fit_level(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord) -> 
         if not ch or ch in EMPTY or ch in chars:
             notes.append(f"legend entry {e.char!r} ({e.kind}) dropped: empty or repeated character")
             continue
-        entity = player if e.kind == "start" else match_entity(e.entity, e.kind, design)
-        if entity is None and e.kind == "checkpoint":  # works without art: the SDK draws a flag
-            notes.append(f"legend {ch!r}: the design has no checkpoint entity ({e.entity!r}); "
-                         "the SDK draws a flag")  # fmt: skip
+        entity = (player if e.kind == "start" else
+                  "" if e.kind in ("lever", "gate") and not e.entity.strip() else
+                  match_entity(e.entity, e.kind, design))  # fmt: skip
+        if not entity and e.kind in ("checkpoint", "lever", "gate"):  # the SDK draws one
+            notes.append(f"legend {ch!r}: the design has no {e.kind} entity ({e.entity!r}); "
+                         f"the SDK draws a {'flag' if e.kind == 'checkpoint' else e.kind}")  # fmt: skip
             entity = ""
         if entity is None:
             notes.append(f"legend {ch!r}: unknown entity {e.entity!r}; its cells are left empty")
@@ -177,6 +182,9 @@ def fit_level(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord) -> 
             notes.append(f"legend {ch!r}: entity {e.entity!r} read as {entity!r}")
         fixed = {"char": ch, "entity": entity}
         for field in ("needs", "gives"):
+            if e.kind in ("lever", "gate"):  # a lever's name, not an ability
+                fixed[field] = getattr(e, field).strip()
+                continue
             name = match_ability(getattr(e, field), known)
             if name is None:
                 notes.append(f"legend {ch!r}: {field} {getattr(e, field)!r} is not an ability of "
@@ -195,10 +203,14 @@ def fit_level(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord) -> 
         elif e.kind == "crate" and e.holds and e.holds not in ids:
             notes.append(f"legend {ch!r}: the crate holds unknown entity {e.holds!r}; it holds nothing")
             fixed |= {"holds": "", "gives": ""}
-        if e.kind not in {"pickup", "crate"} and (fixed.get("gives") or e.gives):
+        if e.kind not in {"pickup", "crate", "lever"} and (fixed.get("gives") or e.gives):
             fixed["gives"] = ""
+        if e.kind == "lever" and not fixed.get("gives"):
+            fixed["gives"] = f"lever {ch}"
         legend.append(e.model_copy(update=fixed))
         chars.add(ch)
+    legend = link_gates(legend, notes)
+    chars = {e.char for e in legend}
     rows = [r.rstrip("\n") for r in spec.rows][:MAX_ROWS]
     if len(spec.rows) > MAX_ROWS:
         notes.append(f"{len(spec.rows)} rows cut to {MAX_ROWS}")
@@ -244,12 +256,33 @@ def fit_level(spec: LevelSpec, n: int, design: GameDesign, plan: PlanRecord) -> 
                                    "exclusive": exclusive, "challenges": challenges}), notes  # fmt: skip
 
 
+def link_gates(legend: list[LegendEntry], notes: list[str]) -> list[LegendEntry]:
+    """Each gate opens by a lever of the level: an unnamed or misnamed one by the only lever
+    there is; a gate no lever opens is left out (it would never open)."""
+    levers = [e.gives for e in legend if e.kind == "lever"]
+    named = {key(x): x for x in levers}
+    out = []
+    for e in legend:
+        if e.kind == "gate" and key(e.needs) in named:
+            e = e.model_copy(update={"needs": named[key(e.needs)]})
+        elif e.kind == "gate":
+            if len(levers) == 1:
+                notes.append(f"legend {e.char!r}: the gate opens by {levers[0]!r}")
+                e = e.model_copy(update={"needs": levers[0]})
+            else:
+                notes.append(f"legend {e.char!r}: no lever opens the gate ({e.needs!r}); its "
+                             "cells are left empty")  # fmt: skip
+                continue
+        out.append(e)
+    return out
+
+
 def settle(rows: list[str], kinds: dict[str, str]) -> tuple[list[str], list[str]]:
     """Things that rest on a floor (crates, enemies, checkpoints, the exit, the start) drop
     onto the first floor below them."""
     grid = [list(r) for r in rows]
     notes = []
-    solid = lambda ch: kinds.get(ch) in {"solid", "one_way", "breakable", "crate"}
+    solid = lambda ch: kinds.get(ch) in {"solid", "one_way", "breakable", "crate", "gate"}
     for r in range(len(grid) - 2, -1, -1):
         for c, ch in enumerate(grid[r]):
             if kinds.get(ch) not in STANDS or solid(grid[r + 1][c]):
@@ -263,7 +296,8 @@ def settle(rows: list[str], kinds: dict[str, str]) -> tuple[list[str], list[str]
     return ["".join(g) for g in grid], notes
 
 
-KIND_WORDS = {"checkpoint": r"checkpoint|flag|banner|bell|torch", "exit": r"door|exit|portal|goal|gate"}
+KIND_WORDS = {"checkpoint": r"checkpoint|flag|banner|bell|torch", "exit": r"door|exit|portal|goal|gate",
+              "lever": r"lever|switch|button|pull|crank", "gate": r"gate|bars|portcullis|barrier"}
 
 
 def match_entity(name: str, kind: str, design: GameDesign) -> str | None:
@@ -340,7 +374,7 @@ def parse(spec: LevelSpec, design: GameDesign) -> Grid:
             if e.kind == "start":
                 start = (c, r)
                 continue
-            cells = group(spec.rows, c, r) if e.kind == "breakable" else [(c, r)]
+            cells = group(spec.rows, c, r) if e.kind in ("breakable", "gate") else [(c, r)]
             done.update(cells)
             ent = sizes.get(e.entity)
             tall = max(1, math.ceil((ent.height if ent else TILE) / TILE - 0.25)) if e.kind == "enemy" else 1
@@ -413,6 +447,8 @@ def features(grid: Grid, sol: Solution, m: Motion) -> list[list]:
             t = grid.thing(step.thing)
             if t.needs:
                 out.append([t.col, "lock"])
+        if step.do == "collect" and step.thing and grid.thing(step.thing).kind == "lever":
+            out.append([grid.thing(step.thing).col, "puzzle"])
         if step.cell is not None:
             cell = step.cell
     out += [[t.col, "enemy"] for t in grid.things if t.kind == "enemy"]
@@ -463,6 +499,10 @@ def unreachable_things(grid: Grid, sol: Solution, m: Motion) -> list[Thing]:
         elif t.kind == "crate":
             c, r = t.cells[0]
             if not any((x, y) in reach for x in (c - 1, c + 1) for y in range(r, r + m.tall)):
+                out.append(t)
+        elif t.kind == "lever":
+            c, r = t.cells[0]
+            if not any((x, y) in reach for x in (c - 1, c, c + 1) for y in range(r, r + m.tall)):
                 out.append(t)
     return out
 
@@ -746,32 +786,40 @@ def levels_script(records: list[LevelRecord], design: GameDesign, plan: PlanReco
 # --- prompts -----------------------------------------------------------------------------------
 
 
-EXAMPLE = """Example of the format (a different game, 32 columns, 8 rows):
+EXAMPLE = """Example of the format only (a different game, kept short: 32 columns, 8 rows):
 legend: '#' solid ground_tile, '=' one_way ground_tile, '^' hazard spikes, '@' start hero,
 'c' crate box (holds 'coin', gives ''), 'k' crate box (holds 'key_orb', gives 'Key Power'),
 'B' breakable stone_block (needs 'Key Power', opened_by 'touch'), 'e' enemy beetle (needs '',
-opened_by 'never'), 'o' pickup coin, 'F' checkpoint flag, 'D' exit door
+opened_by 'never'), 'o' pickup coin, 'F' checkpoint flag, 'L' lever wall_lever (gives
+'lever A'), 'G' gate iron_bars (needs 'lever A'), 'D' exit door
 rows:
 "                                "
-"                                "
-"              ===        o      "
-"                               B"
-"     o                  e      B"
-"@  c   k  #   F   ^^      ===  D"
+"  L                             "
+" ====         ===        o   G  "
+"                             G B"
+"     o                  e    G B"
+"@  c   k  #   F   ^^     === G D"
 "########  ###########  #########"
 "########  ###########  #########"
 """
 
 GUIDE = """* rows: the map, top row first, every row the same length. ' ' or '.' is empty. The
   bottom rows are ground; a gap in the ground is a pit (falling in sends the player back to the
-  last checkpoint). The screen shows about 20 columns and 11 rows and scrolls with the player.
+  last checkpoint). The screen shows about 20 columns and 11 rows and scrolls with the player
+  both ways. A level may be up to 200 columns and 24 rows: use the height (upper floors to
+  climb to, lower areas to drop into, more than one way along) rather than one flat line.
 * legend: one character per kind of cell. kind solid (ground, platforms, walls), one_way (a
   platform the player jumps up through), hazard (spikes: touching sends the player back),
   breakable (blocks that open: needs = the ability, opened_by = touch or dash), crate (opened by
   touch or dash; holds = the entity it drops, gives = the ability that drop gives, '' for coins),
   pickup (gives an ability, or '' for coins and such), enemy (patrols its floor up to 3 tiles each
   way; needs and opened_by say how it is beaten, opened_by 'never' for one to avoid), checkpoint,
-  exit (exactly one, at the right end), start (exactly one, at the left end, entity = the player).
+  exit (exactly one, at the right end), start (exactly one, at the left end, entity = the player),
+  lever (stands on a floor; touching it pulls it; gives = its name, e.g. 'lever A'), gate (solid
+  cells, e.g. a column of bars, that open when the lever named in its needs is pulled, wherever
+  the player is). Levers and gates make puzzles (pull a lever on an upper or lower floor, come
+  back through the gate it opened); use them where they suit the level. An entity without art
+  for a lever or gate may be '' (the SDK draws one).
   entity is a design entity id. A thing that rests on a floor sits on the row above it.
 * Code checks every move with the movement numbers below: floors more than the jump's reach up,
   or gaps wider than a jump (or a dash once it is there), cannot be crossed. Keep the main path
@@ -791,6 +839,11 @@ GUIDE = """* rows: the map, top row first, every row the same length. ' ' or '.'
 The level is original: research teaches patterns, never copy a game's levels."""
 
 
+def target_cols(n: int) -> int:
+    """A suggested length: three screens for level 1, a screen more for each level after."""
+    return min(MAX_COLS, 60 + 20 * (n - 1))
+
+
 def level_brief(n: int, design: GameDesign, plan: PlanRecord) -> str:
     p, k, mv = plan.plan, plan.kinematics, plan.plan.movement
     lp = p.levels[n - 1] if n <= len(p.levels) else None
@@ -804,8 +857,11 @@ def level_brief(n: int, design: GameDesign, plan: PlanRecord) -> str:
     this = (f"Level {n} of {len(p.levels)}: {lp.name} (difficulty {lp.difficulty}/10). Teaches: "
             f"{lp.teaching_goal}. New idea: {lp.new_idea}. Challenges: {', '.join(lp.challenges) or '-'}. "
             f"Needs: {', '.join(lp.abilities) or '-'}." if lp else f"Level {n}.")  # fmt: skip
+    size = target_cols(n)
     return (
-        f"{this}\n\nMovement (tiles of 16 px): run {mv.move_speed:g} tiles/s; {jump}.\n"
+        f"{this}\n\nLength: about {size} columns ({size // 20} screens) suits this level; it "
+        "is yours to decide.\n"
+        f"Movement (tiles of 16 px): run {mv.move_speed:g} tiles/s; {jump}.\n"
         "Abilities: " + ("; ".join(f"{a.name}: {a.does} (from {a.unlocked_by})" for a in p.abilities) or "-")
         + "\nMechanics: " + ("; ".join(f"{x.name}: {x.what}" for x in p.mechanics) or "-")
         + "\nChallenge vocabulary: " + ("; ".join(f"{c.name}: {c.tests}" for c in p.challenges) or "-")

@@ -1,19 +1,20 @@
 """The offline Level Designer (mock runs and tests): a level made by code from the plan.
 
-Left to right: a start flat with a pickup, then sections (a gap, a climb, spikes, an enemy in a
-trough, a platform with a pickup), a checkpoint after every two, and a flat with the exit.
-Gaps and climbs stay one tile inside the plan's limits; each level has one section more than
-the one before, so it is harder by code's measure. `variant` turns the section order (an
-offline answer to feedback changes the level).
+Left to right: a start flat with a pickup, then sections (a gap, a climb onto a ledge, spikes,
+an enemy in a trough, a platform with a pickup, a dip to drop into and climb out of), a
+checkpoint after every two, and a flat with the exit; sections repeat until the level reaches
+the suggested length (`levels.target_cols`). Gaps and climbs stay one tile inside the plan's
+limits; each level is longer than the one before, so it is harder by code's measure.
+`variant` turns the section order (an offline answer to feedback changes the level).
 """
 
 import re
 
 from .design import GameDesign
-from .levels import ChallengeAt, LegendEntry, LevelSpec
+from .levels import ChallengeAt, LegendEntry, LevelSpec, target_cols
 from .plan import PlanRecord
 
-H, FLOOR = 10, 7  # rows; the row the player stands on (ground in rows 8 and 9)
+H, FLOOR = 12, 8  # rows; the row the player stands on (ground in rows 9 to 11)
 LEVEL_EVENTS = ("jump", "level_complete")
 
 
@@ -52,7 +53,7 @@ def fallback_level(n: int, design: GameDesign, plan: PlanRecord, variant: int = 
              ("o", "pickup", pickup, "never"), ("F", "checkpoint", flag, "never")]  # fmt: skip
     legend += [LegendEntry(char=c, kind=kind, entity=ent, needs="", opened_by=ob, holds="", gives="")
                for c, kind, ent, ob in extra if ent]  # fmt: skip
-    kinds = ["gap", "climb", "spikes", "enemy", "platform"]
+    kinds = ["gap", "climb", "spikes", "enemy", "platform", "dip"]
     kinds = [x for x in kinds if (x != "spikes" or spikes) and (x != "enemy" or enemy)]
     turn = (n - 1 + variant) % len(kinds)
     kinds = kinds[turn:] + kinds[:turn]
@@ -71,8 +72,10 @@ def fallback_level(n: int, design: GameDesign, plan: PlanRecord, variant: int = 
     ground(2)
     lp = plan.plan.levels[n - 1] if n <= len(plan.plan.levels) else None
     names = (lp.challenges if lp else []) or [c.name for c in plan.plan.challenges][:1]
-    challenges = []
-    for i, kind in enumerate(kinds[: 2 + n]):
+    challenges, placed, i = [], [], 0
+    while i < 2 + n or len(cols) < target_cols(n) - 8:
+        kind = kinds[i % len(kinds)]
+        placed.append(kind)
         start = len(cols)
         if kind == "gap":
             cols += [{} for _ in range(gap)]
@@ -89,9 +92,13 @@ def fallback_level(n: int, design: GameDesign, plan: PlanRecord, variant: int = 
             height = FLOOR - min(rise + 1, 3)
             for j in range(4):
                 ground(1, on={height + 1: "=", **({height: "o"} if pickup and j == 1 else {})})
+        elif kind == "dip":  # a lower floor to drop into and climb out of
+            depth = min(rise, H - FLOOR - 2)
+            ground(4, top=FLOOR + 1 + depth, on={FLOOR + depth: "o"} if pickup else None, at=2)
         if names:
             challenges.append(ChallengeAt(name=names[i % len(names)], column=start))
         ground(3, on={FLOOR: "F"} if flag and i % 2 == 1 else None, at=1)
+        i += 1
     ground(2)
     ground(1, on={FLOOR: "D"})
     ground(2)
@@ -107,5 +114,5 @@ def fallback_level(n: int, design: GameDesign, plan: PlanRecord, variant: int = 
             challenges.append(ChallengeAt(name=name, column=5))
     return LevelSpec(n=n, name=lp.name if lp else f"Level {n}", legend=legend, rows=rows,
                      challenges=challenges, events=events, exclusive=[],
-                     notes=f"Offline level: {', '.join(kinds[: 2 + n])}, a checkpoint after every "
+                     notes=f"Offline level: {', '.join(placed)}, a checkpoint after every "
                            "two sections, the exit at the right.")  # fmt: skip

@@ -91,5 +91,7 @@ def test_a_hazard_that_looks_like_the_ground_is_marked(tmp_path):
     rec = check(GATED, n=1, legend=legend, events=["level_complete"])
     assert next(e for e in rec.spec.legend if e.char == "^").entity == "ground"
     seen = hazard_pixels(built(tmp_path, design, plan, [rec]))
-    assert seen["hazard"]["red"] > seen["ground"]["red"] + 30 and seen["hazard"]["white"] > 0
+    # Art drawn at detail 2 (a 1080p screen) gave the mock ground a redder tile, so the margin
+    # is smaller than at 320x180; the white spikes are the unmistakable part.
+    assert seen["hazard"]["red"] > seen["ground"]["red"] + 12 and seen["hazard"]["white"] > 0
     assert seen["ground"]["white"] == 0  # the ground itself is drawn as it is

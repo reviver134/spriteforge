@@ -1466,6 +1466,17 @@ class ArtResult:
     warnings: list[str]
     credits: list[str]
     motion: MotionRecord | None = None  # the motion design the rows follow (L2.4)
+    # The scale the art was drawn at (Muse's grid: about the design size times this); every
+    # image was then grown by whole pixels to `scale` (`zoom` times). 0: drawn at `scale`.
+    detail: int = 0
+
+    @property
+    def drawn_at(self) -> int:
+        return self.detail or self.scale
+
+    @property
+    def zoom(self) -> int:
+        return self.scale // self.drawn_at
 
     def manifest(self) -> dict:
         """assets.json: what the SDK loads and the Programmer may reference; with a motion
@@ -1538,7 +1549,13 @@ def make_art(
     used_sets = {
         p.asset.split("/", 1)[0] for p in picks.values() if p.source in {"tile", "backdrop"}
     }
-    scale = 2 if any(tilesets[t]["tile_size"] == 32 for t in used_sets if t in tilesets) else 1
+    # The screen's scale; a 32 px tile set needs an even one (its tiles grow by whole pixels).
+    full = max(1, options.screen_scale)
+    if full % 2 and any(tilesets[t]["tile_size"] == 32 for t in used_sets if t in tilesets):
+        full += 1
+    # Art is drawn at DETAIL (Muse's grid about twice the design size, like 32 px library
+    # packs) and then grown by whole pixels to the full screen: a sprite keeps what Muse drew.
+    scale = DETAIL if full % DETAIL == 0 else full
     screen = (320 * scale, 180 * scale)
     variant = (
         plan.variant
@@ -1631,7 +1648,44 @@ def make_art(
     ]
     if any(f.source.startswith("muse") for f in filled.values()):
         credits.append(MUSE_CREDIT)
-    return ArtResult(screen, scale, background, filled, picks, warnings, credits, motion)
+    zoom = full // scale
+    filled = {eid: zoom_art(f, zoom) for eid, f in filled.items()}
+    return ArtResult((320 * full, 180 * full), full, background, filled, picks, warnings, credits,
+                     motion, detail=scale)  # fmt: skip
+
+
+DETAIL = 2  # the scale art is drawn at before it is grown to the screen's
+
+
+def zoom_px(meta: dict, z: int) -> dict:
+    """An assets.json entry with its pixel sizes times `z` (frame, size, body, row lifts)."""
+    out = dict(meta)
+    for k in ("frame", "size", "body"):
+        if isinstance(out.get(k), list):
+            out[k] = [v * z for v in out[k]]
+    if isinstance(out.get("rows"), dict):
+        out["rows"] = {n: {**r, "lift": [v * z for v in r.get("lift", [])]}
+                       for n, r in out["rows"].items()}  # fmt: skip
+    return out
+
+
+def zoom_art(f: Filled, z: int) -> Filled:
+    """Art drawn at DETAIL grown by whole pixels to the screen's scale (nearest neighbour, so
+    each art pixel becomes a z x z block). Locked art from an earlier build is grown already."""
+    if z <= 1 or f.record.get("zoomed"):
+        return f
+
+    def grow(data: bytes) -> bytes:
+        img = Image.open(io.BytesIO(data)).convert("RGBA")
+        return png(img.resize((img.width * z, img.height * z), Image.Resampling.NEAREST))
+
+    record = {**f.record, "zoomed": z}
+    if record.get("frame_size"):
+        record["frame_size"] = [v * z for v in record["frame_size"]]
+    if isinstance(record.get("rows_meta"), dict):  # locked art rebuilds its meta from these
+        record["rows_meta"] = zoom_px({"rows": record["rows_meta"]}, z)["rows"]
+    extra = {k: (grow(data), zoom_px(meta, z)) for k, (data, meta) in f.extra.items()}
+    return replace(f, png=grow(f.png), meta=zoom_px(f.meta, z), record=record, extra=extra)
 
 
 def run_jobs(jobs: list[tuple["Muse", "MuseJob"]], workers: int) -> dict[str, Filled]:
@@ -1666,6 +1720,7 @@ class MuseOptions:
     adapt_size: bool = True
     workers: int = 4  # `game.image_workers`: Muse calls in flight at once
     reasoning: Literal["low", "high"] = "low"  # first attempt's strength (review fixes: high)
+    screen_scale: int = 1  # `game.screen_scale`: the screen is 320x180 times this
     # The human's reference images (stages/references.py): every request takes their style.
     style: list[bytes] = field(default_factory=list)
 
@@ -1768,7 +1823,7 @@ class Muse:
             return None
         reasons = [p.reason or "Muse art", "unchanged request: reused, no image call"]
         record = {**key, "raw": old["raw"], "reused_from": old["version"],
-                  "frame_size": old.get("frame_size")}  # fmt: skip
+                  "frame_size": old.get("frame_size"), "zoomed": old.get("zoomed")}  # fmt: skip
         source = f"muse (locked, from v{old['version']})"
         if old.get("anims"):
             meta = sprite_meta(e, tuple(old.get("frame_size") or size), old["anims"],

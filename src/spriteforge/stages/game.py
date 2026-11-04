@@ -131,6 +131,7 @@ from spriteforge.game.pipeline import (
     write_code,
     write_design,
     write_level,
+    write_level_research,
     write_menus,
     write_motion,
     write_plan,
@@ -725,17 +726,38 @@ def ensure_levels(ctx: GameContext, version: int, design_version: int, count: in
     return records
 
 
+LEVEL_RESEARCH = "game/levels/research.json"
+
+
+def level_research(ctx: GameContext, design: GameDesign, plan: PlanRecord) -> str:
+    """The Level/Tile Designer's study of level design (web search, once per game), as the
+    level prompts read it; '' when game.level_research is off."""
+    if not ctx.cfg.game.level_research:
+        return ""
+    if LEVEL_RESEARCH not in ctx.artifacts:
+        ctx.log("Level/Tile Designer")("studying the level design of similar games with web search")
+        record = write_level_research(ctx.models, design, plan)
+        ctx.save(LEVEL_RESEARCH, record.model_dump(), "Level/Tile Designer")
+        ctx.save(LEVEL_RESEARCH.removesuffix(".json") + ".md",
+                 research_markdown(record).replace("# Research", "# Level research", 1).encode(),
+                 "Level/Tile Designer", "text/markdown")  # fmt: skip
+    record = ResearchRecord.model_validate(ctx.read(LEVEL_RESEARCH))
+    return "Level research (patterns from similar games; never copy their levels):\n" + research_brief(record)
+
+
 def first_levels(ctx: GameContext, design: GameDesign, design_version: int, plan: PlanRecord) -> int:
     """Level set v1 (or the next one when a game gains levels later): every level written by
     the Level Designer from the plan and the game's record."""
     version = latest_version(ctx.artifacts, LEVELS) + 1
     log = ctx.log("Level/Tile Designer")
+    studied = level_research(ctx, design, plan)
 
     def make(n: int, earlier: list[LevelRecord]):
         lp = plan.plan.levels[n - 1]
         log(f"writing level {n}: {lp.name}")
         focus = f"level {n}: {lp.name}: {lp.teaching_goal}; new idea: {lp.new_idea}"
-        record = write_level(ctx.models, n, design, plan, earlier, context_pack(ctx.db, focus, 1500),
+        context = joined(studied, context_pack(ctx.db, focus, 1500))
+        record = write_level(ctx.models, n, design, plan, earlier, context,
                              ctx.cfg.game.playtest_fps)  # fmt: skip
         log(f"level {n}: " + ("checked by code, no problems" if not record.problems else
                               f"{len(record.problems)} problem(s) code could not fix"))  # fmt: skip
@@ -998,7 +1020,7 @@ def build_version(
                 outcome.build,
                 ctx.root / prefix / "recording",
                 seconds=ctx.cfg.game.record_seconds,
-                scale=4 // art.scale,
+                scale=max(1, 4 // art.scale),
             )
         for eid, f in art.filled.items():
             ctx.save(f"{prefix}/art/{eid}.png", f.png, "Pixel Artist", "image/png")

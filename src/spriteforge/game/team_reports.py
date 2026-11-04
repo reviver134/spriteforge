@@ -283,8 +283,10 @@ def art_counts(art: list[dict]) -> str:
             return "redrawn by the Art Reviewer"
         if "reuse" in s or "kept" in s or "locked" in s:
             return "kept from the last build"
-        if "librar" in s:
+        if "librar" in s or "tileset" in s:
             return "from the library"
+        if "placeholder" in s or "greybox" in s:
+            return "greybox (Muse unavailable)"
         if "muse" in s:
             return "drawn by Muse Image"
         return "drawn by code"

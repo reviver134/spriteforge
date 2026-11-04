@@ -44,6 +44,15 @@ def enable(server: str, role: str = typer.Option(...), workspace: Path | None = 
 
 
 @app.command()
+def policy(server: str, tool: str, confirm: bool = typer.Option(True, "--confirm/--no-confirm"),
+           workspace: Path | None = None):  # fmt: skip
+    """Whether a tool asks you before each call. Agents of a running build only use tools
+    that do not ask (a build cannot stop half way to ask)."""
+    registry(workspace).policy(server, tool, confirm)
+    typer.echo(f"{server}.{tool}: " + ("asks before each call" if confirm else "runs without asking"))
+
+
+@app.command()
 def disable(server: str, role: str | None = None, workspace: Path | None = None):
     registry(workspace).disable(server, role)
     typer.echo(f"Disabled {server}")

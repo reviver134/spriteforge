@@ -124,3 +124,28 @@ def test_the_switch_turns_the_tools_off(tmp_path):
     with store.connect() as db:
         db.execute("UPDATE runs SET config=? WHERE id=?", (json.dumps(run.config), ident))
     assert GameContext(store, ident).models.toolbox is None
+
+
+def test_vendored_skills_are_granted_and_read_whole(tmp_path):
+    ws, store, run_id, _ = setup(tmp_path)
+    box = Toolbox(store, run_id, ws)
+    assert {"Skill level-design", "Skill platformer"} <= set(box.describe("Level/Tile Designer"))
+    assert "Skill game-ui-ux" in box.describe("Menu Designer")
+    assert "Skill audio-design" in box.describe("Sound Director")
+    skill = box.for_role("Level/Tile Designer")["load_skill"]
+    body = box.call("Level/Tile Designer", skill, {"name": "level-design"})
+    assert "critical path" in body and "(cut)" not in body
+
+
+def test_the_cli_sets_whether_a_tool_asks(tmp_path):
+    from typer.testing import CliRunner
+
+    from spriteforge.mcp.cli import app
+
+    ws, *_ = setup(tmp_path)
+    server = Server(command="my-server", tools=[{"name": "lookup", "inputSchema": {"type": "object"}}])
+    server.discovered_fingerprint = server.fingerprint()
+    Registry(ws).write(Servers(mcpServers={"mine": server}))
+    out = CliRunner().invoke(app, ["policy", "mine", "lookup", "--no-confirm", "--workspace", str(ws)])
+    assert out.exit_code == 0 and "runs without asking" in out.output
+    assert Registry(ws).read().mcpServers["mine"].confirmation == {"lookup": False}

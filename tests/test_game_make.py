@@ -257,7 +257,8 @@ def test_make_game_offline_end_to_end(tmp_path):
     assert assets["sprites"]["slime"]["rows"]["die"]["loop"] is False
     assert assets["sprites"]["gem"]["anims"] == {"idle": [0, 4]}
     assert (out / "motion.json").is_file() and (out / "motion.gif").is_file()
-    assert art["gem"]["spec"]["grid"] == [8, 8] and "8×8 grid" in art["gem"]["muse_prompt"]
+    # An 8x8 gem is drawn on a 16x16 grid (art detail 2), then grown to the 1080p screen.
+    assert art["gem"]["spec"]["grid"] == [16, 16] and "16×16 grid" in art["gem"]["muse_prompt"]
     assert art["floor"]["spec"]["anchor"].startswith("fills the whole grid")
     assert art["slime"]["frame"]["mode"] in {"native", "native-resized", "fit"}
     # The Art Reviewer looked at the art in the running game (offline: from the pre-checks).

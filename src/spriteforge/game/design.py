@@ -117,7 +117,9 @@ def design_prompt(request: str, plan: str = "") -> str:
         "checkpoint, respawn, jump, dash and win (after the last level); use these names for "
         "those rules. A bot plays each level on its own, so per-level rules are checked per "
         "level; it never fails on purpose, so respawn (falling or getting hurt) is never a "
-        "check.\n"
+        "check. Its levels may use levers and gates for puzzles (the Level Designer decides "
+        "where): list a lever (prop) and a gate (prop, one cell of bars or a door the levels "
+        "stack) when the game suits them, so they get art.\n"
         + (
             "* The game plan below is approved groundwork: keep its numbers (movement, jump, "
             "dash), abilities, mechanics, levels, feel and animations; the player's stats and "

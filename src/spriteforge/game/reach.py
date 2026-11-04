@@ -31,7 +31,7 @@ EDGE = 0.15  # tiles of the body left on the ledge at an edge take-off
 MAX_FALL = 40.0  # tiles/s; the SDK caps falls at this too (no tunnelling through tiles)
 DASH_STEPS = 9  # physics steps a dash lasts (0.15 s)
 MAX_AIR = 3.0  # s; longer flights are not considered
-LOCKS = ("crate", "breakable", "enemy")
+LOCKS = ("crate", "breakable", "enemy", "gate")  # closed: in the way; a gate opens by its lever
 EPS = 1e-9
 
 
@@ -216,7 +216,7 @@ class World:
                 self.hazard |= cells
             else:
                 self.solid |= cells
-                if t.kind == "breakable":  # a wall can be stood on; a crate dissolves on touch
+                if t.kind in ("breakable", "gate"):  # stood on; a crate dissolves on touch
                     self.support |= cells
             self.owner.update(dict.fromkeys(cells, t.id))
         self.runs = self.find_runs()
@@ -442,6 +442,10 @@ def candidates(s: Run, t: Run) -> list[tuple[int, int]]:
         froms = [c for c in (t.c0 - 1, t.c1 + 1, t.c0 - 2, t.c1 + 2, t.c0 - 3, t.c1 + 3, t.c0, t.c1)
                  if s.c0 <= c <= s.c1]  # fmt: skip
         tos = [c for c in (t.c0, t.c1, t.c0 + 1, t.c1 - 1) if t.c0 <= c <= t.c1]
+        # A ledge over a wider floor: off its own ends, down beside it (the way back from a
+        # lever on an upper floor; before, a floating platform was a one-way trip up).
+        froms += [s.c1, s.c0]
+        tos += [c for c in (s.c1 + 1, s.c0 - 1, s.c1 + 2, s.c0 - 2) if t.c0 <= c <= t.c1]
     pairs = []
     for a in dict.fromkeys(froms):
         for b in dict.fromkeys(tos):
@@ -597,11 +601,18 @@ class Search:
         crates dropped)."""
         out = []
         for t in self.grid.things:
-            if t.kind == "pickup" and t.gives and t.id not in state.taken:
+            if t.kind in ("pickup", "lever") and t.gives and t.id not in state.taken:
                 out.append(t)
             if t.kind == "crate" and t.gives and t.id in state.opened and t.id + ">" not in state.taken:
                 out.append(Thing(t.id + ">", "pickup", t.holds, t.cells, gives=t.gives))
         return out
+
+    def gates(self, t: Thing) -> frozenset[str]:
+        """The gates a lever opens when it is pulled (anywhere in the level)."""
+        if t.kind != "lever":
+            return frozenset()
+        return frozenset(g.id for g in self.grid.things
+                         if g.kind == "gate" and key(g.needs) == key(t.gives))  # fmt: skip
 
     def can_open(self, t: Thing, held: frozenset[str]) -> bool:
         return (t.kind in LOCKS and t.opened_by in {"touch", "dash"}
@@ -641,8 +652,8 @@ class Search:
             if spot:
                 gives = key(p.gives)
                 held = (state.held - self.exclusive if gives in self.exclusive else state.held) | {gives}
-                yield (State(spot[0], frozenset(held), state.opened, state.taken | {p.id}),
-                       Action("take", p.id, spot[0], spot[1]))  # fmt: skip
+                yield (State(spot[0], frozenset(held), state.opened | self.gates(p),
+                             state.taken | {p.id}), Action("take", p.id, spot[0], spot[1]))  # fmt: skip
         for t in self.grid.things:
             if t.id in state.opened or not self.can_open(t, state.held):
                 continue
@@ -700,6 +711,12 @@ class Search:
             exit_: Thing) -> list[str]:  # fmt: skip
         out = []
         for t in frontier.values():
+            if t.kind == "gate":
+                levers = [x for x in self.grid.things if x.kind == "lever" and key(x.gives) == key(t.needs)]
+                out.append(f"a gate ({t.entity or 'gate'}) at column {t.col} stays shut: "
+                           + (f"its lever at column {levers[0].col}, row {levers[0].row} cannot be "
+                              "reached before it" if levers else "no lever opens it"))  # fmt: skip
+                continue
             if t.opened_by == "never":  # live 2026-11-03: this was not said, and the retry failed
                 if t.kind in ("enemy", "breakable"):
                     what = "an enemy" if t.kind == "enemy" else "a breakable wall"
@@ -742,6 +759,8 @@ class Search:
             elif act.do == "take":
                 ident, drop = act.thing.rstrip(">"), act.thing.endswith(">")
                 steps.append(Step("collect", x=act.at[0] + 0.5, cell=act.at, thing=ident, drop=drop))
+                if not drop:  # a lever opens its gates
+                    opened = opened | self.gates(self.grid.thing(ident))
             elif act.do == "exit":
                 steps.append(Step("exit", x=act.at[0] + 0.5, cell=act.at, thing=act.thing))
         return steps

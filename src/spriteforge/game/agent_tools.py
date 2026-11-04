@@ -25,6 +25,7 @@ from spriteforge.mcp.registry import Registry
 from spriteforge.skills.catalog import SkillCatalog
 
 MAX_RESULT = 6000
+MAX_SKILL = 12000  # a skill is read whole (the vendored ones are about 9 KB)
 SERVERS = ("library", "game_db")
 
 
@@ -62,8 +63,8 @@ def text_of(result) -> str:
     return str(result)
 
 
-def clip(text: str) -> str:
-    return text if len(text) <= MAX_RESULT else text[:MAX_RESULT] + "\n… (cut)"
+def clip(text: str, limit: int = MAX_RESULT) -> str:
+    return text if len(text) <= limit else text[:limit] + "\n… (cut)"
 
 
 @dataclass
@@ -73,6 +74,7 @@ class AgentTool:
     description: str
     schema: dict
     run: Callable[[dict], str]
+    limit: int = MAX_RESULT  # longest answer, in characters
 
     def spec(self) -> dict:
         return {"type": "function", "function": {"name": self.name, "description": self.description,
@@ -130,7 +132,7 @@ class Toolbox:
                 {"type": "object", "properties": {"name": {"type": "string",
                                                            "enum": sorted(skills)}},
                  "required": ["name"], "additionalProperties": False},
-                lambda args, role=r: self.skills.load(role, args["name"]),
+                lambda args, role=r: self.skills.load(role, args["name"]), MAX_SKILL,
             )  # fmt: skip
         tools.update(self.user_tools(r))
         return tools
@@ -155,7 +157,7 @@ class Toolbox:
     def call(self, role: str, tool: AgentTool, arguments: dict) -> str:
         """Run one call; a failure is the tool's answer (the agent reads it and goes on)."""
         try:
-            text, ok = clip(redact(tool.run(arguments))), True
+            text, ok = clip(redact(tool.run(arguments)), tool.limit), True
         except Exception as exc:  # noqa: BLE001 -- the model sees the error, the build goes on
             text, ok = f"Error: {type(exc).__name__}: {exc}"[:500], False
         self.store.append_event(self.run_id, role, "agent.tool",
