@@ -120,8 +120,8 @@ chat. `game.agent_tools: false` in config.yaml turns this off (one call per answ
 Besides SpriteForge's own skills, seven open-source game-development skills (level design,
 platformer, puzzle, game feel, physics tuning, audio design, game UI/UX; Apache-2.0, see
 `src/spriteforge/skills/builtin/THIRD_PARTY.md`) are granted to the agents they suit. To let
-agents read web pages with the official MCP fetch server (needs `uv`; it can reach any URL,
-including your local network, so it is off until you add it):
+agents read public web pages with the official MCP fetch server (needs `uv`; it refuses
+private and local addresses; off until you add it):
 
 ```bash
 python -m spriteforge mcp add fetch src/spriteforge/mcp/templates/fetch.json
@@ -129,6 +129,8 @@ python -m spriteforge mcp inspect fetch
 python -m spriteforge mcp enable fetch --role "Level/Tile Designer"
 python -m spriteforge mcp policy fetch fetch --no-confirm   # builds use only tools that do not ask
 ```
+
+`python -m spriteforge mcp disable fetch` takes it away again.
 
 ## Layout
 

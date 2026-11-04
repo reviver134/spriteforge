@@ -1,6 +1,6 @@
 {
   "transport": "stdio",
   "command": "uvx",
-  "args": ["mcp-server-fetch"],
+  "args": ["mcp-server-fetch", "--no-readability-js"],
   "enabled_roles": {}
 }
