@@ -8,7 +8,7 @@ allowed_tools:
 - game_db.game_search
 - game_db.game_show
 - game_db.game_context
-allowed_skills: [tileset-design]
+allowed_skills: [tileset-design, level-design, platformer]
 memory_scopes:
 - project
 max_steps: 8

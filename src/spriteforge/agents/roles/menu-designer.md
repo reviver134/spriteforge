@@ -7,7 +7,7 @@ allowed_tools:
 - game_db.game_search
 - game_db.game_show
 - game_db.game_context
-allowed_skills: []
+allowed_skills: [game-ui-ux]
 memory_scopes:
 - project
 max_steps: 4

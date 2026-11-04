@@ -5,7 +5,7 @@ model: mock
 allowed_tools:
 - game_db.game_search
 - game_db.game_show
-allowed_skills: [phaser-arcade-physics]
+allowed_skills: [phaser-arcade-physics, platformer, puzzle, game-feel, physics-tuning]
 required_skills: [phaser-arcade-physics]
 memory_scopes:
 - project

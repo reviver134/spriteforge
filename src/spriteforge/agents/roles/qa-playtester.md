@@ -5,7 +5,7 @@ model: mock
 allowed_tools:
 - game_db.game_search
 - game_db.game_show
-allowed_skills: []
+allowed_skills: [platformer]
 memory_scopes:
 - project
 max_steps: 8

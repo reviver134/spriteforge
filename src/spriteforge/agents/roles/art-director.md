@@ -7,7 +7,7 @@ allowed_tools:
 - library.library_search
 - library.library_actors
 - library.library_tiles
-allowed_skills: []
+allowed_skills: [game-feel]
 memory_scopes:
 - project
 max_steps: 8

@@ -1,0 +1,6 @@
+{
+  "transport": "stdio",
+  "command": "uvx",
+  "args": ["mcp-server-fetch"],
+  "enabled_roles": {}
+}
