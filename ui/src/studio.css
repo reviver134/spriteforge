@@ -286,6 +286,54 @@ a.button {
   background: var(--panel);
 }
 
+.report-card {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+
+.report-card.report-exit {
+  border-left-color: var(--ok);
+}
+
+.report-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.report-card h3 {
+  margin: 0;
+  font-size: 11px;
+}
+
+.report-kind {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.report-section h4 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.report-exit .report-section h4 {
+  color: var(--ok);
+}
+
+.report-section ol,
+.report-section ul {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .gate-card.open {
   border-color: var(--warn);
 }

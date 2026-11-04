@@ -36,13 +36,16 @@ NARRATION = [
 QUIET = {"memory.retrieved", "cost.reserved", "cost.succeeded", "cost.failed",
          # Chat and its bookkeeping: talking about the work is not doing it.
          "chat.user", "chat.agent", "chat.applied", "chat.unapplied", "rewind.declined",
-         "run.stop_requested", "run.stop_cleared", "round.superseded", "round.rewound"}
+         "run.stop_requested", "run.stop_cleared", "round.superseded", "round.rewound",
+         # A plan or report is about the work (an agent's plan comes before it starts).
+         "agent.report"}
 RUN_EVENTS = {"run.created", "run.failed", "run.completed", "run.retry_requested", "game.built",
               "run.paused"}
 
 
 def owners(gate: Gate) -> list[str]:
-    return ["Director", *GATE_OWNERS.get(gate.stage, [])]
+    """The Director, the agents whose work the gate reviews and the agents asking for it."""
+    return list(dict.fromkeys(["Director", *GATE_OWNERS.get(gate.stage, []), *gate.agents]))
 
 
 def actor(event: Event) -> str | None:
@@ -155,6 +158,8 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
             if "rewind" in payload:
                 fields["rewind"] = {**payload["rewind"], "state": offers.get(event.id, "open")}
             items.append(item(event, "chat", role="agent", **fields))
+        elif kind == "agent.report" and event.agent == agent:
+            items.append(item(event, "report", report=payload))
         elif kind == "reference.added" and payload.get("agent") in (agent, "Director"):
             # The Director's references are every agent's: shown in every chat.
             items.append(item(event, "reference", reference=payload))

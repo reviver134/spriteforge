@@ -43,6 +43,8 @@ class Gate(BaseModel):
     response: Feedback | None = None
     # One feedback box: submitting it empty approves, any text requests another revision.
     empty_feedback_approves: bool = False
+    # The agents asking for this approval (their plans or reports come before it in their chats).
+    agents: list[str] = Field(default_factory=list)
 
 
 class Gates:

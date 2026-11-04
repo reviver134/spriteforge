@@ -87,6 +87,7 @@ from spriteforge.config import BudgetConfig, Config
 from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Gates, new_gate
 from spriteforge.core.team import AGENTS
+from spriteforge.game import team_reports as team
 from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
 from spriteforge.game.build import install_sounds
 from spriteforge.game.codegen import GameCode
@@ -573,28 +574,94 @@ def story_names_shown(ctx: GameContext) -> list[str]:
     return names[-1:]
 
 
+def tasks_name(version: int) -> str:
+    return f"game/tasks/v{version}.json"
+
+
+def ensure_tasks(ctx: GameContext, version: int, design: GameDesign) -> team.TaskList:
+    """The team's task list for design vK (the Game Designer, one Spark call): each agent's
+    entry gate, steps and exit gate, fitted by code to the agents that work on the build."""
+    plan = load_plan_at(ctx, version)
+    game = ctx.cfg.game
+    agents = team.build_agents(design, plan, uses_levels(design, plan), game.menus, game.sounds,
+                               game.review)  # fmt: skip
+    fallback = team.default_tasks(design, plan, agents)
+    name = tasks_name(version)
+    if name not in ctx.artifacts:
+        ctx.log("Game Designer")("writing the task list: a plan for every agent")
+        answer = ctx.models.ask("Game Designer", team.tasks_prompt(design, plan, agents),
+                                team.TaskList, fallback, "tasks")  # fmt: skip
+        tasks = team.fit_tasks(answer, fallback)
+        ctx.save(name, tasks.model_dump(), "Game Designer")
+        ctx.save(name.removesuffix(".json") + ".md",
+                 team.tasks_markdown(tasks, version, design.title).encode(), "Game Designer",
+                 "text/markdown")  # fmt: skip
+    return team.TaskList.model_validate(ctx.read(name))
+
+
+def post_reports(ctx: GameContext, key: str, reports: list[tuple[str, dict]]) -> None:
+    """Each agent's report card in its chat, once (a re-opened gate does not repeat them)."""
+    done = {e.payload.get("key") for e in ctx.store.events(ctx.run_id) if e.type == "agent.report"}
+    for agent, body in reports:
+        if f"{key}/{agent}" not in done:
+            ctx.store.append_event(ctx.run_id, agent, "agent.report",
+                                   {**body, "key": f"{key}/{agent}"})  # fmt: skip
+
+
 def open_design_gate(ctx: GameContext, version: int) -> None:
     design = load_design(ctx, version)
     plan = load_plan(ctx, version)
+    tasks = ensure_tasks(ctx, version, design)
+    mine = team.designer_report(design, plan, RESEARCH in ctx.artifacts, tasks, version)
+    post_reports(ctx, f"design-v{version}", [
+        ("Game Designer", team.payload("exit", f"What I did for design v{version}",
+                                       team.exit_sections(mine), "")),
+        *((p.agent, team.payload("entry", f"My plan for '{design.title}'", team.entry_sections(p), ""))
+          for p in tasks.agents),
+    ])  # fmt: skip
     story = "" if latest_story(ctx) else " (no story: choose Add a story to get one)"
     problems = (f" The plan has {len(plan.problems)} problem(s) code could not fix (listed in "
                 "the plan)." if plan and plan.problems else "")  # fmt: skip
     title = (
-        f"G2 Game design v{version}: {design.title}{story}. Read the "
+        f"G2 Game design v{version}: {design.title}{story}. The Game Designer wrote the design "
+        f"and a plan for each of {len(tasks.agents)} agents (each agent's chat shows its own). "
+        "Read the "
         + ("research, the " if RESEARCH in ctx.artifacts else "")
-        + ("game plan, then the " if plan else "")
-        + "rules, entities and checks; type what to change, or leave feedback empty and submit "
-        "to approve and build the game." + problems
+        + ("game plan, the " if plan else "")
+        + "team's task list, then the rules, entities and checks; type what to change, or leave "
+        "feedback empty and submit to approve and let the team start building." + problems
     )
     names = [n for n in (RESEARCH, plan_name(version)) if n in ctx.artifacts]
+    names.append(tasks_name(version))
     names += [f"game/design/v{version}.json", *story_names_shown(ctx)]
     names += [n for n in (structure_name(version),) if n in ctx.artifacts]
     extra = {} if latest_story(ctx) else {"form_schema": STORY_FORM}
     Gates(ctx.store).open(
         ctx.run_id,
         new_gate("design", title, [ctx.artifacts[n].id for n in names],
-                 empty_feedback_approves=True, **extra),
-    )
+                 empty_feedback_approves=True, agents=["Game Designer", *(p.agent for p in tasks.agents)],
+                 **extra),
+    )  # fmt: skip
+
+
+def team_report(ctx: GameContext, version: int) -> list[str]:
+    """Build vN's exit reports: saved as the team report and posted in each agent's chat.
+    Returns the agents that worked on the build (they ask for the G3/G4 approval)."""
+    prefix = f"game/v{version}"
+    name = f"{prefix}/team-report.json"
+    if name not in ctx.artifacts:
+        report = ctx.read(f"{prefix}/report.json")
+        reports = team.exit_reports(report, load_design(ctx, report["design_version"]))
+        ctx.save(name, {"agents": [r.model_dump(mode="json") for r in reports]}, "Director")
+        ctx.save(f"{prefix}/team-report.md",
+                 team.team_markdown(reports, version, report["title"]).encode(), "Director",
+                 "text/markdown")  # fmt: skip
+    reports = [team.AgentReport.model_validate(r) for r in ctx.read(name)["agents"]]
+    post_reports(ctx, f"build-v{version}", [
+        (r.agent, team.payload("exit", f"What I did in build v{version}", team.exit_sections(r), ""))
+        for r in reports
+    ])  # fmt: skip
+    return [r.agent for r in reports]
 
 
 def level_name(version: int, n: int) -> str:
@@ -1073,6 +1140,8 @@ def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None
         + ("" if story else " (no story: choose Add a story to get one)")
     )
     names = [*names, *(n for n in story_names_shown(ctx) if n not in names)]
+    agents = team_report(ctx, version)
+    names += [n for n in (f"game/v{version}/team-report.json",) if n not in names]
     form = {} if story else dict(STORY_FORM["properties"])
     if levels:
         title += ("; to change one level, pick it under Level (the others stay as they are)")
@@ -1085,7 +1154,7 @@ def open_playtest_gate(ctx: GameContext, version: int, names: list[str]) -> None
     Gates(ctx.store).open(
         ctx.run_id,
         new_gate("playtest", title, [ctx.artifacts[n].id for n in names],
-                 empty_feedback_approves=True, **extra),
+                 empty_feedback_approves=True, agents=agents, **extra),
     )
 
 
@@ -1112,6 +1181,8 @@ def open_menus_gate(ctx: GameContext, version: int) -> None:
     names += sorted((n for n in ctx.artifacts if re.fullmatch(rf"{prefix}/levels/level-\d+\.png", n)),
                     key=lambda n: int(re.findall(r"\d+", n)[-1]))  # fmt: skip
     names += [menus_name(m), f"{prefix}/report.json"]
+    agents = team_report(ctx, version)
+    names.append(f"{prefix}/team-report.json")
     problems = (f" Code could not fix {len(info['problems'])} problem(s) (listed in the menus)."
                 if info.get("problems") else "")  # fmt: skip
     title = (
@@ -1123,7 +1194,8 @@ def open_menus_gate(ctx: GameContext, version: int) -> None:
     )
     Gates(ctx.store).open(
         ctx.run_id,
-        new_gate("menus", title, [ctx.artifacts[n].id for n in names], empty_feedback_approves=True),
+        new_gate("menus", title, [ctx.artifacts[n].id for n in names], empty_feedback_approves=True,
+                 agents=agents),
     )
 
 

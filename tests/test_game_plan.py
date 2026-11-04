@@ -292,7 +292,7 @@ def test_g2_shows_research_then_plan_then_design(tmp_path):
     gate = Gates(store).pending(ident)
     assert gate.stage == "design" and "Read the research, the game plan" in gate.title
     assert names_of(store, ident, gate.artifacts_to_show) == [
-        "game/research.json", "game/plan/v1.json", "game/design/v1.json",
+        "game/research.json", "game/plan/v1.json", "game/tasks/v1.json", "game/design/v1.json",
         "game/design/v1-structure.json"]  # fmt: skip
     plan = read(store, ident, "game/plan/v1.json")
     assert plan["problems"] == [] and len(plan["plan"]["levels"]) == 3
@@ -308,7 +308,7 @@ def test_g2_shows_research_then_plan_then_design(tmp_path):
     submit(store, ident, "Make the levels longer")
     gate = Gates(store).pending(ident)
     assert names_of(store, ident, gate.artifacts_to_show) == [
-        "game/research.json", "game/plan/v2.json", "game/design/v2.json",
+        "game/research.json", "game/plan/v2.json", "game/tasks/v2.json", "game/design/v2.json",
         "game/design/v2-structure.json"]  # fmt: skip
     assert sum(a.name == "game/research.json" for a in store.artifacts(ident)) == 1
 

@@ -86,6 +86,7 @@ export interface Gate {
   status: "pending" | "approved" | "changes_requested" | "aborted" | "superseded";
   form_schema: { title?: string; properties?: Record<string, FieldRule>; required?: string[] };
   empty_feedback_approves: boolean;
+  agents?: string[];
   response: { action: string; text: string; form: Record<string, unknown> } | null;
 }
 
@@ -140,6 +141,12 @@ export interface GoBack {
   state: "open" | "going_back" | "went_back" | "queued" | "expired";
 }
 
+export interface AgentReport {
+  stage: "entry" | "exit";
+  title: string;
+  sections: { title: string; points: string[]; numbered?: boolean }[];
+}
+
 interface ItemBase {
   id: number;
   at: string;
@@ -170,6 +177,7 @@ export type ThreadItem = ItemBase &
         chat?: number;
       }
     | { kind: "run"; type: string; message: string | null }
+    | { kind: "report"; report: AgentReport }
   );
 
 export const artifactUrl = (id: string) => `/api/artifacts/${id}`;

@@ -175,9 +175,11 @@ def test_project_from_idea_to_final_through_agent_threads(studio):
             response = client.post(url, json={"action": "submit"})
         assert response.status_code == 200, response.text
     waits = list(seen.values())
-    assert {"Director", "Game Designer"} in waits
-    assert {"Director", "Menu Designer"} in waits
-    assert {"Director", "Programmer", "QA Playtester"} in waits
+    # G2: the Game Designer and every agent whose plan it holds; G3/G4: every agent of the build
+    # (each posted its report first); G5: the Librarian.
+    team = {"Art Director", "Pixel Artist", "Programmer", "QA Playtester"}
+    assert any({"Director", "Game Designer"} | team <= w for w in waits)
+    assert any({"Director", "Menu Designer"} | team <= w and "Game Designer" not in w for w in waits)
     assert {"Director", "Librarian"} in waits
 
     agents = by_name(state)

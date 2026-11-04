@@ -7,6 +7,7 @@ import { ReferenceUpload, referenceUse } from "./References";
 import { ArtifactGroup } from "./ArtifactCard";
 import { GateCard } from "./GateCard";
 import { Markdown } from "./Markdown";
+import { ReportCard } from "./ReportCard";
 import {
   agentPath,
   artifactUrl,
@@ -66,6 +67,8 @@ function Item({ runId, item, queued }: { runId: string; item: ThreadItem; queued
       );
     case "progress":
       return <p className="progress">{item.text}</p>;
+    case "report":
+      return <ReportCard report={item.report} />;
     case "reference":
       return (
         <div className="bubble user reference">
