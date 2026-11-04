@@ -172,8 +172,10 @@ from .record import READY, record_game, serve, wait_until
 from .research import (
     Research,
     ResearchRecord,
+    fallback_level_research,
     fallback_research,
     fit_research,
+    level_research_prompt,
     research_prompt,
     structure_prompt,
 )
@@ -470,6 +472,19 @@ def finishable(record: LevelRecord, design: GameDesign, plan: PlanRecord,
     if record.solved:
         return record
     n, previous, body = record.spec.n, (earlier[-1] if earlier else None), player_body(design)
+    # First the Level Designer's own level without what nothing can get past (enemies nothing
+    # beats, gates no reachable lever opens): live 2026-11-04, a 150-column level was replaced
+    # by code's 27-column one over one unbeatable enemy.
+    for kinds in (("enemy",), ("enemy", "gate")):
+        spec = without_blockers(record.spec, kinds)
+        if spec == record.spec:
+            continue
+        gone = " and ".join({"enemy": "enemies", "gate": "gates"}[k] for k in kinds)
+        note = f"code removed {gone} nothing could get past so the level can be finished"
+        repaired = evaluate(spec, n, design, plan, previous, body, fps, record.retried,
+                            [*record.notes, note], record.by)  # fmt: skip
+        if repaired.solved:
+            return repaired
     why = (f"the Level Designer's level {n} could not be finished ({record.problems[0]}); "
            "code's level stands in") if record.problems else "code's level stands in"  # fmt: skip
     for variant in range(3):
@@ -479,6 +494,18 @@ def finishable(record: LevelRecord, design: GameDesign, plan: PlanRecord,
         if stand_in.solved:
             return stand_in
     return record
+
+
+def without_blockers(spec: LevelSpec, kinds: tuple[str, ...]) -> LevelSpec:
+    """The level without its enemies that cannot be beaten (opened_by 'never') and, with
+    "gate" in `kinds`, its gates and levers."""
+    gone = {e.char for e in spec.legend
+            if (e.kind == "enemy" and e.opened_by == "never") or (e.kind in {"gate", "lever"} and "gate" in kinds)}  # fmt: skip
+    if not gone:
+        return spec
+    rows = ["".join(" " if ch in gone else ch for ch in row) for row in spec.rows]
+    return spec.model_copy(update={"rows": rows,
+                                   "legend": [e for e in spec.legend if e.char not in gone]})
 
 
 def better_level(a: LevelRecord, b: LevelRecord) -> LevelRecord:
@@ -559,6 +586,32 @@ def write_research(models: Models, request: str, genre: str, genre_body: str,
     except ValidationError:
         research = models.ask("Game Designer", structure_prompt(found.text, found.sources),
                               Research, fallback, "research")  # fmt: skip
+        by += " (structured in a second call)"
+    return fit_research(research, found, by)
+
+
+def write_level_research(models: Models, design: GameDesign, plan: PlanRecord) -> ResearchRecord:
+    """The Level/Tile Designer studies the level design of similar platformers with live web
+    search (once per game; offline, or when the search fails, a stand-in that says so)."""
+    role, fallback = "Level/Tile Designer", fallback_level_research()
+    levels = "\n".join(f"- {lp.n}. {lp.name}: teaches {lp.teaching_goal}; new idea {lp.new_idea}"
+                       for lp in plan.plan.levels)  # fmt: skip
+    prompt = level_research_prompt(f"{design.title}: {design.pitch}\nLook: {design.look}", levels)
+    if not models.can_search:
+        answer = models.ask(role, prompt, Research, fallback, "research")
+        return fit_research(answer, None, "offline stand-in (no web search)")
+    try:
+        found = models.web_research(role, prompt, Research)
+    except ProviderError as exc:
+        record = fit_research(fallback, None, "offline stand-in: the web search failed")
+        record.notes.append(f"web search failed: {str(exc)[:300]}")
+        return record
+    by = f"{models.cfg.llm.model} with web search"
+    try:
+        research = Research.model_validate_json(found.content or "")
+    except ValidationError:
+        research = models.ask(role, structure_prompt(found.text, found.sources), Research,
+                              fallback, "research")  # fmt: skip
         by += " (structured in a second call)"
     return fit_research(research, found, by)
 

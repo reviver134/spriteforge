@@ -21,6 +21,9 @@ game:
   # The game's screen: 320x180 design pixels times screen_scale. 6 = 1920x1080 (a laptop's
   # full-HD screen; sprites keep 6x the pixels Muse drew, text is 6x bigger); 4 = 1280x720.
   screen_scale: 6
+  # The Level/Tile Designer studies the level design of similar platformers with web search
+  # (one search call per game, before the first level); its level prompts read the findings.
+  level_research: true
   # Muse Image's strength for every first draw: high (the API has low and high). Redraws and
   # the Art Reviewer's fixes use high as well.
   image_reasoning: high

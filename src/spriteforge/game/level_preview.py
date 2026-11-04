@@ -12,7 +12,8 @@ from .levels import LevelRecord, parse
 PX = 12  # pixels per tile
 COLORS = {"solid": (96, 112, 128), "one_way": (160, 128, 96), "hazard": (208, 64, 64),
           "breakable": (150, 150, 160), "crate": (176, 120, 60), "pickup": (244, 211, 94),
-          "enemy": (150, 70, 190), "checkpoint": (70, 140, 230), "exit": (90, 200, 120)}  # fmt: skip
+          "enemy": (150, 70, 190), "checkpoint": (70, 140, 230), "exit": (90, 200, 120),
+          "lever": (240, 160, 40), "gate": (120, 130, 150)}  # fmt: skip
 SKY, ROUTE, RULER = (24, 28, 44), (255, 255, 255), (70, 76, 96)
 
 

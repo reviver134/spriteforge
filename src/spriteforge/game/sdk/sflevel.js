@@ -26,8 +26,8 @@
   sf.halted = false;
   if (!data) return;
 
-  const KINDS = ['crate', 'breakable', 'pickup', 'enemy', 'checkpoint', 'exit'];
-  const SOLID = {crate: true, breakable: true};
+  const KINDS = ['crate', 'breakable', 'pickup', 'enemy', 'checkpoint', 'exit', 'lever', 'gate'];
+  const SOLID = {crate: true, breakable: true, gate: true};
   const PATROL_SPEED = 1.5;  // tiles/s
 
   /* The route bot is the autoplay of a level game (the game does not write one). */
@@ -149,6 +149,8 @@
     };
     scene.physics.add.collider(p, L.groups.crate, solid);
     scene.physics.add.collider(p, L.groups.breakable, solid);
+    scene.physics.add.collider(p, L.groups.gate, solid);
+    scene.physics.add.overlap(p, L.groups.lever, (_, o) => pull(L, o.getData('thing')));
     scene.physics.add.overlap(p, L.groups.pickup, touch);
     scene.physics.add.overlap(p, L.groups.enemy, touch);
     scene.physics.add.overlap(p, L.groups.checkpoint, (_, o) => checkpoint(L, o.getData('thing')));
@@ -314,11 +316,59 @@
     return key;
   }
 
+  function leverArt(scene, T) {  // a lever on a base, handle up (pulled: flipped)
+    const key = '__sf_lever_' + T;
+    if (!scene.textures.exists(key)) {
+      const g = scene.make.graphics({x: 0, y: 0, add: false});
+      g.fillStyle(0x6a6a78).fillRect(T * 0.2, T * 0.75, T * 0.6, T * 0.25);
+      g.lineStyle(Math.max(2, T / 8), 0xc8c8d0).lineBetween(T * 0.5, T * 0.8, T * 0.75, T * 0.2);
+      g.fillStyle(0xe04040).fillCircle(T * 0.75, T * 0.2, T * 0.12);
+      g.generateTexture(key, T, T);
+      g.destroy();
+    }
+    return key;
+  }
+
+  function gateArt(scene, T) {  // one cell of iron bars
+    const key = '__sf_gate_' + T;
+    if (!scene.textures.exists(key)) {
+      const g = scene.make.graphics({x: 0, y: 0, add: false});
+      g.fillStyle(0x3a3a48).fillRect(0, 0, T, T * 0.12).fillRect(0, T * 0.88, T, T * 0.12);
+      g.fillStyle(0x8a8a9a);
+      for (let i = 0; i < 4; i++) g.fillRect(T * (0.08 + i * 0.25), 0, T * 0.1, T);
+      g.generateTexture(key, T, T);
+      g.destroy();
+    }
+    return key;
+  }
+
+  function pull(L, t) {  // a lever pulled: it stays down and opens every gate named for it
+    if (!t || t.taken || L.done) return;
+    t.taken = true;
+    const o = t.sprite;
+    if (o && o.active) {
+      const k = o.texture.key;
+      const anim = ['pull', 'pulled', 'on', 'active', 'open'].find(a => o.scene.anims.exists(k + ':' + a));
+      if (anim) o.anims.play({key: k + ':' + anim, repeat: 0}); else o.setFlipX(!o.flipX);
+      sf.fx('pickup', o.x, o.y, null, t.entity + ' lever');
+    }
+    sf.event('lever', {n: L.n, id: t.id});
+    const name = String(t.gives || '').trim().toLowerCase();
+    for (const g of L.list) {
+      if (g.kind === 'gate' && !g.open && String(g.needs || '').trim().toLowerCase() === name) api.open(g);
+    }
+    if (L.hooks.lever) {
+      try { L.hooks.lever(t); } catch (e) { sf.errors.push('lever hook: ' + e.message); }
+    }
+  }
+
   function place(scene, L, t, c, r) {
     const T = L.tile;
     const x = (c + 0.5) * T;
-    const o = t.kind === 'checkpoint' && !sf.has(t.entity)
-      ? scene.physics.add.sprite(x, (r + 0.5) * T, flag(scene, T))
+    // A checkpoint, lever or gate the design gave no art: the SDK draws one.
+    const drawn = !sf.has(t.entity) && {checkpoint: flag, lever: leverArt, gate: gateArt}[t.kind];
+    const o = drawn
+      ? scene.physics.add.sprite(x, (r + 0.5) * T, drawn(scene, T))
       : sf.sprite(scene, x, (r + 0.5) * T, t.entity);
     o.setData('thing', t);
     L.groups[t.kind].add(o);
@@ -339,7 +389,8 @@
   }
 
   function touched(L, t) {
-    if (!t || t.open || L.done) return;
+    if (!t || t.open || L.done || t.kind === 'gate') return;  // gates open by their lever
+    if (t.kind === 'lever') { pull(L, t); return; }
     const now = sf.clock.now;
     if (now - t.touched < 0.2) return;
     t.touched = now;

@@ -101,6 +101,9 @@ class GameConfig(Schema):
     # full-HD screen). Every sprite, tile, text and distance is that many times bigger, so a
     # sprite keeps more of the detail Muse drew and words stay readable.
     screen_scale: int = Field(default=6, ge=1, le=8)
+    # The Level/Tile Designer studies the level design of similar platformers with web search
+    # (one search call per game, before the first level) and its level prompts read it.
+    level_research: bool = True
     # Muse Image's strength for every first draw (the API has low and high; redraws and the
     # Art Reviewer's fixes use high too).
     image_reasoning: Literal["low", "high"] = "high"

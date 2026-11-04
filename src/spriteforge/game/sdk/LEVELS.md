@@ -30,7 +30,7 @@ the last level), goes to the next level by itself, and restarts from the first l
 after `win`. It sets `sf.state.level`, `x`, `y` and `time`; add yours with
 `Object.assign(sf.state, {...})`.
 
-Things (`L.list`, `L.things[id]`, `L.groups.crate|breakable|pickup|enemy|checkpoint|exit`):
+Things (`L.list`, `L.things[id]`, `L.groups.crate|breakable|pickup|enemy|checkpoint|exit|lever|gate`):
 `{id, kind, entity, col, row, needs, opened_by, holds, gives, sprite, open}`. `needs` is the
 ability that opens or beats it ('' = none), `opened_by` is 'touch', 'dash' or 'never',
 `holds` is the entity a crate drops, `gives` the ability a pickup (or a crate's drop) gives.
@@ -44,6 +44,10 @@ design says, following the data (the bot's route relies on it):
   `L.data.exclusive` replace each other: taking one drops the others).
 * enemy: when it can be beaten by the same rule: `sf.level.open(thing)`; otherwise the
   design's hurt rule (e.g. `sf.level.respawn('enemy')`, or knockback with a short cooldown).
+* lever and gate: the SDK handles them, write no code for them (`touch` is not called for
+  them). Touching a lever pulls it (it stays pulled, event `lever {n, id}`) and opens every
+  gate whose `needs` is the lever's `gives`, wherever the player is. An optional hook
+  `lever(thing)` runs after a pull.
 
 Helpers: `sf.level.open(t)` (plays its break or die row once with the break or kill effect,
 then removes it), `sf.level.drop(t)`, `sf.level.take(t)` (the pickup effect; a pickup that

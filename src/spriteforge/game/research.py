@@ -86,6 +86,46 @@ The human's request:
 {request.strip()}"""
 
 
+def level_research_prompt(design_text: str, levels: str) -> str:
+    return f"""Before laying out this platformer's levels, study the level design of well-regarded
+published platformers like it. Use web search. Find 3 to 6 games and, for each, a page about
+it that a search returned (url) and the level-design lesson to learn from it. Then:
+* patterns: how good levels use height and depth (upper routes, drops, more than one way),
+  puzzles (levers or switches and the doors they open, keys, coming back the way you came),
+  teaching a new idea safely, pacing and checkpoints, secrets and optional paths, and how
+  long a level runs; for each, how good games do it and how these levels could use it;
+* feel: the level numbers players expect: screens per level, seconds per level, checkpoints
+  per level, how much of a level is climbing or falling;
+* pitfalls: common level-design mistakes.
+References teach patterns only. Our levels are original: never copy a game's levels.
+Short, concrete sentences.
+
+The game:
+{design_text.strip()}
+
+The planned levels:
+{levels.strip()}"""
+
+
+def fallback_level_research() -> Research:
+    """Offline stand-in: level-design patterns without references (nothing was searched)."""
+    p = lambda name, how, use: Pattern(name=name, how=how, use=use)
+    return Research(
+        references=[],
+        patterns=[
+            p("height and depth", "levels climb to upper ledges and drop into lower rooms; the "
+              "way on is seldom one flat line", "give each level an upper and a lower stretch"),
+            p("lever puzzles", "a lever off the main path opens a gate on it; the player goes "
+              "up or down to pull it and comes back", "where a level teaches looking around"),
+            p("pacing", "a hard stretch, then a calm one with a checkpoint", "a checkpoint "
+              "after every challenge"),
+        ],
+        feel=[FeelNumber(name="level length", value="3 to 6 screens (60 to 120 tiles)",
+                         why="long enough to build an idea, short enough to retry")],
+        pitfalls=["one long flat corridor", "a gate whose lever cannot be found"],
+    )
+
+
 def structure_prompt(text: str, sources: list[WebSource]) -> str:
     """The second call when the searched answer did not fit the schema: structure it."""
     pages = "\n".join(f"- {s.url}" + (f" ({s.title})" if s.title else "") for s in sources[:40])
