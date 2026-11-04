@@ -132,6 +132,17 @@ python -m spriteforge mcp policy fetch fetch --no-confirm   # builds use only to
 
 `python -m spriteforge mcp disable fetch` takes it away again.
 
+The Programmer can look up Phaser 3.90 documentation with the Context7 MCP server (needs
+Node.js; the questions go to context7.com; an optional free CONTEXT7_API_KEY raises its limits):
+
+```bash
+python -m spriteforge mcp add context7 src/spriteforge/mcp/templates/context7.json
+python -m spriteforge mcp inspect context7
+python -m spriteforge mcp enable context7 --role Programmer
+python -m spriteforge mcp policy context7 resolve-library-id --no-confirm
+python -m spriteforge mcp policy context7 query-docs --no-confirm
+```
+
 ## Layout
 
 ```
