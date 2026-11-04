@@ -38,12 +38,17 @@ def current_round(store: Store, run_id: str) -> tuple[Gate, int] | None:
     if not history or gates.pending(run_id):
         return None
     last = history[-1]
+    if last.stage == "confirm":  # the plan answered: the work is its G4/G5 gate's round
+        i = next(i for i, g in enumerate(history) if g.id == last.parent_id)
+        return history[i], i + 1
     return (last, len(history)) if (last.stage, last.status) in REWINDABLE else None
 
 
 def rewinds(store: Store, run_id: str, gate_id: str) -> int:
+    # A correction of the Director's plan (game_confirm.py) starts the round again as well.
     return sum(1 for e in store.events(run_id)
-               if e.type == "round.rewound" and e.payload.get("gate") == gate_id)  # fmt: skip
+               if e.type in ("round.rewound", "round.replanned")
+               and e.payload.get("gate") == gate_id)  # fmt: skip
 
 
 def round_key(store: Store, run_id: str, gate: Gate, n: int) -> str:

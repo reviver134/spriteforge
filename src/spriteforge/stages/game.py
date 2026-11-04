@@ -68,8 +68,11 @@ After the G1 questions:
   game/vN/poster.png         (+ demo.mp4 with ffmpeg)
   game/vN/report.json        what was built and by whom, art sources, warnings, attempts, play link
   gate "playtest"            text -> Director splits it into design/art/code/level changes ->
-                             v(N+1); with Level n chosen on the form, the text goes to the Level
-                             Designer for level n only (same code and art, every level replayed)
+                             gate "confirm" (game_confirm.py: the plan as
+                             game/feedback/gate-n-plan.md; empty approves it, text corrects it
+                             and the Director plans again) -> v(N+1); with Level n chosen on
+                             the form, the text goes to the Level Designer for level n only
+                             (same code and art, every level replayed)
                              (a design change revises the plan too; entities that still exist
                              keep their locked art, only new ones are planned);
                              Apply on an art-review suggestion (form apply_suggestion=n) -> that
@@ -172,7 +175,7 @@ from spriteforge.game.structure import GameStructure, make_structure, structure_
 from spriteforge.game.title_art import TitleArt
 from spriteforge.memory.okf.store import KnowledgeStore
 
-from . import chat_changes
+from . import chat_changes, game_confirm
 from .asset_store import ProductionStore
 from .game_final import finish, open_final_gate
 from .game_record import (
@@ -192,7 +195,7 @@ from .intake import GameBrief
 from .references import images as reference_images
 from .rewind import LATE, round_key
 
-STAGES = {"design", "playtest", "final"}
+STAGES = {"design", "playtest", "final", "confirm"}
 ADD_STORY = "Add a story"
 WHOLE_GAME = "The whole game"
 # G2 and G4 offer a story while the game has none (named characters, a world, an arc).
@@ -1366,10 +1369,14 @@ def revised_design(ctx: GameContext, version: int, design: GameDesign, design_ve
 def game_step(store, run_id) -> bool:
     ctx = GameContext(store, run_id)
     history = Gates(store).all(run_id)
-    last = history[-1]
+    # After a confirm gate, the round is still the G4/G5 feedback gate's (game_confirm.py).
+    last, count, confirm = game_confirm.resolve(history)
+    if confirm is not None and confirm.status == "changes_requested":
+        game_confirm.replan(store, run_id, confirm, last, round_key(store, run_id, last, count))
     # n: this gate's number, the key of its round's checkpoints ("5.1" after a Go back).
-    n = round_key(store, run_id, last, len(history))
-    feedback = ((last.response.text if last.response else "") or "").strip()
+    n = round_key(store, run_id, last, count)
+    feedback = joined(((last.response.text if last.response else "") or "").strip(),
+                      *(f"Correction to your plan: {c}" for c in game_confirm.corrections(history, last)))  # fmt: skip
     has_story = latest_story(ctx) is not None
 
     if last.stage == "playtest" and last.status == "approved":
@@ -1563,6 +1570,12 @@ def game_step(store, run_id) -> bool:
 
         role = ("Level/Tile Designer" if picked is not None else "Art Reviewer") if applied else "Director"
         revision = ctx.once(f"game/feedback/gate-{n}-revision.json", Revision, director, role)
+        # The Director's reading of the human's words is shown for approval before any agent
+        # acts on it (an applied suggestion, one level's feedback or chat changes alone are the
+        # human's own instructions).
+        if applied is None and (said or not chat) and not game_confirm.confirmed(ctx, n):
+            game_confirm.open_confirm_gate(ctx, last, n, revision, feedback)
+            return False
         if revision.sound_only and ctx.cfg.game.sounds:
             # Only the sounds change: they are data, so the same build plays the revised ones
             # (no rebuild) unless they need an event the game's code does not emit yet.

@@ -273,8 +273,14 @@ def test_levels_show_results_unlock_and_continue(tmp_path, models):
 
 
 def submit(store, ident, text="", **kwargs):
+    """The single feedback box; the Director's plan for G4/G5 feedback is approved (tested in
+    test_game_confirm)."""
     ScriptedHuman([Feedback(action="submit", text=text, **kwargs)]).answer(Gates(store), ident)
     workflow_step(store, ident)
+    gate = Gates(store).pending(ident)
+    if gate is not None and gate.stage == "confirm":
+        ScriptedHuman([Feedback(action="submit", text="")]).answer(Gates(store), ident)
+        workflow_step(store, ident)
 
 
 def answer(store, ident, **kwargs):

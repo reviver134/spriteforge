@@ -254,8 +254,13 @@ def answer(store, ident, **kwargs):
 
 
 def through_menus(store, ident):
-    """G3 (the menus, L2.5) opens before the first G4: approve it (tested in test_game_flow)."""
+    """The Director's plan for G4/G5 feedback (tested in test_game_confirm) and G3 (the menus,
+    L2.5, before the first G4; tested in test_game_flow): approve them."""
     gate = Gates(store).pending(ident)
+    if gate is not None and gate.stage == "confirm":
+        ScriptedHuman([Feedback(action="submit", text="")]).answer(Gates(store), ident)
+        workflow_step(store, ident)
+        gate = Gates(store).pending(ident)
     if gate is not None and gate.stage == "menus":
         ScriptedHuman([Feedback(action="submit", text="")]).answer(Gates(store), ident)
         workflow_step(store, ident)

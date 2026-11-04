@@ -37,6 +37,7 @@ QUIET = {"memory.retrieved", "cost.reserved", "cost.succeeded", "cost.failed",
          # Chat and its bookkeeping: talking about the work is not doing it.
          "chat.user", "chat.agent", "chat.applied", "chat.unapplied", "rewind.declined",
          "run.stop_requested", "run.stop_cleared", "round.superseded", "round.rewound",
+         "round.replanned",
          # A plan or report is about the work (an agent's plan comes before it starts).
          "agent.report"}
 RUN_EVENTS = {"run.created", "run.failed", "run.completed", "run.retry_requested", "game.built",

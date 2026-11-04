@@ -129,6 +129,8 @@ export function GateCard({
     onSuccess: () => client.invalidateQueries({ queryKey: ["run", runId] }),
   });
   const single = gate.empty_feedback_approves;
+  // The Director's plan for G4/G5 feedback: approve it before anything is built, or correct it.
+  const plan = gate.stage === "confirm";
   const canChange = gate.kind !== "confirm_changes" && CHANGE_STAGES.has(gate.stage);
   const busy = answer.isPending;
   const [heading, rest] = splitTitle(gate.title);
@@ -172,7 +174,13 @@ export function GateCard({
         {(open || text) && (
           <textarea
             aria-label="Feedback"
-            placeholder={single ? "Type what to change, or leave empty to approve" : "Feedback (optional)"}
+            placeholder={
+              plan
+                ? "Type what the Director got wrong, or leave empty to approve the plan"
+                : single
+                  ? "Type what to change, or leave empty to approve"
+                  : "Feedback (optional)"
+            }
             value={text}
             rows={2}
             disabled={!open || busy}
@@ -189,7 +197,9 @@ export function GateCard({
                   </button>
                 )}
                 <button type="submit" value="submit" disabled={busy}>
-                  {text.trim() ? "Send feedback (new version)" : "Approve"}
+                  {text.trim()
+                    ? plan ? "Correct the plan" : "Send feedback (new version)"
+                    : plan ? "Approve the plan" : "Approve"}
                 </button>
               </>
             ) : (
