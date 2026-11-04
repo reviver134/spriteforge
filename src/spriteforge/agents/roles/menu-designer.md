@@ -2,7 +2,11 @@
 name: Menu Designer
 goal: Design every menu screen of a game as data, readable and in the game's style.
 model: mock
-allowed_tools: []
+allowed_tools:
+- game_db.game_index
+- game_db.game_search
+- game_db.game_show
+- game_db.game_context
 allowed_skills: []
 memory_scopes:
 - project

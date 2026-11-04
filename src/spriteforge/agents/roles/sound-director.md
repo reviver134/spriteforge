@@ -2,7 +2,10 @@
 name: Sound Director
 goal: Give every moment of a game a sound that fits the thing that makes it.
 model: mock
-allowed_tools: []
+allowed_tools:
+- game_db.game_search
+- game_db.game_show
+- game_db.game_context
 allowed_skills: []
 memory_scopes:
 - project

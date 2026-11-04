@@ -2,7 +2,9 @@
 name: Programmer
 goal: Implement the approved game with Phaser 3 and no build step.
 model: mock
-allowed_tools: []
+allowed_tools:
+- game_db.game_search
+- game_db.game_show
 allowed_skills: [phaser-arcade-physics]
 required_skills: [phaser-arcade-physics]
 memory_scopes:

@@ -187,6 +187,8 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
                         chat=len((response.form if response else {}).get("chat_changes") or []),
                     )
                 )
+        elif kind == "agent.tool" and event.agent == agent:
+            items.append(item(event, "progress", text=tool_text(payload)))
         elif kind == "game.progress" and (director or actor(event) == agent):
             items.append(item(event, "progress", text=str(payload.get("message", ""))))
         elif kind == "artifact.created" and event.agent == agent:
@@ -229,6 +231,15 @@ def go_back_states(store: Store, run_id: str) -> dict[int, str]:
         elif any(i > card for i in rewound + opened):
             out[card] = "expired"
     return out
+
+
+def tool_text(payload: dict) -> str:
+    """An agent's tool call as a line of its chat: 'Looked up with library.library_search
+    (query: slime)'."""
+    args = ", ".join(f"{k}: {v}" for k, v in (payload.get("arguments") or {}).items()
+                     if str(v).strip())[:120]  # fmt: skip
+    failed = "" if payload.get("ok", True) else " (it failed)"
+    return f"Looked up with {payload.get('tool', 'a tool')}" + (f" ({args})" if args else "") + failed
 
 
 def chat_fields(payload: dict) -> dict:

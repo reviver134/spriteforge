@@ -54,6 +54,12 @@ game:
   # Sounds (L2.7): the Sound Director picks a synthesised sound for every moment (one Spark
   # call; no audio files, no image calls); the SDK plays them, the build's sounds.html edits them.
   sounds: true
+  # Agent tools: in a live build each agent may look things up before it answers, with the
+  # tools its role grants (allowed_tools in agents/roles/*.md: the built-in library and game
+  # record MCP servers), its skills (load_skill) and your MCP tools granted to it that need no
+  # confirmation. Each round is one more Spark call; false: one call per answer, no tools.
+  agent_tools: true
+  tool_rounds: 3
   # (No story switch: the G1 brief decides. A story bible is written only when the human asks
   # for one; every game keeps its full record as an OKF bundle in runs/<id>/game/db.)
   max_code_kb: 200

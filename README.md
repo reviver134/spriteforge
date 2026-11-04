@@ -111,6 +111,12 @@ python -m spriteforge library --help                        # local art packs wi
 Agent roles are Markdown files in `src/spriteforge/agents/roles/`; built-in skills are in
 `src/spriteforge/skills/builtin/`.
 
+In a live build each agent may look things up before it answers (up to `game.tool_rounds`
+rounds): the built-in MCP tools its role grants (`allowed_tools`: `library.*` for the art
+library, `game_db.*` for the game's record), its skills (`load_skill`), and your MCP tools
+granted to it that you set to run without confirmation. Each lookup shows in the agent's
+chat. `game.agent_tools: false` in config.yaml turns this off (one call per answer).
+
 ## Layout
 
 ```

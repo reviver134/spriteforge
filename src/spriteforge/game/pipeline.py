@@ -203,6 +203,24 @@ from .structure import GameStructure, make_structure, structure_markdown
 from .title_art import TitleArt, make_title_art, manifest_images
 
 
+def tool_note(tools: dict, rounds: int) -> str:
+    return ("\n" f"Before you answer you may call your tools to look things up ({rounds} rounds at "
+            f"most): {', '.join(t.label for t in tools.values())}. Look up only what you need; "
+            "then answer with the JSON.")
+
+
+def tool_call(call: dict) -> tuple[str, dict]:
+    """(name, arguments) of an OpenAI-style or provider-neutral tool call."""
+    function = call.get("function") or call
+    arguments = function.get("arguments") or {}
+    if isinstance(arguments, str):
+        try:
+            arguments = json.loads(arguments or "{}")
+        except json.JSONDecodeError:
+            arguments = {}
+    return str(function.get("name", "")), arguments if isinstance(arguments, dict) else {}
+
+
 def role_prompt(role: str) -> str:
     r = load_roles()[role]
     return f"You are the {r.name} of a small game studio. Goal: {r.goal}\n{r.prompt}"
@@ -230,6 +248,10 @@ class Models:
         # agent -> the human's reference images (stages/references.py): every Spark call of
         # that agent sees them; the art agents' steer Muse Image's style.
         self.references: dict[str, list[bytes]] = {}
+        # The run's agent tools (game/agent_tools.py; None: one call per answer, no tools) and
+        # how many rounds of tool calls an answer may take (game.tool_rounds).
+        self.toolbox = None
+        self.tool_rounds = cfg.game.tool_rounds
 
     @property
     def name(self) -> str:
@@ -256,9 +278,13 @@ class Models:
         if refs:
             prompt += (f"\n\nThe human gave you {len(refs)} reference image(s): the last "
                        f"{len(refs)} image(s) attached. Follow them where they apply.")  # fmt: skip
+        # Tools only with a model that can call them (live Spark, or one a test injects).
+        tools = (self.toolbox.for_role(role)
+                 if self.toolbox and self.tool_rounds and (self.provider or not self.mock) else {})  # fmt: skip
+        system = role_prompt(role) + (tool_note(tools, self.tool_rounds) if tools else "")
         try:
             messages = [
-                Message(role="system", content=role_prompt(role)),
+                Message(role="system", content=system),
                 Message(role="user", content=prompt, images=[*images, *refs]),
             ]
             request = ChatRequest(
@@ -267,10 +293,42 @@ class Models:
                 cache_key=f"spriteforge-{task}" if task else None,
             )
             with acting(role):
+                if tools:
+                    return self.ask_with_tools(provider, request, schema, role, tools)
                 return chat_json(provider, request, schema)
         finally:
             if provider is not self.provider and hasattr(provider, "close"):
                 provider.close()
+
+    def ask_with_tools(self, provider, request: ChatRequest, schema, role: str, tools: dict):
+        """Up to `tool_rounds` rounds of tool calls, then the answer in `schema`. A round is one
+        Spark call; the last request offers no tools, so the model must answer."""
+        request = request.model_copy(deep=True)
+        request.tools = [t.spec() for t in tools.values()]
+        request.json_schema = schema.model_json_schema()
+        for _ in range(self.tool_rounds):
+            result = provider.chat(request)
+            if not result.tool_calls:
+                try:
+                    return schema.model_validate_json(result.content or "")
+                except ValidationError as exc:
+                    request.messages.append(Message(role="assistant", content=result.content or ""))
+                    request.messages.append(Message(role="user", content=f"Correct JSON errors: {exc}"))
+                    break
+            request.messages.append(Message(role="assistant", content=result.content,
+                                            tool_calls=result.tool_calls))  # fmt: skip
+            for call in result.tool_calls:
+                name, arguments = tool_call(call)
+                tool = tools.get(name)
+                answer = (self.toolbox.call(role, tool, arguments) if tool
+                          else f"Error: no tool named {name}; use one of {sorted(tools)}")  # fmt: skip
+                request.messages.append(Message(role="tool", tool_call_id=call.get("id"),
+                                                content=answer))  # fmt: skip
+        else:
+            request.messages.append(Message(role="user", content="No more tool calls: answer "
+                                            "now with the JSON."))  # fmt: skip
+        request.tools = []
+        return chat_json(provider, request, schema)
 
     @property
     def can_search(self) -> bool:

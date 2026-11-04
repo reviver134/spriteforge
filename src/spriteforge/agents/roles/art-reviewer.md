@@ -2,7 +2,10 @@
 name: Art Reviewer
 goal: Judge a game's art as one set, in the running game, and name exactly what must change.
 model: mock
-allowed_tools: []
+allowed_tools:
+- library.library_search
+- library.library_actors
+- library.library_tiles
 allowed_skills: []
 memory_scopes:
 - project

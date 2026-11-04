@@ -88,6 +88,7 @@ from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Gates, new_gate
 from spriteforge.core.team import AGENTS
 from spriteforge.game import team_reports as team
+from spriteforge.game.agent_tools import Toolbox
 from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
 from spriteforge.game.build import install_sounds
 from spriteforge.game.codegen import GameCode
@@ -219,7 +220,15 @@ class GameContext(ProductionStore):
         cache = Path(store.path).parent / "cache" / "muse-image"
         self.models = Models(self.cfg, budget, self.run.config["mock"], cache_dir=cache)
         self.models.references = reference_images(store, run_id, AGENTS)
+        # Each agent's granted tools: the library and game-record MCP servers, its skills.
+        self.toolbox = Toolbox(store, run_id, Path(store.path).parent, self.record)
+        if self.cfg.game.agent_tools:
+            self.models.toolbox = self.toolbox
         self.brief = GameBrief.model_validate(self.read("brief.json"))
+
+    def record(self):
+        """The game record for the agents' `game_db.*` tools, once code has written it."""
+        return self.db if (self.root / "game" / "db" / "index.md").is_file() else None
 
     @property
     def db(self):
@@ -599,6 +608,11 @@ def ensure_tasks(ctx: GameContext, version: int, design: GameDesign) -> team.Tas
     return team.TaskList.model_validate(ctx.read(name))
 
 
+def uses(ctx: GameContext, agent: str) -> list[str]:
+    """The tools and skills an agent can use in this build (none when agent tools are off)."""
+    return ctx.toolbox.describe(agent) if ctx.cfg.game.agent_tools else []
+
+
 def post_reports(ctx: GameContext, key: str, reports: list[tuple[str, dict]]) -> None:
     """Each agent's report card in its chat, once (a re-opened gate does not repeat them)."""
     done = {e.payload.get("key") for e in ctx.store.events(ctx.run_id) if e.type == "agent.report"}
@@ -616,7 +630,8 @@ def open_design_gate(ctx: GameContext, version: int) -> None:
     post_reports(ctx, f"design-v{version}", [
         ("Game Designer", team.payload("exit", f"What I did for design v{version}",
                                        team.exit_sections(mine), "")),
-        *((p.agent, team.payload("entry", f"My plan for '{design.title}'", team.entry_sections(p), ""))
+        *((p.agent, team.payload("entry", f"My plan for '{design.title}'",
+                                 team.entry_sections(p, uses(ctx, p.agent)), ""))
           for p in tasks.agents),
     ])  # fmt: skip
     story = "" if latest_story(ctx) else " (no story: choose Add a story to get one)"
@@ -644,6 +659,17 @@ def open_design_gate(ctx: GameContext, version: int) -> None:
     )  # fmt: skip
 
 
+def tool_use(ctx: GameContext) -> dict[str, list[str]]:
+    """agent -> the tools it called since the human's last answer (this round's build)."""
+    used: dict[str, list[str]] = {}
+    for e in ctx.store.events(ctx.run_id):
+        if e.type == "gate.responded":
+            used = {}
+        elif e.type == "agent.tool":
+            used.setdefault(e.agent, []).append(e.payload.get("tool", ""))
+    return used
+
+
 def team_report(ctx: GameContext, version: int) -> list[str]:
     """Build vN's exit reports: saved as the team report and posted in each agent's chat.
     Returns the agents that worked on the build (they ask for the G3/G4 approval)."""
@@ -652,6 +678,9 @@ def team_report(ctx: GameContext, version: int) -> list[str]:
     if name not in ctx.artifacts:
         report = ctx.read(f"{prefix}/report.json")
         reports = team.exit_reports(report, load_design(ctx, report["design_version"]))
+        looked = tool_use(ctx)
+        reports = [r.model_copy(update={"did": [*r.did, team.looked_up(looked[r.agent])]})
+                   if looked.get(r.agent) else r for r in reports]  # fmt: skip
         ctx.save(name, {"agents": [r.model_dump(mode="json") for r in reports]}, "Director")
         ctx.save(f"{prefix}/team-report.md",
                  team.team_markdown(reports, version, report["title"]).encode(), "Director",

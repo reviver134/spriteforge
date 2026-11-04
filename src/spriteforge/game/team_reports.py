@@ -224,11 +224,13 @@ def fit_tasks(answer: TaskList, fallback: TaskList) -> TaskList:
     return TaskList(agents=out)
 
 
-def entry_sections(p: AgentPlan) -> list[dict]:
+def entry_sections(p: AgentPlan, tools: list[str] = ()) -> list[dict]:
+    """`tools`: the MCP tools and skills the agent can use to look things up."""
     return [
         {"title": "Starts when (entry gate)", "points": p.starts_when},
         {"title": "What I will do", "points": p.tasks, "numbered": True},
         {"title": "Done when (exit gate)", "points": p.done_when},
+        *([{"title": "Tools and skills I can use", "points": list(tools)}] if tools else []),
     ]
 
 
@@ -361,6 +363,12 @@ def exit_reports(report: dict, design: GameDesign) -> list[AgentReport]:
             *([f"{len(issues) - fixed} smaller idea(s) are suggestions for you"] if len(issues) > fixed else []),
         ], checks=[(f"No big art problem left ({blocking} left)", not blocking)]))  # fmt: skip
     return [r.model_copy(update={"did": [clip(d) for d in r.did]}) for r in out]
+
+
+def looked_up(tools: list[str]) -> str:
+    counts = Counter(tools)
+    return clip(f"Looked things up {len(tools)} time(s) with my tools: "
+                + ", ".join(f"{t} ×{n}" if n > 1 else t for t, n in counts.most_common()))
 
 
 def exit_sections(r: AgentReport) -> list[dict]:
