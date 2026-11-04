@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from spriteforge.config import BudgetConfig, Config
 from spriteforge.core.cost import Budget, for_the_user
 from spriteforge.core.state import Store
+from spriteforge.stages.references import images
 
 Intent = Literal["question", "change"]
 
@@ -102,6 +103,7 @@ def answer_question(store: Store, run_id: str, agent: str, text: str, models=Non
         cfg = Config.model_validate(run.config.get("settings") or {})
         budget = Budget(store, run_id, BudgetConfig.model_validate(run.config.get("budget", {})))
         models = Models(cfg, budget, mock=bool(run.config.get("mock")))
+        models.references = images(store, run_id, [agent])
     fallback = ChatAnswer(
         answer=f"(Offline mock: no model is called.) I'm the {agent}. Ask again with a live "
         "Muse key for a real answer about my work."

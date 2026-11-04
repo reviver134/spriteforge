@@ -86,6 +86,7 @@ from pathlib import Path
 from spriteforge.config import BudgetConfig, Config
 from spriteforge.core.cost import Budget
 from spriteforge.core.gates import Gates, new_gate
+from spriteforge.core.team import AGENTS
 from spriteforge.game.art import ArtPick, ArtPlan, art_sheet
 from spriteforge.game.build import install_sounds
 from spriteforge.game.codegen import GameCode
@@ -185,6 +186,7 @@ from .game_record import (
     story_names,
 )
 from .intake import GameBrief
+from .references import images as reference_images
 from .rewind import LATE, round_key
 
 STAGES = {"design", "playtest", "final"}
@@ -215,6 +217,7 @@ class GameContext(ProductionStore):
         # Identical Muse requests are answered from <workspace>/cache/muse-image.
         cache = Path(store.path).parent / "cache" / "muse-image"
         self.models = Models(self.cfg, budget, self.run.config["mock"], cache_dir=cache)
+        self.models.references = reference_images(store, run_id, AGENTS)
         self.brief = GameBrief.model_validate(self.read("brief.json"))
 
     @property

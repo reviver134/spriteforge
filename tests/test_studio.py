@@ -184,6 +184,26 @@ def test_studio_smoke_in_browser(tmp_path):
             art = page.get_by_role("region", name="Chat with Pixel Artist")
             expect(art.locator(".image-grid img").first).to_be_visible()
 
+            # Phase 4: a reference image from the paperclip, once the rights are confirmed.
+            import io
+
+            from PIL import Image
+
+            mood = io.BytesIO()
+            Image.new("RGB", (40, 30), (120, 30, 160)).save(mood, "PNG")
+            page.get_by_label("Attach a reference image for the Pixel Artist").set_input_files(
+                files=[{"name": "mood.png", "mimeType": "image/png", "buffer": mood.getvalue()}]
+            )
+            upload = page.get_by_role("group", name="Add a reference")
+            add = upload.get_by_role("button", name="Add reference")
+            expect(add).to_be_disabled()
+            upload.get_by_label("I have the right to use this image").check()
+            add.click()
+            expect(art.locator(".bubble.reference")).to_contain_text(
+                "Reference for the Pixel Artist: mood.png"
+            )
+            expect(page.get_by_role("region", name="References")).to_contain_text("mood.png")
+
             agents.get_by_role("link", name="Game Designer").click()
             box = page.get_by_label("Message Game Designer")
             box.fill("Why did you pick this genre?")
@@ -217,9 +237,9 @@ def test_go_back_card_in_browser(tmp_path, monkeypatch):
     import threading
 
     import uvicorn
+    from test_chat_changes import answer_until
 
     from spriteforge.stages import game as game_stage
-    from test_chat_changes import answer_until
 
     monkeypatch.delenv("META_API_KEY", raising=False)
     store = Store(init_workspace(tmp_path) / "state.sqlite3")

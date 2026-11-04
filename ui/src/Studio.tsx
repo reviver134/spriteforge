@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { AgentList } from "./AgentList";
 import { Chat } from "./Chat";
+import { ReferencesPanel } from "./References";
 import { getJson, postJson, type Project, type RunAgents } from "./api";
 import { href, navClick } from "./nav";
 import { useRunEvents } from "./useRunEvents";
@@ -140,6 +141,7 @@ export function Studio({ runId, agent }: { runId: string; agent: string }) {
         />
       </main>
       <aside className="side">
+        <ReferencesPanel runId={runId} agent={agent} />
         {data && <CostPanel state={data} agent={agent} mock={project.data?.mock ?? false} />}
       </aside>
     </div>

@@ -1666,6 +1666,8 @@ class MuseOptions:
     adapt_size: bool = True
     workers: int = 4  # `game.image_workers`: Muse calls in flight at once
     reasoning: Literal["low", "high"] = "low"  # first attempt's strength (review fixes: high)
+    # The human's reference images (stages/references.py): every request takes their style.
+    style: list[bytes] = field(default_factory=list)
 
 
 class CallSlots:
@@ -1808,6 +1810,11 @@ class Muse:
                 + prompt
             )
             edit_of = old["version"]
+        if self.options.style:  # last: the earlier images keep their roles in the prompt
+            k = len(self.options.style)
+            refs = [*refs, *self.options.style][:10]
+            prompt += (f" The last {k} image(s) are the human's style reference: match their "
+                       "palette, shading and feel, not their content.")  # fmt: skip
         request = ImageRequest(prompt=prompt, size=spec.request_size, references=refs,
                                reasoning_strength=self.options.reasoning)  # fmt: skip
         return MuseJob(e, p, tuple(size), spec, rows, prompt, request,

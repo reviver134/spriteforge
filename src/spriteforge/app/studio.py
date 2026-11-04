@@ -7,7 +7,7 @@ import os
 import re
 from functools import cache
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from spriteforge.agents.workflow import WORKFLOW as AGENT_WORKFLOW
@@ -18,6 +18,7 @@ from spriteforge.core.security import redact
 from spriteforge.core.state import Store
 from spriteforge.core.usage import usage_report
 from spriteforge.stages.chat_changes import file_change, for_gate
+from spriteforge.stages.references import MAX_BYTES, ReferenceError, add_reference, references
 from spriteforge.stages.rewind import LATE, request_stop, round_info
 from spriteforge.stages.workflow import WORKFLOW as INTAKE
 
@@ -238,6 +239,26 @@ def studio_router(store: Store, workers: Workers, cfg: Config) -> APIRouter:
             "rewind": {"change": change, "round": info["round"], "working": working,
                        "build": info["build"], "cost": info["cost"]},
         }  # fmt: skip
+
+    @api.get("/runs/{id}/references")
+    def list_references(id: str):
+        require_run(id)
+        return {"references": references(store, id)}
+
+    @api.post("/runs/{id}/references", status_code=201)
+    async def upload_reference(id: str, file: UploadFile = File(...), agent: str = Form(...),
+                               rights: bool = Form(False)):  # fmt: skip
+        """A reference image for one agent (the Director: every agent), stored locked once the
+        human confirms they may use it (stages/references.py)."""
+        require_run(id)
+        require_agent(agent)
+        data = await file.read(MAX_BYTES + 1)
+        try:
+            ref = await asyncio.to_thread(add_reference, store, id, agent, file.filename or "",
+                                          data, rights)  # fmt: skip
+        except ReferenceError as exc:
+            raise HTTPException(400, str(exc)) from None
+        return ref
 
     @api.post("/runs/{id}/stop")
     def stop(id: str, body: Stop):

@@ -227,6 +227,9 @@ class Models:
         self.cfg, self.budget, self.mock = cfg, budget, mock
         self.provider, self.images, self.cache_dir = provider, images, cache_dir
         self.search = search
+        # agent -> the human's reference images (stages/references.py): every Spark call of
+        # that agent sees them; the art agents' steer Muse Image's style.
+        self.references: dict[str, list[bytes]] = {}
 
     @property
     def name(self) -> str:
@@ -249,10 +252,14 @@ class Models:
             if self.mock
             else MuseSparkProvider(self.cfg.llm, self.budget)
         )
+        refs = self.references.get(role, [])
+        if refs:
+            prompt += (f"\n\nThe human gave you {len(refs)} reference image(s): the last "
+                       f"{len(refs)} image(s) attached. Follow them where they apply.")  # fmt: skip
         try:
             messages = [
                 Message(role="system", content=role_prompt(role)),
-                Message(role="user", content=prompt, images=list(images)),
+                Message(role="user", content=prompt, images=[*images, *refs]),
             ]
             request = ChatRequest(
                 messages=messages,
@@ -862,6 +869,13 @@ def plan_new_art(models: Models, design: GameDesign, previous: ArtPlan,
     return previous.model_copy(update={"picks": kept + added})
 
 
+def art_style(models: Models) -> list[bytes]:
+    """The human's references for the art agents: Muse Image's style references."""
+    from spriteforge.stages.references import style
+
+    return style(getattr(models, "references", {}))
+
+
 def muse_options(cfg: Config, **changes) -> MuseOptions:
     return replace(
         MuseOptions(
@@ -887,7 +901,7 @@ def produce_art(
 ) -> ArtResult:
     generate, close = models.image_generator()
     try:
-        options = muse_options(cfg)
+        options = muse_options(cfg, style=art_style(models))
         return make_art(
             design,
             plan,
@@ -1272,7 +1286,8 @@ def review_art(
         log(f"  fixing {len(fixes)} blocking issue(s): {', '.join(f.entity for f in fixes)}")
         generate, close = models.image_generator("Art Reviewer")
         try:
-            options = muse_options(cfg, retries=0, reasoning=cfg.game.review_image_reasoning)
+            options = muse_options(cfg, retries=0, reasoning=cfg.game.review_image_reasoning,
+                                   style=art_style(models))  # fmt: skip
             notes += run_fixes(fixes, design, plan, art, generate=generate, options=options,
                                cache=models.image_cache(), version=version)  # fmt: skip
         finally:

@@ -8,22 +8,8 @@ from pydantic import BaseModel
 from spriteforge.core.cost import ALLOWANCE_EVENTS
 from spriteforge.core.gates import Gate, Gates
 from spriteforge.core.state import Event, Store
+from spriteforge.core.team import AGENTS
 from spriteforge.stages.chat_changes import changes
-
-# Execution order, as a real run calls them.
-AGENTS = [
-    "Director",
-    "Game Designer",
-    "Level/Tile Designer",
-    "Art Director",
-    "Pixel Artist",
-    "Menu Designer",
-    "Sound Director",
-    "Programmer",
-    "QA Playtester",
-    "Art Reviewer",
-    "Librarian",
-]
 
 # The agents whose work a gate reviews (the Director's chat shows every gate as well).
 GATE_OWNERS = {
@@ -169,6 +155,9 @@ def thread(store: Store, run_id: str, agent: str, after: int = 0) -> list[dict]:
             if "rewind" in payload:
                 fields["rewind"] = {**payload["rewind"], "state": offers.get(event.id, "open")}
             items.append(item(event, "chat", role="agent", **fields))
+        elif kind == "reference.added" and payload.get("agent") in (agent, "Director"):
+            # The Director's references are every agent's: shown in every chat.
+            items.append(item(event, "reference", reference=payload))
         elif kind == "round.rewound" and director:
             items.append(item(event, "run", type=kind, message=payload.get("message")))
         elif kind in {"gate.opened", "gate.responded"}:

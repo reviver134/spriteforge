@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { GoBackCard } from "./GoBackCard";
+import { ReferenceUpload, referenceUse } from "./References";
 
 import { ArtifactGroup } from "./ArtifactCard";
 import { GateCard } from "./GateCard";
 import { Markdown } from "./Markdown";
 import {
   agentPath,
+  artifactUrl,
   getJson,
   postJson,
   type ArtifactMeta,
@@ -64,6 +66,19 @@ function Item({ runId, item, queued }: { runId: string; item: ThreadItem; queued
       );
     case "progress":
       return <p className="progress">{item.text}</p>;
+    case "reference":
+      return (
+        <div className="bubble user reference">
+          <a href={artifactUrl(item.reference.id)} target="_blank" rel="noopener">
+            <img src={artifactUrl(item.reference.id)} alt={item.reference.file} />
+          </a>
+          <p>
+            Reference {item.reference.everyone ? "for every agent" : `for the ${item.reference.agent}`}:{" "}
+            {item.reference.file}
+          </p>
+          <span className="intent">{referenceUse(item.reference.agent)}</span>
+        </div>
+      );
     case "gate":
       return (
         <GateCard
@@ -133,6 +148,7 @@ export function Chat({
   });
   const end = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const [attached, setAttached] = useState<File | null>(null);
   const count = thread.data?.items.length ?? 0;
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
@@ -173,6 +189,11 @@ export function Chat({
         {send.error && <p className="error">{send.error.message}</p>}
         <div ref={end} />
       </div>
+      {attached && (
+        <div className="composer-tools">
+          <ReferenceUpload runId={runId} agent={agent} file={attached} onDone={() => setAttached(null)} />
+        </div>
+      )}
       {agent === "QA Playtester" && (
         <div className="composer-tools">
           <button
@@ -197,6 +218,19 @@ export function Chat({
           submit();
         }}
       >
+        <label className="attach" title="Add a reference image">
+          <span aria-hidden="true">📎</span>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            aria-label={`Attach a reference image for the ${agent}`}
+            onChange={(e) => {
+              const chosen = e.target.files?.[0];
+              if (chosen) setAttached(chosen);
+              e.target.value = "";
+            }}
+          />
+        </label>
         <textarea
           ref={box}
           aria-label={`Message ${agent}`}

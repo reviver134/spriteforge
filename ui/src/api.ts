@@ -40,6 +40,10 @@ export async function getJson<T>(path: string): Promise<T> {
   return parse<T>(await fetch(path));
 }
 
+export async function postForm<T>(path: string, form: FormData): Promise<T> {
+  return parse<T>(await fetch(path, { method: "POST", body: form }));
+}
+
 export async function postJson<T>(path: string, body: unknown): Promise<T> {
   return parse<T>(
     await fetch(path, {
@@ -117,6 +121,15 @@ export interface RunAgents {
   error: string | null;
 }
 
+/** A reference image the human gave an agent (the Director's: every agent). */
+export interface Reference {
+  id: string;
+  name: string;
+  file: string;
+  agent: string;
+  everyone: boolean;
+}
+
 /** The Go back card: a change to work a running round already did (docs/ui-plan.md, 3b). */
 export interface GoBack {
   change: number;
@@ -145,6 +158,7 @@ export type ThreadItem = ItemBase &
         rewind?: GoBack;
       }
     | { kind: "progress"; text: string }
+    | { kind: "reference"; reference: Reference }
     | { kind: "artifact"; artifact: ArtifactMeta }
     | { kind: "gate"; gate: Gate; artifacts: ArtifactMeta[] }
     | {
