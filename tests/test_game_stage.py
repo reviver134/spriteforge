@@ -344,6 +344,11 @@ def test_play_route_serves_only_the_build(tmp_path):
             f"/api/runs/{ident}/gates/{gate.id}", json={"action": "submit", "text": "more enemies"}
         )
         assert r.status_code == 200, r.text
+        # The Director's plan is confirmed first (empty feedback approves it), then v2 is built.
+        plan = Gates(store).pending(ident)
+        assert plan.title.startswith("G4 Confirm the plan")
+        r = client.post(f"/api/runs/{ident}/gates/{plan.id}", json={"action": "submit", "text": ""})
+        assert r.status_code == 200, r.text
         assert Gates(store).pending(ident).title.startswith("G4 Playtest v2")
 
 

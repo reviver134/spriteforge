@@ -3,6 +3,8 @@
 **Describe a game in a sentence. A team of AI agents builds a playable 2D pixel-art browser
 game, and you approve every step.**
 
+![Stormlight Keeper, a platformer SpriteForge built](docs/media/stormlight-keeper.gif)
+
 SpriteForge runs on your own machine. **Muse Spark** plans, designs, writes and repairs the
 game; **Muse Image** draws and revises its art. Eleven role-based agents carry the game from
 brief to finished build and pause at five human gates. Each finished game teaches the harness:
@@ -27,8 +29,30 @@ Built for the Meta Global AI Developer Hackathon (Oct 26 - Nov 4, 2026).
   before you do.
 - **Costs you can see.** Every Muse call is metered in a durable ledger, and each agent has its
   own $10 allowance.
-- **Runs offline.** Mock providers stand in for Muse, so the whole pipeline and its 520 tests
+- **Runs offline.** Mock providers stand in for Muse, so the whole pipeline and its 525 tests
   run without a key.
+
+![The studio: agents on the left, the run in the middle, costs on the right](docs/media/studio.png)
+
+## Games made with SpriteForge
+
+Each started as one sentence, went through all five gates, and was played and approved by a
+human. Every sprite, tile and title picture is Muse Image art or CC0/free-to-use library art.
+
+| | Game | Genre | Builds | Muse cost |
+| --- | --- | --- | --- | --- |
+| ![](docs/media/stormlight-keeper-1.png) | **Stormlight Keeper**: climb a storm-battered lighthouse and relight its lamps before the ship hits the rocks | Side-scrolling platformer | 3 | $1.77 |
+| ![](docs/media/pale-shores-2.png) | **Pale Shores: Three-Isle Hold**: command small squads against Viking landings across three islands | Real-time island defence | 10 | $4.89 |
+| ![](docs/media/tiny-kingdom-defense-2.png) | **Tiny Kingdom Defense**: build basic, splash and slow towers along a winding path for six waves | Tower defense | 3 | $1.66 |
+
+Gameplay clips: [Stormlight Keeper](docs/media/stormlight-keeper.gif) ·
+[Pale Shores](docs/media/pale-shores.gif) ·
+[Tiny Kingdom Defense](docs/media/tiny-kingdom-defense.gif)
+
+The builds count feedback rounds: Pale Shores took ten because a human playtest found the squads
+too weak to win, twice, and each round went back through the Director's plan. Two harness
+checks came out of these games: a HUD check (texts drawn over each other or off the screen fail
+the playtest) and a tile check (a ground tile drawn as an object on a background is redrawn).
 
 ## How a game gets made
 
