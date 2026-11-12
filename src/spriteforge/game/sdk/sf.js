@@ -182,14 +182,51 @@
   };
 
   /* ---------- HUD and menus ----------------------------------------------------------------- */
+  const hudTexts = [];  // the game's own sf.text objects (not the SDK's menus and banners)
   sf.text = function (scene, x, y, str, opts) {
     opts = opts || {};
     const s = sf.assets.scale || 1;
-    return scene.add.text(x, y, String(str), {
+    const t = scene.add.text(x, y, String(str), {
       fontFamily: 'monospace', fontSize: (opts.size || 8) * s + 'px', color: opts.color || '#e8e8f0',
       stroke: '#000000', strokeThickness: 2 * s,
     }).setScrollFactor(0).setDepth(opts.depth == null ? 1000 : opts.depth)
       .setOrigin(opts.originX || 0, opts.originY || 0);
+    if (!opts.sdk) { t._sfBorn = sf.clock.now; hudTexts.push(t); }
+    return t;
+  };
+  // The playtest's HUD check: the game's texts that are fixed to the camera and have been on
+  // screen for a while (so not a floating number) must not cover each other or run off the
+  // screen. Returns [{key, message}]; the key leaves the text out, so a counter that changes
+  // is reported once.
+  sf.hudProblems = function () {
+    const [w, h] = sf.screen(), s = sf.assets.scale || 1, out = [];
+    for (let i = hudTexts.length - 1; i >= 0; i--) if (!hudTexts[i].active) hudTexts.splice(i, 1);
+    const shown = hudTexts.filter(t => t.visible && t.alpha >= 0.5 && String(t.text).trim() &&
+      t.scrollFactorX === 0 && t.scrollFactorY === 0 && sf.clock.now - t._sfBorn >= 1.5 &&
+      t.scene && t.scene.sys.isActive() && t.scene.sys.isVisible());  // fmt: skip
+    const boxes = shown.map(t => {
+      const b = t.getBounds(), words = String(t.text).replace(/\s+/g, ' ').trim();
+      const size = Math.round(parseFloat(t.style.fontSize) / s);
+      const at = 'x ' + Math.round(t.x) + ', y ' + Math.round(t.y) + ', size ' + size;
+      return {l: b.x, t: b.y, r: b.right, b: b.bottom, at,
+              name: '"' + (words.length > 28 ? words.slice(0, 27) + '~' : words) + '" (' + at + ')'};  // fmt: skip
+    });
+    boxes.forEach((a, i) => {
+      if (a.l < -s || a.t < -s || a.r > w + s || a.b > h + s) {
+        out.push({key: 'off ' + a.at, message: 'HUD text ' + a.name + ' runs off the ' + w + 'x' + h +
+          ' screen: it covers x ' + Math.round(a.l) + '-' + Math.round(a.r) + ', y ' + Math.round(a.t) +
+          '-' + Math.round(a.b) + '.'});  // fmt: skip
+      }
+      for (const b of boxes.slice(i + 1)) {
+        const ow = Math.min(a.r, b.r) - Math.max(a.l, b.l), oh = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+        const small = Math.min((a.r - a.l) * (a.b - a.t), (b.r - b.l) * (b.b - b.t));
+        if (ow > 0 && oh > 0 && small > 0 && ow * oh >= 0.4 * small) {
+          out.push({key: 'over ' + a.at + ' / ' + b.at,
+                    message: 'HUD text ' + a.name + ' is drawn over ' + b.name + '.'});
+        }
+      }
+    });
+    return out.slice(0, 12);
   };
   sf.bar = function (scene, x, y, w, h, color) {
     const back = scene.add.rectangle(x, y, w, h, 0x000000, 0.6).setOrigin(0, 0)
@@ -211,9 +248,9 @@
     const lineH = 12 * s, boxH = (22 + options.length * 12) * s, top = (h - boxH) / 2;
     const parts = [scene.add.rectangle(w / 2, h / 2, Math.min(w - 16 * s, 260 * s), boxH, 0x10121c, 0.94)
       .setStrokeStyle(s, 0xf4d35e).setScrollFactor(0).setDepth(depth)];
-    parts.push(sf.text(scene, w / 2, top + 4 * s, title, {originX: 0.5, color: '#f4d35e', depth: depth + 1}));
+    parts.push(sf.text(scene, w / 2, top + 4 * s, title, {originX: 0.5, color: '#f4d35e', depth: depth + 1, sdk: true}));
     const items = options.map((label, i) =>
-      sf.text(scene, w / 2, top + 18 * s + i * lineH, (i + 1) + '  ' + label, {originX: 0.5, depth: depth + 1}));
+      sf.text(scene, w / 2, top + 18 * s + i * lineH, (i + 1) + '  ' + label, {originX: 0.5, depth: depth + 1, sdk: true}));
     parts.push(...items);
     // QA tests see the open menu (and its 'menu' event) and pick from it with real keys.
     sf.menu = {title: String(title), options: options.map(String)};

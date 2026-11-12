@@ -1308,9 +1308,10 @@ def play(build_dir: Path, design: GameDesign, cfg: Config, levels: "LevelPack | 
     """The bot playtest: the whole session, or each level on its own."""
     if levels:
         return playtest_levels(build_dir, design.checks, levels.playtest(),
-                               fps=cfg.game.playtest_fps, capture=bool(capture))  # fmt: skip
+                               fps=cfg.game.playtest_fps, capture=bool(capture),
+                               hud=cfg.game.hud_check)  # fmt: skip
     return playtest(build_dir, design.checks, design.session_seconds, fps=cfg.game.playtest_fps,
-                    capture_at=capture)  # fmt: skip
+                    capture_at=capture, hud=cfg.game.hud_check)  # fmt: skip
 
 
 def replay(design: GameDesign, art: ArtResult, code: GameCode, cfg: Config, out: Path,

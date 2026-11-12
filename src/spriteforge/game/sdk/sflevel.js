@@ -191,7 +191,7 @@
 
     if (!(sf.flow && sf.flow.active)) {  // with menus the flow shows the level's intro
       const label = sf.text(scene, sf.screen()[0] / 2, 30 * s, 'Level ' + L.n + ': ' + L.name,
-                            {originX: 0.5, color: '#f4d35e'});  // fmt: skip
+                            {originX: 0.5, color: '#f4d35e', sdk: true});  // fmt: skip
       scene.time.delayedCall(1800, () => label.destroy());
     }
     sf.state.level = L.n;
@@ -424,7 +424,7 @@
       if (last) { L.over = true; sf.event('win'); } else sf.flow.levelDone(L.n);
       return;
     }
-    sf.text(scene, w / 2, h / 2, last ? 'YOU WIN!' : 'LEVEL CLEAR', {originX: 0.5, size: 12});
+    sf.text(scene, w / 2, h / 2, last ? 'YOU WIN!' : 'LEVEL CLEAR', {originX: 0.5, size: 12, sdk: true});
     if (last) {
       L.over = true;
       sf.event('win');

@@ -23,6 +23,19 @@ from .record import READY, serve, wait_until
 
 CHUNK_SECONDS = 30  # game seconds per browser call (keeps each evaluate short)
 GRACE_SECONDS = 30  # the session may end a little after its nominal length
+HUD_AT = 3.0  # game seconds: the first look at the HUD (then after every browser call)
+
+
+def look_at_hud(page, seen: dict[str, str]) -> None:
+    """Add what the SDK's HUD check finds now (texts over each other or off the screen) to
+    `seen`, by place, so a counter that changes is one problem. A build made before the check
+    has no `sf.hudProblems` and is not looked at."""
+    try:
+        found = page.evaluate("window.sf && window.sf.hudProblems ? window.sf.hudProblems() : []")
+    except PlaywrightError:
+        return
+    for f in found or []:
+        seen.setdefault(f["key"], f["message"])
 
 
 def evaluate_checks(checks: list[Check], counts: dict) -> list[dict]:
@@ -60,11 +73,13 @@ def playtest(
     *,
     fps: int = 30,
     capture_at: list[float] = (),
+    hud: bool = True,
 ) -> dict:
     """Run the build and return the report (also the repair input for the Programmer). With
     `capture_at`, the report has "screenshots": [{"t", "png" (bytes)}]; pop them before saving
     it as JSON."""
     errors: list[str] = []
+    hud_seen: dict[str, str] = {}
     ended, t, counts, state, sounds = "timeout", 0.0, {}, {}, {}
     limit = session_seconds + GRACE_SECONDS
     pending, shots = sorted(capture_at), []
@@ -86,6 +101,8 @@ def playtest(
                 chunk = min(CHUNK_SECONDS, limit - t)
                 if pending:
                     chunk = min(chunk, max(pending[0] - t, 1 / fps))
+                if hud and t < HUD_AT - 0.5 / fps:
+                    chunk = min(chunk, HUD_AT - t)
                 try:
                     result = page.evaluate(f"window.sfRun({chunk}, {fps})")
                 except PlaywrightError as exc:  # e.g. sfRun missing because sf.js broke
@@ -93,6 +110,8 @@ def playtest(
                     ended = "error"
                     break
                 t = float(result["t"])
+                if hud:
+                    look_at_hud(page, hud_seen)
                 if pending and t >= pending[0] - 0.5 / fps:
                     pending.pop(0)
                     shot()
@@ -119,12 +138,14 @@ def playtest(
     unique_errors = list(dict.fromkeys(errors))[:20]
     return {
         "passed": not unique_errors
+        and not hud_seen
         and ended not in {"no-boot", "stalled"}
         and all(r["ok"] for r in results),
         "ended": ended,
         "game_seconds": round(t, 1),
         "session_seconds": session_seconds,
         "errors": unique_errors,
+        "hud": list(hud_seen.values()),
         "checks": results,
         "events": {name: c["count"] for name, c in sorted(counts.items())},
         "state": state,
@@ -150,12 +171,13 @@ def merge_counts(per_level: list[dict]) -> dict:
 
 
 def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *, fps: int = 30,
-                    capture: bool = False) -> dict:  # fmt: skip
+                    capture: bool = False, hud: bool = True) -> dict:  # fmt: skip
     """Play each level on its own (`?level=n&only=1`) with the SDK's route bot in god mode and
     check the design's events over all levels. `levels`: [{"n", "name", "events", "steps"}]
     (the events each level makes happen). With `capture`, one drawn screenshot per level a few
     seconds in (for the art review)."""
     errors: list[str] = []
+    hud_seen: dict[str, str] = {}
     results, shots, counts_by_level, state, sounds = [], [], [], {}, {}
     with serve(Path(build_dir)) as url, sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
@@ -175,6 +197,8 @@ def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *,
                     chunk = min(CHUNK_SECONDS, limit - t)
                     if shot_at is not None:
                         chunk = min(chunk, max(shot_at - t, 1 / fps))
+                    if hud and t < HUD_AT - 0.5 / fps:
+                        chunk = min(chunk, HUD_AT - t)
                     try:
                         result = page.evaluate(f"window.sfRun({chunk}, {fps})")
                     except PlaywrightError as exc:
@@ -182,6 +206,8 @@ def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *,
                         ended = "error"
                         break
                     t = float(result["t"])
+                    if hud:
+                        look_at_hud(page, hud_seen)
                     if shot_at is not None and t >= shot_at - 0.5 / fps:
                         shot_at = None
                         data = page.evaluate(f"window.sfShot({fps})")
@@ -224,7 +250,8 @@ def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *,
     merged = merge_counts(counts_by_level)
     checked = evaluate_checks(checks, merged)
     unique_errors = list(dict.fromkeys(errors))[:20]
-    ok = all(r["ok"] for r in results) and all(c["ok"] for c in checked) and not unique_errors
+    ok = (all(r["ok"] for r in results) and all(c["ok"] for c in checked) and not unique_errors
+          and not hud_seen)  # fmt: skip
     worst = next((r["ended"] for r in results if not r["cleared"]), "cleared")
     return {
         "passed": ok and bool(results),
@@ -232,6 +259,7 @@ def playtest_levels(build_dir: Path, checks: list[Check], levels: list[dict], *,
         "game_seconds": round(sum(r["game_seconds"] for r in results), 1),
         "session_seconds": sum(LEVEL_SECONDS + STEP_SECONDS * lv.get("steps", 10) for lv in levels),
         "errors": unique_errors,
+        "hud": list(hud_seen.values()),
         "checks": checked,
         "events": {name: c["count"] for name, c in sorted(merged.items())},
         "state": state,
@@ -266,6 +294,16 @@ def failure_summary(report: dict) -> str:
     if report["ended"] == "stalled":
         lines.append("The game loop stopped advancing.")
     lines += [f"Runtime error: {e}" for e in report["errors"]]
+    if report.get("hud"):
+        lines += report["hud"][:8]
+        if len(report["hud"]) > 8:
+            lines.append(f"... and {len(report['hud']) - 8} more HUD problems of the same kind.")
+        lines.append(
+            "Fix the HUD: sf.text's x and y are screen pixels, but its size is in design pixels "
+            "(the SDK multiplies it by sf.assets.scale, so size 8 is 48 pixels tall on a "
+            "1920x1080 screen). Use size 8-12, put each line at least size * sf.assets.scale * "
+            "1.3 pixels below the one above, and keep every line inside the screen."
+        )
     for r in report["checks"]:
         if not r["ok"]:
             when = f" by {r['by_second']:g} s" if r["by_second"] else ""

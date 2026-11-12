@@ -307,7 +307,7 @@
     const [w, h] = sf.screen(), s = sf.assets.scale || 1;
     const add = o => { scene.parts.push(o); return o.setScrollFactor ? o.setScrollFactor(0) : o; };
     const text = (x, y, str, px, color, originX) => add(sf.text(scene, x, y, str, {
-      size: px, color: color, originX: originX == null ? 0.5 : originX, depth: DEPTH + 2}));  // fmt: skip
+      size: px, color: color, originX: originX == null ? 0.5 : originX, depth: DEPTH + 2, sdk: true}));  // fmt: skip
     const behindTitle = flow.state === 'title';
     if (behindTitle) {
       if (M.art && M.art.title && sf.has(M.art.title)) {
@@ -389,8 +389,8 @@
     if (!lv) return;
     const [w] = sf.screen(), s = sf.assets.scale || 1;
     menu.clearIntro();
-    const a = sf.text(menu, w / 2, 26 * s, 'Level ' + n + ': ' + lv.name, {size: HEAD, color: theme.highlight, originX: 0.5, depth: DEPTH - 1});
-    const b = sf.text(menu, w / 2, 42 * s, fit(lv.goal, ITEM * s, w - 24 * s), {size: ITEM, color: theme.text, originX: 0.5, depth: DEPTH - 1});
+    const a = sf.text(menu, w / 2, 26 * s, 'Level ' + n + ': ' + lv.name, {size: HEAD, color: theme.highlight, originX: 0.5, depth: DEPTH - 1, sdk: true});
+    const b = sf.text(menu, w / 2, 42 * s, fit(lv.goal, ITEM * s, w - 24 * s), {size: ITEM, color: theme.text, originX: 0.5, depth: DEPTH - 1, sdk: true});
     menu.intro = {parts: [a, b], until: sf.clock.now + 1.8};
   }
 

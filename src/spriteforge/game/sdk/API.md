@@ -84,6 +84,10 @@ the player fires); `sf.sound.play('<cue>')` plays a sound by its name. M mutes (
 
 ## HUD and menus (fixed to the camera)
 * `sf.text(this, x, y, 'HP 10', {size: 8, color: '#ffffff', originX: 0})` → Phaser Text.
+  `x`, `y` are screen pixels; `size` is in design pixels (the SDK multiplies it by
+  `sf.assets.scale`: size 8 is 48 pixels tall on a 1920x1080 screen). Use size 8-12 and put
+  each HUD line at least `size * sf.assets.scale * 1.3` pixels below the one above. The
+  playtest fails a build whose HUD texts cover each other or run off the screen.
 * `sf.bar(this, x, y, w, h, 0x5ad35a)` → `.set(fraction)` (also `setDepth`, `setVisible`, `destroy`).
 * `sf.choose(this, 'LEVEL UP', ['Damage +20%', 'Speed +10%', 'Max HP +2'], i => {...})`:
   a modal menu (keys 1-9, arrows + Enter, click). In autoplay it picks by itself. Pause play

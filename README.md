@@ -227,6 +227,7 @@ ids (`muse-spark-1.3`, `muse-image-1.0`), the reasoning effort per task and thes
 | `game.image_reasoning` | `high` | Muse Image's setting for every first draw |
 | `game.review` | `true` | The Art Reviewer checks the art before G4 |
 | `game.agent_tools` | `true` | Agents may call MCP tools and load skills in a live build |
+| `game.hud_check` | `true` | The bot playtest fails a build whose HUD texts cover each other or run off the screen |
 
 ## Project layout
 
