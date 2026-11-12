@@ -39,11 +39,13 @@ Built for the Meta Global AI Developer Hackathon (Oct 26 - Nov 4, 2026).
 Each started as one sentence, went through all five gates, and was played and approved by a
 human. Every sprite, tile and title picture is Muse Image art or CC0/free-to-use library art.
 
+Play them in your browser on itch.io:
+
 | | Game | Genre | Builds | Muse cost |
 | --- | --- | --- | --- | --- |
-| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/stormlight-keeper-1.png) | **Stormlight Keeper**: climb a storm-battered lighthouse and relight its lamps before the ship hits the rocks | Side-scrolling platformer | 3 | $1.77 |
-| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/pale-shores-2.png) | **Pale Shores: Three-Isle Hold**: command small squads against Viking landings across three islands | Real-time island defence | 10 | $4.89 |
-| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/tiny-kingdom-defense-2.png) | **Tiny Kingdom Defense**: build basic, splash and slow towers along a winding path for six waves | Tower defense | 3 | $1.66 |
+| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/stormlight-keeper-1.png) | **[Stormlight Keeper](https://reviver1234.itch.io/stormlight-keeper)**: climb a storm-battered lighthouse and relight its lamps before the ship hits the rocks | Side-scrolling platformer | 3 | $1.77 |
+| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/pale-shores-2.png) | **[Pale Shores: Three-Isle Hold](https://reviver1234.itch.io/pale-shores-three-isle-hold)**: command small squads against Viking landings across three islands | Real-time island defence | 10 | $4.89 |
+| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/tiny-kingdom-defense-2.png) | **[Tiny Kingdom Defense](https://reviver1234.itch.io/tiny-kingdom-defense)**: build basic, splash and slow towers along a winding path for six waves | Tower defense | 3 | $1.66 |
 
 Gameplay clips: [Stormlight Keeper](https://github.com/reviver134/spriteforge/blob/master/docs/media/stormlight-keeper.gif) ·
 [Pale Shores](https://github.com/reviver134/spriteforge/blob/master/docs/media/pale-shores.gif) ·
