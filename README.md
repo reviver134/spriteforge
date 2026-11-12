@@ -3,7 +3,7 @@
 **Describe a game in a sentence. A team of AI agents builds a playable 2D pixel-art browser
 game, and you approve every step.**
 
-![Stormlight Keeper, a platformer SpriteForge built](docs/media/stormlight-keeper.gif)
+![Stormlight Keeper, a platformer SpriteForge built](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/stormlight-keeper.gif)
 
 SpriteForge runs on your own machine. **Muse Spark** plans, designs, writes and repairs the
 game; **Muse Image** draws and revises its art. Eleven role-based agents carry the game from
@@ -32,7 +32,7 @@ Built for the Meta Global AI Developer Hackathon (Oct 26 - Nov 4, 2026).
 - **Runs offline.** Mock providers stand in for Muse, so the whole pipeline and its 525 tests
   run without a key.
 
-![The studio: agents on the left, the run in the middle, costs on the right](docs/media/studio.png)
+![The studio: agents on the left, the run in the middle, costs on the right](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/studio.png)
 
 ## Games made with SpriteForge
 
@@ -41,13 +41,13 @@ human. Every sprite, tile and title picture is Muse Image art or CC0/free-to-use
 
 | | Game | Genre | Builds | Muse cost |
 | --- | --- | --- | --- | --- |
-| ![](docs/media/stormlight-keeper-1.png) | **Stormlight Keeper**: climb a storm-battered lighthouse and relight its lamps before the ship hits the rocks | Side-scrolling platformer | 3 | $1.77 |
-| ![](docs/media/pale-shores-2.png) | **Pale Shores: Three-Isle Hold**: command small squads against Viking landings across three islands | Real-time island defence | 10 | $4.89 |
-| ![](docs/media/tiny-kingdom-defense-2.png) | **Tiny Kingdom Defense**: build basic, splash and slow towers along a winding path for six waves | Tower defense | 3 | $1.66 |
+| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/stormlight-keeper-1.png) | **Stormlight Keeper**: climb a storm-battered lighthouse and relight its lamps before the ship hits the rocks | Side-scrolling platformer | 3 | $1.77 |
+| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/pale-shores-2.png) | **Pale Shores: Three-Isle Hold**: command small squads against Viking landings across three islands | Real-time island defence | 10 | $4.89 |
+| ![](https://raw.githubusercontent.com/reviver134/spriteforge/master/docs/media/tiny-kingdom-defense-2.png) | **Tiny Kingdom Defense**: build basic, splash and slow towers along a winding path for six waves | Tower defense | 3 | $1.66 |
 
-Gameplay clips: [Stormlight Keeper](docs/media/stormlight-keeper.gif) ·
-[Pale Shores](docs/media/pale-shores.gif) ·
-[Tiny Kingdom Defense](docs/media/tiny-kingdom-defense.gif)
+Gameplay clips: [Stormlight Keeper](https://github.com/reviver134/spriteforge/blob/master/docs/media/stormlight-keeper.gif) ·
+[Pale Shores](https://github.com/reviver134/spriteforge/blob/master/docs/media/pale-shores.gif) ·
+[Tiny Kingdom Defense](https://github.com/reviver134/spriteforge/blob/master/docs/media/tiny-kingdom-defense.gif)
 
 The builds count feedback rounds: Pale Shores took ten because a human playtest found the squads
 too weak to win, twice, and each round went back through the Director's plan. Two harness
@@ -139,7 +139,15 @@ The Muse features the harness relies on, each verified with live calls (the note
 
 ## Quick start
 
-Requires Python 3.11+ and git. Node.js is optional (used to syntax-check generated code).
+Requires Python 3.11+. Node.js is optional (used to syntax-check generated code).
+
+```bash
+pip install spriteforge
+python -m playwright install chromium
+```
+
+To work on SpriteForge itself, install from a clone instead (this also gets you the tests and
+the CC0 art packs in `assets/library/`):
 
 ```bash
 git clone https://github.com/reviver134/spriteforge.git && cd spriteforge
@@ -148,14 +156,18 @@ pip install -e ".[dev]"
 python -m playwright install chromium
 ```
 
+Installed with pip, the art library lives in `~/spriteforge-workspace/library` (or the folder
+`SPRITEFORGE_LIBRARY` names) and starts empty: add packs with `spriteforge library add`, or let
+Muse Image draw everything.
+
 **Offline (no key):**
 
 ```bash
 python -m spriteforge start --agents --mock --workspace workspace
 ```
 
-**Live with Muse:** put your key in the environment or in a `.env` file in the repo root
-(`.env` is gitignored), then start without `--mock`:
+**Live with Muse:** put your key in the environment or in a `.env` file in the folder you start
+from (in a clone, `.env` is gitignored), then start without `--mock`:
 
 ```bash
 echo META_API_KEY=your-key > .env
@@ -296,7 +308,7 @@ npm run build   # type-checks, then rewrites src/spriteforge/app/static/
 
 ## License
 
-SpriteForge is released under the [MIT License](LICENSE). Bundled third-party parts keep their
+SpriteForge is released under the [MIT License](https://github.com/reviver134/spriteforge/blob/master/LICENSE). Bundled third-party parts keep their
 own licenses:
 
 - Phaser 3.90.0 (MIT) in `src/spriteforge/templates/phaser/vendor/`;

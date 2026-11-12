@@ -23,7 +23,14 @@ from PIL import Image
 from .models import AssetEntry, Pack
 
 IMAGE_EXT = {".png", ".gif", ".bmp", ".webp"}
-DEFAULT_ROOT = Path(__file__).parents[3] / "assets" / "library"
+CHECKOUT_ROOT = Path(__file__).parents[3] / "assets" / "library"
+# A source checkout keeps its library in the repo; an installed package (pip) has no repo, and
+# the path above would point into the Python installation, so packs go to the workspace.
+DEFAULT_ROOT = (
+    CHECKOUT_ROOT
+    if (CHECKOUT_ROOT.parent.parent / "pyproject.toml").is_file()
+    else Path.home() / "spriteforge-workspace" / "library"
+)
 
 
 def library_root(root: Path | None = None) -> Path:

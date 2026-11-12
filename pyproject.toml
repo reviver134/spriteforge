@@ -1,15 +1,40 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "spriteforge"
 version = "0.1.0"
+description = "Describe a game in a sentence: Muse-powered AI agents build a playable pixel-art browser game, and you approve every step."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "reviver134" }]
+keywords = ["game-development", "pixel-art", "phaser", "ai-agents", "multi-agent", "llm", "mcp", "procedural-generation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Software Development :: Code Generators",
+]
 requires-python = ">=3.11"
-dependencies = ["pillow>=10", "numpy>=1.26", "pydantic>=2", "httpx>=0.27", "typer>=0.12", "fastapi>=0.115", "uvicorn>=0.31.1", "pyyaml>=6", "python-dotenv>=1", "mcp>=1.28,<2", "sse-starlette>=1.6.1,<3", "jsonschema>=4", "playwright>=1.48"]
+dependencies =["pillow>=10", "numpy>=1.26", "pydantic>=2", "httpx>=0.27", "typer>=0.12", "fastapi>=0.115", "uvicorn>=0.31.1", "pyyaml>=6", "python-dotenv>=1", "mcp>=1.28,<2", "sse-starlette>=1.6.1,<3", "jsonschema>=4", "playwright>=1.48"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.9", "playwright>=1.48"]
+
+[project.urls]
+Homepage = "https://github.com/reviver134/spriteforge"
+Source = "https://github.com/reviver134/spriteforge"
+Issues = "https://github.com/reviver134/spriteforge/issues"
+Changelog = "https://github.com/reviver134/spriteforge/releases"
 
 [project.scripts]
 spriteforge = "spriteforge.cli:app"
@@ -18,7 +43,7 @@ spriteforge = "spriteforge.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-spriteforge = ["config.yaml", "app/*.html", "app/static/*", "app/static/assets/*", "pixel/palettes/*.json", "memory/okf/seeds/*.yaml", "agents/roles/*.md", "skills/builtin/*/SKILL.md", "mcp/templates/*.json", "prompts/*.txt", "templates/phaser/*", "templates/phaser/vendor/*", "game/sdk/*", "game/*.js", "library/tilesets/*"]
+spriteforge = ["config.yaml", "app/*.html", "app/static/*", "app/static/assets/*", "pixel/palettes/*.json", "memory/okf/seeds/*.yaml", "agents/roles/*.md", "skills/builtin/*/SKILL.md", "skills/builtin/*.md", "skills/builtin/*.txt", "memory/README.md","mcp/templates/*.json", "prompts/*.txt", "templates/phaser/*", "templates/phaser/vendor/*", "game/sdk/*", "game/*.js", "library/tilesets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
