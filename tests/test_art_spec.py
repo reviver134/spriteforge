@@ -407,3 +407,37 @@ def test_tile_that_does_not_repeat_is_blended(budget):
     assert "edges blended by code: the drawn tile did not repeat" in floor.reasons
     assert floor.record["problems"] == []
     assert seams_match(Image.open(io.BytesIO(floor.png)))
+
+
+def test_tile_drawn_as_an_object_on_a_backdrop_is_redrawn(budget):
+    """Live 2026-11-12: a grass tile came back as a cube on a black square and reached G4."""
+    from spriteforge.game.art import OBJECT_PROBLEM, ArtPlan, object_on_backdrop
+
+    cube = np.zeros((16, 16, 3), dtype=np.uint8)  # black square, a green block in the middle
+    cube[3:13, 3:13] = (70, 170, 70)
+    rng = np.random.default_rng(1)
+    grass = np.clip(np.array([70, 170, 70]) + rng.integers(-12, 12, (16, 16, 3)), 0, 255).astype(np.uint8)
+    path = grass.copy()  # a sand path with grass edges is a surface too
+    path[4:12, :] = (215, 180, 140)
+    assert object_on_backdrop(Image.fromarray(cube))
+    assert not object_on_backdrop(Image.fromarray(grass))
+    assert not object_on_backdrop(Image.fromarray(path))
+    assert not object_on_backdrop(Image.new("RGB", (16, 16), (20, 20, 24)))  # a flat dark floor
+
+    d = fallback_design("arena")
+    d.entities = [e for e in d.entities if e.role in {"player", "tile"}]
+    plan = ArtPlan(variant="normal", picks=[muse_pick("floor", "a grass floor")])
+    big = lambda a: png(Image.fromarray(a).resize((1024, 1024), Image.Resampling.NEAREST))
+    mock, asked = MockImageProvider(budget), []
+
+    def generate(request, edit):  # the cube first, the surface when told what was wrong
+        if "seamless square game tile" not in request.prompt:
+            return mock.generate(request).data
+        asked.append(request)
+        return big(grass) if "The last attempt was wrong" in request.prompt else big(cube)
+
+    floor = make_art(d, plan, generate=generate).filled["floor"]
+    assert len(asked) == 2 and OBJECT_PROBLEM in asked[1].prompt
+    assert "not an object standing on a background" in asked[0].prompt
+    assert floor.record["problems"] == []
+    assert not object_on_backdrop(Image.open(io.BytesIO(floor.png)))

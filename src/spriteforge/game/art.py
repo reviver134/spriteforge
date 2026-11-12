@@ -1112,7 +1112,12 @@ def muse_prompt(spec: ArtSpec, pick: ArtPick, has_ref: bool = False) -> str:
         "anti-aliasing, no gradients inside a cell"
     )
     if spec.role == "tile":
-        shape = f"One seamless square game tile. {cells}; the grid covers the whole image."
+        # A grass tile came back as a diamond, then a cube, on a black square (live 2026-11-12).
+        shape = (
+            f"One seamless square game tile. {cells}; the grid covers the whole image. It is a "
+            "flat patch of the surface that goes on past every edge, not an object standing on "
+            "a background: no cube, no diamond, no border, no background colour in the corners."
+        )
     elif spec.role == "background":
         # "A game background scene" with no style example came back with lightning bolts,
         # explosions and green blobs (the game's bolts and slimes), live 2026-11-01.
@@ -1422,6 +1427,26 @@ def make_tileable(tile: Image.Image) -> Image.Image:
 
 
 SEAM_PROBLEM = "the tile does not repeat: its left/right or top/bottom edges do not line up"
+OBJECT_PROBLEM = (
+    "the tile is drawn as an object on a plain background (its four corners are one flat colour "
+    "that is not the surface's): fill the whole square, corners included, with the surface"
+)
+
+
+def object_on_backdrop(tile: Image.Image) -> bool:
+    """A tile drawn as a thing on a backdrop, not as a surface: its four corners are the same
+    flat colour, far from its middle's. Live tiles: a diamond or cube of grass on black or
+    white had flat corners 80-168 from the middle (mean RGB difference); every surface tile
+    was at most 33, with textured or differing corners."""
+    rgb = np.asarray(tile.convert("RGB"), dtype=float)
+    h, w = rgb.shape[:2]
+    k = max(2, min(w, h) // 6)
+    corners = [rgb[:k, :k], rgb[:k, -k:], rgb[-k:, :k], rgb[-k:, -k:]]
+    means = np.array([c.reshape(-1, 3).mean(axis=0) for c in corners])
+    flat = max(c.reshape(-1, 3).std(axis=0).mean() for c in corners) < 4
+    alike = np.abs(means - means.mean(axis=0)).mean() < 4
+    middle = rgb[h // 3 : 2 * h // 3, w // 3 : 2 * w // 3].reshape(-1, 3).mean(axis=0)
+    return bool(flat and alike and np.abs(means.mean(axis=0) - middle).mean() > 50)
 
 
 def check_frame(spec: ArtSpec, frame: Image.Image, info: dict, aspect: bool = True) -> list[str]:
@@ -1431,6 +1456,8 @@ def check_frame(spec: ArtSpec, frame: Image.Image, info: dict, aspect: bool = Tr
     if not frame.getchannel("A").getbbox():
         return ["no subject: nothing usable was drawn on the magenta background"]
     problems = []
+    if spec.role == "tile" and object_on_backdrop(frame):
+        problems.append(OBJECT_PROBLEM)
     if spec.role == "tile" and not seams_match(frame):
         problems.append(SEAM_PROBLEM)
     if spec.role in {"tile", "background"}:
@@ -1857,7 +1884,12 @@ class Muse:
             prompt = muse_prompt(spec, p, ref is not None)
         refs = [png(ref)] if ref is not None else []
         edit_of = None
-        if old and old.get("raw"):  # feedback changed this entity: edit the previous image
+        # Feedback changed this entity: edit the previous image. A tile that was drawn as an
+        # object on a backdrop is drawn anew (an edit keeps its framing, so the object stays).
+        whole = old and old.get("raw") and not (
+            spec.role == "tile" and object_on_backdrop(Image.open(io.BytesIO(old["raw"])))
+        )
+        if whole:
             refs = [old["raw"], *refs]
             prompt = (
                 "Revise the FIRST image (the current sprite) as described; keep its framing and "
