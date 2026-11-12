@@ -51,10 +51,11 @@ Gameplay clips: [Stormlight Keeper](https://github.com/reviver134/spriteforge/bl
 [Pale Shores](https://github.com/reviver134/spriteforge/blob/master/docs/media/pale-shores.gif) ·
 [Tiny Kingdom Defense](https://github.com/reviver134/spriteforge/blob/master/docs/media/tiny-kingdom-defense.gif)
 
-The builds count feedback rounds: Pale Shores took ten because a human playtest found the squads
-too weak to win, twice, and each round went back through the Director's plan. Two harness
-checks came out of these games: a HUD check (texts drawn over each other or off the screen fail
-the playtest) and a tile check (a ground tile drawn as an object on a background is redrawn).
+The builds count feedback rounds. In Pale Shores' last five, the HUD and the island tiles were
+fixed, and a human playtest found the squads too weak to win, twice; each round went back
+through the Director's plan. Three harness checks came out of these games: a HUD check (texts
+drawn over each other or off the screen fail the playtest), a tile check (a ground tile drawn as
+an object on a background is redrawn), and menus that never open on a locked item.
 
 ## How a game gets made
 
