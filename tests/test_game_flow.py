@@ -122,6 +122,33 @@ def test_the_flow_with_real_keys(tmp_path, browser):
         assert p.menu() == "title"
 
 
+def test_the_cursor_skips_a_locked_continue(tmp_path, browser):
+    """Live 2026-11-12: a main menu listing Continue first opened with the cursor on it, locked
+    for a first-time player, and Enter did nothing."""
+    from spriteforge.game.menus import MenuItem
+
+    design = fallback_design("survive the arena")
+    structure = make_structure(design, None, False)
+    spec, _ = fit_menu(fallback_menu(design, structure), structure, design)
+    main = next(s for s in spec.screens if s.id == "main")
+    main.items.insert(0, MenuItem(label="Continue", action="continue"))
+    art = make_art(design, keyword_plan(design), generate=None)
+    build = build_game(tmp_path / "build", title=design.title, controls=design.controls,
+                       files=mock_code().as_dict(), assets=art.manifest(), images=art.files(),
+                       credits=[], menus=menus_script(spec, structure, design))  # fmt: skip
+    with serve(build) as url:
+        p = Page(browser, url, "headless=1&reset=1")
+        p.press("Enter")
+        assert p.menu() == "main" and p.js("window.sf.flow.index") == 1  # Start, not Continue
+        p.press("ArrowUp")  # wraps past the locked Continue to the last item
+        assert p.js("window.sf.flow.index") == len(main.items) - 1
+        p.press("ArrowDown")
+        assert p.js("window.sf.flow.index") == 1
+        p.press("Enter")
+        p.run(1)
+        assert p.menu() is None and "level_start" in p.events()
+
+
 def test_settings_and_progress_survive_a_reload_and_reset_clears_them(tmp_path, browser):
     build, _, _ = arena_build(tmp_path)
     with serve(build) as url:

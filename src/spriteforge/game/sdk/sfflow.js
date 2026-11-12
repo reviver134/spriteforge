@@ -185,7 +185,10 @@
     if (reset) stack.length = 0;
     else if (flow.screen && flow.screen !== id) stack.push(flow.screen);
     flow.screen = id;
+    // The cursor starts on the first item that can be picked: a first-time player's main menu
+    // may list a locked Continue first, and Enter on it did nothing (live, 2026-11-12).
     flow.index = 0;
+    if ((items(id)[0] || {}).locked) flow.index = move(0, 1);
     shownAt = 0;
     if (id === 'title') sf.event('title');
     sf.event('menu_open', {screen: id});
@@ -236,6 +239,16 @@
     }
     return out;
   }
+  // The next item from `from` in direction `dir` (1 down, -1 up) that is not locked, wrapping
+  // around; `from` itself when every other item is locked.
+  function move(from, dir) {
+    const list = items(flow.screen), n = list.length;
+    for (let k = 1; k <= n; k++) {
+      const i = (((from + dir * k) % n) + n) % n;
+      if (!list[i].locked) return i;
+    }
+    return from;
+  }
 
   function pick(index) {
     const id = flow.screen;
@@ -284,8 +297,8 @@
     if (!n) return;
     const digit = Number(k);
     if (digit >= 1 && digit <= Math.min(9, n)) return pick(digit - 1);
-    if (k === 'ArrowUp' || k === 'w' || k === 'W') flow.index = (flow.index + n - 1) % n;
-    else if (k === 'ArrowDown' || k === 's' || k === 'S') flow.index = (flow.index + 1) % n;
+    if (k === 'ArrowUp' || k === 'w' || k === 'W') flow.index = move(flow.index, -1);
+    else if (k === 'ArrowDown' || k === 's' || k === 'S') flow.index = move(flow.index, 1);
     else if (k === 'Enter' || k === ' ') return pick(flow.index);
     else if (k === 'Escape') return back();
     else return;
